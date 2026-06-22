@@ -1,0 +1,119 @@
+@import "tailwindcss";
+
+/* Dark mode is class-based (next-themes toggles `.dark` on <html>), not the
+   media query — so `dark:` utilities follow the user's chosen theme. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Design tokens — the single source of truth (DESIGN.md §3, §12.1). Light is
+   primary; dark is fully specified and stays warm (no cold gray). */
+:root {
+  --paper: #fcfbf8;
+  --surface: #ffffff;
+  --surface-sunken: #f6f4ef;
+  --border-subtle: #ece9e2;
+  --border-strong: #dad6cc;
+  --ink: #232020;
+  --ink-secondary: #5c574f;
+  --ink-muted: #8b847c;
+  --biro: #2c4bd8;
+  --biro-hover: #2440b8;
+  --biro-pressed: #1e37a0;
+  --biro-tint: #edf0fc;
+
+  --ok-bg: #e4f2ea;
+  --ok-fg: #256b4c;
+  --snz-bg: #faefd8;
+  --snz-fg: #8a5a12;
+  --warn-bg: #fbf0da;
+  --warn-fg: #8a5a12;
+  --danger-bg: #fbe9e7;
+  --danger-fg: #a33126;
+}
+
+.dark {
+  --paper: #18171a;
+  --surface: #201f23;
+  --surface-sunken: #1a191d;
+  --border-subtle: #2c2b30;
+  --border-strong: #3a3940;
+  --ink: #f4f2ec;
+  --ink-secondary: #b7b2a8;
+  --ink-muted: #87827a;
+  --biro: #7e93f0;
+  --biro-hover: #92a4f4;
+  --biro-pressed: #b9c5fa;
+  --biro-tint: #23284a;
+
+  --ok-bg: #19362a;
+  --ok-fg: #5fbe8e;
+  --snz-bg: #36280f;
+  --snz-fg: #e0a94b;
+  --warn-bg: #36280f;
+  --warn-fg: #e0a94b;
+  --danger-bg: #3a1f1c;
+  --danger-fg: #e8857b;
+}
+
+/* Map tokens to Tailwind utilities (DESIGN.md §12.2). `inline` keeps the
+   var() reference so utilities pick up the live light/dark value. Fonts come
+   from next/font (§12.3): --font-hanken (display) + --font-inter (body). */
+@theme inline {
+  --color-paper: var(--paper);
+  --color-surface: var(--surface);
+  --color-surface-sunken: var(--surface-sunken);
+  --color-border-subtle: var(--border-subtle);
+  --color-border-strong: var(--border-strong);
+  --color-ink: var(--ink);
+  --color-ink-secondary: var(--ink-secondary);
+  --color-ink-muted: var(--ink-muted);
+  --color-biro: var(--biro);
+  --color-biro-hover: var(--biro-hover);
+  --color-biro-pressed: var(--biro-pressed);
+  --color-biro-tint: var(--biro-tint);
+
+  --color-ok-bg: var(--ok-bg);
+  --color-ok-fg: var(--ok-fg);
+  --color-snz-bg: var(--snz-bg);
+  --color-snz-fg: var(--snz-fg);
+  --color-warn-bg: var(--warn-bg);
+  --color-warn-fg: var(--warn-fg);
+  --color-danger-bg: var(--danger-bg);
+  --color-danger-fg: var(--danger-fg);
+
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+  --radius-2xl: 28px;
+
+  --font-display: var(--font-hanken), ui-sans-serif, system-ui, sans-serif;
+  --font-body: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Base canvas — warm paper, ink text, body font, tabular numerals where they
+   count are opted in per-element. */
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Visible keyboard focus everywhere (DESIGN.md §11): 2px biro, 2px offset. */
+:where(a, button, [role="button"], input, textarea, select):focus-visible {
+  outline: 2px solid var(--biro);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}

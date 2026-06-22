@@ -1,0 +1,52 @@
+{
+  "name": "birthday-reminder-backend",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Birthday Reminder API server (Node + Express + TypeScript).",
+  "main": "dist/server.js",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/server.js",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "smoke": "tsx scripts/smoke-auth.ts",
+    "smoke:people": "tsx scripts/smoke-people.ts",
+    "smoke:reminders": "tsx scripts/smoke-reminders.ts",
+    "smoke:settings": "tsx scripts/smoke-settings.ts",
+    "smoke:stage6": "tsx scripts/smoke-stage6.ts",
+    "smoke:stage7": "tsx scripts/smoke-stage7.ts",
+    "smoke:stage8": "tsx scripts/smoke-stage8.ts",
+    "smoke:stage9": "tsx scripts/smoke-stage9.ts"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.6",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "helmet": "^8.2.0",
+    "jsonwebtoken": "^9.0.3",
+    "luxon": "^3.7.2",
+    "mongoose": "^9.7.1",
+    "morgan": "^1.11.0",
+    "node-cron": "^4.5.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.17.0",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^4.17.21",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/luxon": "^3.7.2",
+    "@types/morgan": "^1.9.10",
+    "@types/node": "^22.10.5",
+    "@types/node-cron": "^3.0.11",
+    "eslint": "^9.17.0",
+    "globals": "^15.14.0",
+    "mongodb-memory-server": "^11.2.0",
+    "prettier": "^3.4.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3",
+    "typescript-eslint": "^8.19.1"
+  }
+}

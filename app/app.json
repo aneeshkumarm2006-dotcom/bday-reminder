@@ -1,0 +1,84 @@
+{
+  "expo": {
+    "name": "Circle the date",
+    "slug": "app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "circlethedate",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "icon": "./assets/expo.icon",
+      "bundleIdentifier": "com.circlethedate.app",
+      "entitlements": {
+        "com.apple.security.application-groups": ["group.com.circlethedate.app.widget"]
+      }
+    },
+    "android": {
+      "package": "com.circlethedate.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "backgroundImage": "./assets/images/android-icon-background.png",
+        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "output": "static",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#FCFBF8",
+          "dark": {
+            "backgroundColor": "#18171A"
+          },
+          "android": {
+            "image": "./assets/images/splash-icon.png",
+            "imageWidth": 76
+          }
+        }
+      ],
+      "expo-secure-store",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Circle the date to add a photo to a person."
+        }
+      ],
+      [
+        "expo-contacts",
+        {
+          "contactsPermission": "Allow Circle the date to import birthdays from your contacts."
+        }
+      ],
+      "@bacons/apple-targets",
+      [
+        "react-native-android-widget",
+        {
+          "widgets": [
+            {
+              "name": "Birthdays",
+              "label": "Upcoming birthdays",
+              "description": "Your next 3 birthdays and events.",
+              "minWidth": "180dp",
+              "minHeight": "110dp",
+              "targetCellWidth": 4,
+              "targetCellHeight": 2,
+              "resizeMode": "horizontal|vertical",
+              "updatePeriodMillis": 1800000
+            }
+          ]
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    }
+  }
+}
