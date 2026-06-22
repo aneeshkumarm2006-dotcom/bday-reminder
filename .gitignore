@@ -1,6 +1,7 @@
 # AI / tooling
 _ai_context/
 .playwright-mcp/
+.claude/
 
 # Dependencies
 node_modules/
@@ -9,6 +10,13 @@ node_modules/
 dist/
 .next/
 *.tsbuildinfo
+
+# Expo / React Native
+app/.expo/
+app/expo-env.d.ts
+
+# VS Code
+.vscode/
 
 # Environment
 .env
