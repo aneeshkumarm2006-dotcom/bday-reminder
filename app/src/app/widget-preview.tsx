@@ -5,6 +5,7 @@ import { ActivityIndicator, Pressable, View } from 'react-native';
 
 import { DateRing } from '@/components/date-ring';
 import { Icon, Screen, Text } from '@/components/ui';
+import { cn, focusRing } from '@/lib/cn';
 import { ApiError, peopleApi } from '@/lib/api';
 import {
   buildWidgetPayload,
@@ -58,7 +59,8 @@ export default function WidgetPreviewScreen() {
           onPress={() => router.back()}
           hitSlop={10}
           accessibilityRole="button"
-          accessibilityLabel="Back">
+          accessibilityLabel="Back"
+          className={cn('rounded-full', focusRing)}>
           <Icon icon={ChevronLeft} size={24} />
         </Pressable>
         <Text variant="title">Home screen widget</Text>
@@ -115,8 +117,9 @@ function WidgetRow({ event, onPress }: { event: WidgetEvent; onPress: () => void
 
   return (
     <Pressable
-      className="flex-row items-center gap-3 py-2 active:opacity-70"
+      className={cn('flex-row items-center gap-3 rounded-sm py-2 active:opacity-70', focusRing)}
       accessibilityRole="button"
+      accessibilityLabel={event.name}
       onPress={onPress}>
       <DateRing
         day={event.day}

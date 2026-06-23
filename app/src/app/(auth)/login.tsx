@@ -4,6 +4,7 @@ import { KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from 'rea
 
 import { DateRing } from '@/components/date-ring';
 import { Button, Screen, Text, TextField } from '@/components/ui';
+import { cn, focusRing } from '@/lib/cn';
 import { ApiError } from '@/lib/api';
 import { monthAbbr, todayLocal } from '@/lib/dates';
 import { useAuth } from '@/providers/auth-provider';
@@ -95,7 +96,12 @@ export default function LoginScreen() {
               <Text variant="body" className="text-ink-secondary">
                 New here?
               </Text>
-              <Pressable onPress={() => router.push('/(auth)/sign-up')} hitSlop={8}>
+              <Pressable
+                onPress={() => router.push('/(auth)/sign-up')}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel="Create an account"
+                className={cn('rounded-sm', focusRing)}>
                 <Text variant="body" className="text-biro">
                   Create an account
                 </Text>

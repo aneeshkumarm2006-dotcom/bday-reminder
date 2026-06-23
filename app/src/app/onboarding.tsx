@@ -9,6 +9,7 @@ import {
   LeadTimeChips,
 } from '@/components/reminder-prefs';
 import { Button, Card, Icon, Label, Screen, Text, useToast } from '@/components/ui';
+import { cn, focusRing } from '@/lib/cn';
 import { configApi, type ChannelPreferences } from '@/lib/api';
 import { useAuth } from '@/providers/auth-provider';
 import { useTokens } from '@/theme/theme-provider';
@@ -79,7 +80,8 @@ export default function OnboardingScreen() {
           disabled={!!busy}
           hitSlop={10}
           accessibilityRole="button"
-          accessibilityLabel="Skip onboarding">
+          accessibilityLabel="Skip onboarding"
+          className={cn('rounded-sm', focusRing)}>
           <Text variant="label" className="text-ink-muted">
             Skip
           </Text>
@@ -173,7 +175,12 @@ function ChoiceCard({
 }) {
   const tint = useTokens().biro;
   return (
-    <Pressable onPress={onPress} disabled={disabled} accessibilityRole="button" accessibilityLabel={title}>
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      accessibilityRole="button"
+      accessibilityLabel={title}
+      className={cn('rounded-lg', focusRing)}>
       <Card className={`flex-row items-center gap-3 ${disabled && !loading ? 'opacity-60' : ''}`}>
         <View className="h-10 w-10 items-center justify-center rounded-full bg-surface-sunken">
           <Icon icon={icon} size={20} />

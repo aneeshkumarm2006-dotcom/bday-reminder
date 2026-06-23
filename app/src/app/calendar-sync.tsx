@@ -13,6 +13,7 @@ import {
   useConfirm,
   useToast,
 } from '@/components/ui';
+import { cn, focusRing } from '@/lib/cn';
 import { ApiError, calendarApi, type CalendarSyncSettings } from '@/lib/api';
 import { copyText } from '@/lib/clipboard';
 import { useTokens } from '@/theme/theme-provider';
@@ -98,7 +99,12 @@ export default function CalendarSyncScreen() {
     <Screen edges={['top', 'bottom']}>
       <Stack.Screen options={{ headerShown: false }} />
       <View className="flex-row items-center gap-2 pb-2 pt-3">
-        <Pressable onPress={() => router.back()} hitSlop={10} accessibilityRole="button" accessibilityLabel="Back">
+        <Pressable
+          onPress={() => router.back()}
+          hitSlop={10}
+          accessibilityRole="button"
+          accessibilityLabel="Back"
+          className={cn('rounded-full', focusRing)}>
           <Icon icon={ChevronLeft} size={24} />
         </Pressable>
         <Text variant="title" className="flex-1" numberOfLines={1}>

@@ -18,6 +18,7 @@ import {
   useConfirm,
   useToast,
 } from '@/components/ui';
+import { cn, focusRing } from '@/lib/cn';
 import {
   ApiError,
   listsApi,
@@ -121,7 +122,12 @@ export default function ListDetailScreen() {
     <Screen edges={['top', 'bottom']}>
       <Stack.Screen options={{ headerShown: false }} />
       <View className="flex-row items-center gap-2 pb-2 pt-3">
-        <Pressable onPress={() => router.back()} hitSlop={10} accessibilityRole="button" accessibilityLabel="Back">
+        <Pressable
+          onPress={() => router.back()}
+          hitSlop={10}
+          accessibilityRole="button"
+          accessibilityLabel="Back"
+          className={cn('rounded-full', focusRing)}>
           <Icon icon={ChevronLeft} size={24} />
         </Pressable>
         <Text variant="title" className="flex-1" numberOfLines={1}>
@@ -234,7 +240,13 @@ export default function ListDetailScreen() {
                 <Pressable
                   key={person.id}
                   onPress={() => router.push(`/person/${person.id}`)}
-                  className={`flex-row items-center justify-between active:opacity-70 ${i > 0 ? 'mt-3 border-t border-border-subtle pt-3' : ''}`}>
+                  accessibilityRole="button"
+                  accessibilityLabel={person.fullName}
+                  className={cn(
+                    'flex-row items-center justify-between rounded-sm active:opacity-70',
+                    focusRing,
+                    i > 0 && 'mt-3 border-t border-border-subtle pt-3',
+                  )}>
                   <View className="flex-1 pr-2">
                     <Text variant="cardName">{person.fullName}</Text>
                     {person.relationshipTag ? (
@@ -335,7 +347,7 @@ function MemberRow({
               hitSlop={8}
               accessibilityRole="button"
               accessibilityLabel={`Remove ${member.name}`}
-              className="active:scale-90">
+              className={cn('rounded-full active:scale-90', focusRing)}>
               <Icon icon={Trash2} size={18} color={t.inkMuted} />
             </Pressable>
           </View>
@@ -373,7 +385,7 @@ function InviteRow({
           hitSlop={8}
           accessibilityRole="button"
           accessibilityLabel="Revoke invite"
-          className="active:scale-90">
+          className={cn('rounded-full active:scale-90', focusRing)}>
           <Icon icon={Trash2} size={18} color={t.inkMuted} />
         </Pressable>
       </View>

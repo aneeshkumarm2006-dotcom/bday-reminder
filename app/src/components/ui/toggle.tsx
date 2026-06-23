@@ -14,10 +14,13 @@ export function Toggle({
   value,
   onValueChange,
   disabled,
+  accessibilityLabel,
 }: {
   value: boolean;
   onValueChange: (value: boolean) => void;
   disabled?: boolean;
+  /** Spoken name for the switch (the visible label is a sibling). */
+  accessibilityLabel?: string;
 }) {
   const tokens = useTokens();
   return (
@@ -25,6 +28,12 @@ export function Toggle({
       value={value}
       onValueChange={onValueChange}
       disabled={disabled}
+      accessibilityRole="switch"
+      accessibilityLabel={accessibilityLabel}
+      accessibilityState={{ checked: value, disabled }}
+      // State is conveyed by track color (biro on / border-strong off) AND the
+      // knob position, not color alone (§11). The raised white thumb reads on
+      // both tracks; a SR announces the named switch + checked state via the props.
       trackColor={{ false: tokens.borderStrong, true: tokens.biro }}
       thumbColor={tokens.surface}
       ios_backgroundColor={tokens.borderStrong}
@@ -58,7 +67,12 @@ export function ToggleRow({
           </Text>
         ) : null}
       </View>
-      <Toggle value={value} onValueChange={onValueChange} disabled={disabled} />
+      <Toggle
+        value={value}
+        onValueChange={onValueChange}
+        disabled={disabled}
+        accessibilityLabel={title}
+      />
     </View>
   );
 }

@@ -3,6 +3,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type ReactNode,
@@ -52,8 +53,12 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     if (timer.current) clearTimeout(timer.current);
   }, []);
 
+  // Stable identity so consumers that depend on the context value (e.g. a
+  // useCallback with `[toast]`) don't re-run every time a toast appears/hides.
+  const value = useMemo(() => ({ show }), [show]);
+
   return (
-    <ToastContext.Provider value={{ show }}>
+    <ToastContext.Provider value={value}>
       {children}
       {message !== null ? (
         <Animated.View

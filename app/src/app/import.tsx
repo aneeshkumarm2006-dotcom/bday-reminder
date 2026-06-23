@@ -20,6 +20,7 @@ import {
   TextField,
   useToast,
 } from '@/components/ui';
+import { cn, focusRing } from '@/lib/cn';
 import {
   ApiError,
   importApi,
@@ -217,7 +218,8 @@ export default function ImportScreen() {
           onPress={() => router.back()}
           hitSlop={10}
           accessibilityRole="button"
-          accessibilityLabel="Close">
+          accessibilityLabel="Close"
+          className={cn('rounded-full', focusRing)}>
           <Icon icon={X} size={24} />
         </Pressable>
       </View>
@@ -288,7 +290,12 @@ function InputPhase({
       keyboardShouldPersistTaps="handled"
       contentContainerStyle={{ paddingBottom: 32, gap: 20 }}>
       {!isWeb ? (
-        <Pressable onPress={onScan} disabled={busy} accessibilityRole="button" accessibilityLabel="Scan device contacts">
+        <Pressable
+          onPress={onScan}
+          disabled={busy}
+          accessibilityRole="button"
+          accessibilityLabel="Scan device contacts"
+          className={cn('rounded-lg', focusRing)}>
           <Card className="flex-row items-center gap-3">
             <View className="h-10 w-10 items-center justify-center rounded-full bg-surface-sunken">
               <Icon icon={Users} size={20} />

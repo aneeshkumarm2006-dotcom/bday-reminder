@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useState, type ReactNode } from 'react';
 import { Modal, Pressable, View } from 'react-native';
 
+import { cn, focusRing } from '@/lib/cn';
 import { useFloatingShadow } from '@/theme/theme-provider';
 
 import { Button } from './button';
@@ -69,7 +70,11 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
                 <Pressable
                   onPress={() => close(true)}
                   accessibilityRole="button"
-                  className="min-h-[44px] flex-row items-center justify-center rounded-md bg-danger-fg px-4 active:scale-[0.98]">
+                  accessibilityLabel={opts?.confirmLabel ?? 'Delete'}
+                  className={cn(
+                    'min-h-[44px] flex-row items-center justify-center rounded-md bg-danger-fg px-4 active:scale-[0.98]',
+                    focusRing,
+                  )}>
                   <Text variant="button" className="text-paper">
                     {opts?.confirmLabel ?? 'Delete'}
                   </Text>

@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { Brand } from "@/components/brand";
+import { MobileNav } from "@/components/mobile-nav";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { buttonVariants } from "@/components/ui/button";
 import { navLinks, siteConfig } from "@/lib/site";
@@ -38,6 +39,7 @@ export function SiteHeader() {
           >
             Open the app
           </Link>
+          <MobileNav />
         </div>
       </div>
     </header>

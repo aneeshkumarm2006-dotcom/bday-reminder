@@ -113,7 +113,7 @@ export function DateRing({
       <View style={[StyleSheet.absoluteFill, { transform: [{ rotate: '-4deg' }] }]}>
         <Svg width={box} height={box} viewBox="0 0 64 64">
           {filled ? (
-            <AnimatedPath d={RING_PATH} fill={t.biro} animatedProps={fillProps} />
+            <AnimatedPath testID="date-ring-fill" d={RING_PATH} fill={t.biro} animatedProps={fillProps} />
           ) : null}
           <AnimatedPath
             d={RING_PATH}
@@ -160,7 +160,7 @@ export function DateRing({
 
       {state === 'done' ? (
         <View style={styles.check} className="bg-ok-bg">
-          <Icon icon={Check} size={11} color={t.okFg} strokeWidth={3.5} />
+          <Icon icon={Check} size={11} color={t.okFg} strokeWidth={3.5} label="Done" />
         </View>
       ) : null}
     </View>

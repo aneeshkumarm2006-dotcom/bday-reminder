@@ -2,6 +2,7 @@ import { Check, ChevronDown } from 'lucide-react-native';
 import { useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 
+import { cn, focusRing } from '@/lib/cn';
 import { useTokens } from '@/theme/theme-provider';
 
 import { Icon } from './icon';
@@ -40,7 +41,12 @@ export function Select({
       <Pressable
         onPress={() => setOpen(true)}
         accessibilityRole="button"
-        className="min-h-[44px] flex-row items-center justify-between rounded-md border border-border-strong bg-surface px-3">
+        accessibilityLabel={label}
+        accessibilityValue={{ text: selected?.label ?? placeholder }}
+        className={cn(
+          'min-h-[44px] flex-row items-center justify-between rounded-md border border-border-strong bg-surface px-3',
+          focusRing,
+        )}>
         <Text variant="body" className={selected ? 'text-ink' : 'text-ink-muted'}>
           {selected?.label ?? placeholder}
         </Text>
@@ -62,7 +68,10 @@ export function Select({
                 }}
                 accessibilityRole="button"
                 accessibilityState={{ selected: isSelected }}
-                className="min-h-[48px] flex-row items-center justify-between border-b border-border-subtle">
+                className={cn(
+                  'min-h-[48px] flex-row items-center justify-between border-b border-border-subtle',
+                  focusRing,
+                )}>
                 <Text variant="body" className={isSelected ? 'text-ink' : 'text-ink-secondary'}>
                   {option.label}
                 </Text>

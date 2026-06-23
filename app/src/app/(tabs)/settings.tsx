@@ -7,7 +7,7 @@ import {
   Upload,
 } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
-import { Pressable, ScrollView, View } from 'react-native';
+import { ScrollView, View } from 'react-native';
 
 import {
   ChannelToggles,
@@ -139,55 +139,59 @@ export default function SettingsScreen() {
         </Text>
 
         <SectionLabel>Calendar</SectionLabel>
-        <Pressable onPress={() => router.push('/calendar-sync')}>
-          <Card className="flex-row items-center justify-between">
-            <View className="flex-row items-center gap-3">
-              <Icon icon={CalendarPlus} size={20} />
-              <Text variant="body">Calendar sync</Text>
-            </View>
-            <Icon icon={ChevronRight} size={20} />
-          </Card>
-        </Pressable>
+        <Card
+          onPress={() => router.push('/calendar-sync')}
+          accessibilityLabel="Calendar sync"
+          className="flex-row items-center justify-between">
+          <View className="flex-row items-center gap-3">
+            <Icon icon={CalendarPlus} size={20} />
+            <Text variant="body">Calendar sync</Text>
+          </View>
+          <Icon icon={ChevronRight} size={20} />
+        </Card>
         <Text variant="caption" className="mt-2 text-ink-muted">
           Subscribe to your birthdays in Apple, Google, or Outlook calendars.
         </Text>
 
         <SectionLabel>People</SectionLabel>
-        <Pressable onPress={() => router.push('/import')}>
-          <Card className="flex-row items-center justify-between">
-            <View className="flex-row items-center gap-3">
-              <Icon icon={Upload} size={20} />
-              <Text variant="body">Import people</Text>
-            </View>
-            <Icon icon={ChevronRight} size={20} />
-          </Card>
-        </Pressable>
+        <Card
+          onPress={() => router.push('/import')}
+          accessibilityLabel="Import people"
+          className="flex-row items-center justify-between">
+          <View className="flex-row items-center gap-3">
+            <Icon icon={Upload} size={20} />
+            <Text variant="body">Import people</Text>
+          </View>
+          <Icon icon={ChevronRight} size={20} />
+        </Card>
 
         <SectionLabel>Home screen</SectionLabel>
-        <Pressable onPress={() => router.push('/widget-preview')}>
-          <Card className="flex-row items-center justify-between">
-            <View className="flex-row items-center gap-3">
-              <Icon icon={LayoutGrid} size={20} />
-              <Text variant="body">Home screen widget</Text>
-            </View>
-            <Icon icon={ChevronRight} size={20} />
-          </Card>
-        </Pressable>
+        <Card
+          onPress={() => router.push('/widget-preview')}
+          accessibilityLabel="Home screen widget"
+          className="flex-row items-center justify-between">
+          <View className="flex-row items-center gap-3">
+            <Icon icon={LayoutGrid} size={20} />
+            <Text variant="body">Home screen widget</Text>
+          </View>
+          <Icon icon={ChevronRight} size={20} />
+        </Card>
         <Text variant="caption" className="mt-2 text-ink-muted">
           Your next 3 events on your phone&apos;s home screen. Add it from the home screen on
           iOS or Android.
         </Text>
 
         <SectionLabel>Design</SectionLabel>
-        <Pressable onPress={() => router.push('/ring-preview')}>
-          <Card className="flex-row items-center justify-between">
-            <View className="flex-row items-center gap-3">
-              <Icon icon={Sparkles} size={20} />
-              <Text variant="body">Ring preview</Text>
-            </View>
-            <Icon icon={ChevronRight} size={20} />
-          </Card>
-        </Pressable>
+        <Card
+          onPress={() => router.push('/ring-preview')}
+          accessibilityLabel="Ring preview"
+          className="flex-row items-center justify-between">
+          <View className="flex-row items-center gap-3">
+            <Icon icon={Sparkles} size={20} />
+            <Text variant="body">Ring preview</Text>
+          </View>
+          <Icon icon={ChevronRight} size={20} />
+        </Card>
 
         <View className="mt-8">
           <Button variant="secondary" fullWidth onPress={onLogout}>

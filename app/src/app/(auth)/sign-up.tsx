@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from 'react-native';
 
 import { Button, Screen, Text, TextField } from '@/components/ui';
+import { cn, focusRing } from '@/lib/cn';
 import { ApiError } from '@/lib/api';
 import { useAuth } from '@/providers/auth-provider';
 
@@ -94,7 +95,12 @@ export default function SignUpScreen() {
               <Text variant="body" className="text-ink-secondary">
                 Already have an account?
               </Text>
-              <Pressable onPress={() => router.replace('/(auth)/login')} hitSlop={8}>
+              <Pressable
+                onPress={() => router.replace('/(auth)/login')}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel="Log in"
+                className={cn('rounded-sm', focusRing)}>
                 <Text variant="body" className="text-biro">
                   Log in
                 </Text>

@@ -23,6 +23,7 @@ import {
   useToast,
   type SelectOption,
 } from '@/components/ui';
+import { cn, focusRing } from '@/lib/cn';
 import {
   ApiError,
   configApi,
@@ -351,7 +352,8 @@ export default function AddPersonScreen() {
           onPress={() => router.back()}
           hitSlop={10}
           accessibilityRole="button"
-          accessibilityLabel="Close">
+          accessibilityLabel="Close"
+          className={cn('rounded-full', focusRing)}>
           <Icon icon={X} size={24} />
         </Pressable>
       </View>
@@ -473,7 +475,10 @@ export default function AddPersonScreen() {
                   onPress={onPickPhoto}
                   accessibilityRole="button"
                   accessibilityLabel={photoUrl ? 'Change photo' : 'Add photo'}
-                  className="h-16 w-16 items-center justify-center overflow-hidden rounded-full bg-surface-sunken active:scale-95">
+                  className={cn(
+                    'h-16 w-16 items-center justify-center overflow-hidden rounded-full bg-surface-sunken active:scale-95',
+                    focusRing,
+                  )}>
                   {photoBusy ? (
                     <ActivityIndicator color={t.biro} />
                   ) : photoUrl ? (

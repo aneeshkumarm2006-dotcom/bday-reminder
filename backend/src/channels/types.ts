@@ -22,6 +22,8 @@ export interface ReminderPayload {
   /** Context for deep links / data payloads. */
   personId: string;
   reminderId: string;
+  /** Recipient id — lets the push channel prune its own dead device tokens. */
+  userId: string;
 }
 
 export type SendOutcome = 'sent' | 'skipped' | 'failed';
@@ -31,6 +33,8 @@ export interface SendResult {
   outcome: SendOutcome;
   /** Human-readable note for logs ("3 device(s)", "no RESEND_API_KEY"). */
   detail?: string;
+  /** Delivery attempts made (>1 means a transient failure was retried). */
+  attempts?: number;
 }
 
 export interface ChannelProvider {

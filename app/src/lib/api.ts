@@ -42,9 +42,27 @@ function parseJson(text: string): unknown {
   }
 }
 
-async function refreshAccessToken(): Promise<Tokens | null> {
+// Single-flight refresh: the backend rotates refresh tokens single-use, so if
+// several requests 401 at once each firing its own POST /auth/refresh, the first
+// wins and the rest present a now-revoked token → spurious sign-out. Dedupe to
+// one in-flight refresh and share its result among all waiters.
+let refreshInFlight: Promise<Tokens | null> | null = null;
+
+function refreshAccessToken(): Promise<Tokens | null> {
+  if (!refreshInFlight) {
+    refreshInFlight = doRefreshAccessToken().finally(() => {
+      refreshInFlight = null;
+    });
+  }
+  return refreshInFlight;
+}
+
+async function doRefreshAccessToken(): Promise<Tokens | null> {
   const current = await loadTokens();
   if (!current) return null;
+  // A network failure here throws (offline) and propagates out of apiFetch as a
+  // friendly connection error WITHOUT clearing tokens — only a real server 401
+  // on refresh signs the user out, below.
   const res = await fetch(`${API_URL}/auth/refresh`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

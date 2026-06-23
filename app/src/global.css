@@ -18,7 +18,9 @@
     --border-strong: #dad6cc;
     --ink: #232020;
     --ink-secondary: #5c574f;
-    --ink-muted: #8b847c;
+    /* WCAG AA: caption/secondary copy color must clear 4.5:1 on every surface
+       (was #8b847c ≈ 3.4:1). #6e675f ≈ 5.1:1 on the lightest surface. */
+    --ink-muted: #6e675f;
     --biro: #2c4bd8;
     --biro-hover: #2440b8;
     --biro-pressed: #1e37a0;
@@ -47,7 +49,8 @@
     --border-strong: #3a3940;
     --ink: #f4f2ec;
     --ink-secondary: #b7b2a8;
-    --ink-muted: #87827a;
+    /* WCAG AA in dark too (was #87827a ≈ 4.3:1 on surface). #9a948b ≈ 5.4:1. */
+    --ink-muted: #9a948b;
     --biro: #7e93f0;
     --biro-hover: #92a4f4;
     --biro-pressed: #b9c5fa;

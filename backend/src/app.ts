@@ -6,9 +6,11 @@ import morgan from 'morgan';
 import { loadEnv } from './lib/env';
 import { logger } from './lib/logger';
 import { errorHandler, notFoundHandler } from './middleware/error-handler';
+import { rateLimit } from './middleware/rate-limit';
 import { authRouter } from './routes/auth';
 import { calendarFeedRouter, calendarRouter } from './routes/calendar';
 import { configRouter } from './routes/config';
+import { devRouter } from './routes/dev';
 import { eventsRouter } from './routes/events';
 import { importRouter } from './routes/import';
 import { invitesRouter } from './routes/invites';
@@ -30,11 +32,59 @@ export function createApp(): Express {
   const app = express();
 
   app.disable('x-powered-by');
-  app.use(helmet());
+  // Explicit helmet config for a JSON API (Stage 12): a locked-down CSP (this
+  // host serves only JSON + the ICS feed, never HTML/scripts), no framing, and
+  // HSTS in production. Resources stay cross-origin-fetchable so the public
+  // calendar feed and the app/website can read the API.
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        useDefaults: false,
+        directives: {
+          defaultSrc: ["'none'"],
+          frameAncestors: ["'none'"],
+          baseUri: ["'none'"],
+          formAction: ["'none'"],
+        },
+      },
+      hsts: env.NODE_ENV === 'production' ? { maxAge: 15_552_000, includeSubDomains: true } : false,
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
+    }),
+  );
 
-  // Allow the app + website origins; non-browser clients (mobile, REST tools)
-  // have no Origin and are unaffected.
-  app.use(cors({ origin: [env.APP_ORIGIN, env.WEBSITE_ORIGIN], credentials: true }));
+  // Honor X-Forwarded-For so req.ip is the real client (rate-limit keying).
+  // Decoupled from the rate-limit flag and matched to the deploy topology via
+  // env: 1 hop in production by default, 0 (direct) elsewhere. Setting this wrong
+  // breaks the limiter, so it's explicit, not coupled to an unrelated feature.
+  app.set('trust proxy', env.TRUST_PROXY_HOPS ?? (env.NODE_ENV === 'production' ? 1 : 0));
+
+  // CORS first — before the rate limiters — so even a 429 carries
+  // Access-Control-Allow-Origin and the browser can read the friendly message
+  // (the limiter short-circuits to the error handler, skipping later middleware).
+  // Each origin may be a comma-separated list; non-browser clients (mobile, REST
+  // tools) have no Origin and are unaffected.
+  const allowedOrigins = [env.APP_ORIGIN, env.WEBSITE_ORIGIN].flatMap((s) =>
+    s.split(',').map((v) => v.trim()).filter(Boolean),
+  );
+  app.use(cors({ origin: allowedOrigins, credentials: true }));
+
+  // Rate limiting (Stage 12). On by default outside tests; a strict per-IP
+  // limiter guards each credential endpoint (independent counters so a login
+  // burst doesn't lock out signup) and a lenient global limiter caps flooding.
+  const limitEnabled = env.RATE_LIMIT_ENABLED ?? env.NODE_ENV !== 'test';
+  if (limitEnabled) {
+    app.use(
+      rateLimit({ windowMs: env.GLOBAL_RATE_LIMIT_WINDOW_MS, max: env.GLOBAL_RATE_LIMIT_MAX }),
+    );
+    const authLimiter = () =>
+      rateLimit({
+        windowMs: env.AUTH_RATE_LIMIT_WINDOW_MS,
+        max: env.AUTH_RATE_LIMIT_MAX,
+        message: 'Too many attempts. Please wait a few minutes and try again.',
+      });
+    app.use('/auth/login', authLimiter());
+    app.use('/auth/signup', authLimiter());
+  }
 
   // 8mb headroom for base64 photo uploads (FR-10); JSON bodies are otherwise tiny.
   app.use(express.json({ limit: '8mb' }));
@@ -68,6 +118,11 @@ export function createApp(): Express {
   app.use('/uploads', uploadsRouter);
   // Public, tokenized ICS feed — no auth (the URL token is the credential).
   app.use('/calendar', calendarFeedRouter);
+
+  // Dev/QA-only reminder triggers (TODO Stage 13). Never mounted in production.
+  if (env.NODE_ENV !== 'production') {
+    app.use('/dev', devRouter);
+  }
 
   app.use(notFoundHandler);
   app.use(errorHandler);

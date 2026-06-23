@@ -206,7 +206,8 @@ export async function dispatchDue(now: Date = new Date()): Promise<DispatchSumma
       await deliverReminder(reminder, now);
     } catch (err) {
       // The reminder is already persisted to the in-app feed; external channel
-      // failures are logged, not fatal (retry/backoff hardening is Stage 12).
+      // failures are retried with backoff inside each provider (Stage 12) and a
+      // throw here is logged, not fatal — the loop continues.
       logger.error('reminder delivery failed', err instanceof Error ? err.message : err);
     }
     sent += 1;
@@ -244,6 +245,7 @@ async function deliverReminder(reminder: ReminderDoc, now: Date = new Date()): P
     pushTokens: user.pushTokens,
     personId: person._id.toString(),
     reminderId: reminder._id.toString(),
+    userId: user._id.toString(),
   };
 
   // Apply the SMS/WhatsApp fair-use cap: under cap, SMS stays and we count it
@@ -260,6 +262,38 @@ async function deliverReminder(reminder: ReminderDoc, now: Date = new Date()): P
     await incrementSmsUsage(userId, smsPeriod(now));
   }
 
+  // Persist what actually happened per channel (status:'sent' only means the row
+  // was claimed + attempted). Flag a reminder that reached the in-app feed but
+  // failed every *external* channel so the failure is visible, not silent.
+  const external = results.filter((r) => r.channel !== 'inApp');
+  const attemptedExternal = external.filter((r) => r.outcome !== 'skipped');
+  const externalDeliveryFailed =
+    attemptedExternal.length > 0 && attemptedExternal.every((r) => r.outcome === 'failed');
+  // Guard on status:'sent' — a long retry window could overlap a user marking
+  // this occurrence done/snoozed; don't stamp delivery metadata onto a row the
+  // user has since changed (status is never written here, so the claim/idempotency
+  // guarantees are untouched regardless).
+  await Reminder.updateOne(
+    { _id: reminder._id, status: 'sent' },
+    {
+      $set: {
+        deliveryAttemptedAt: now,
+        deliveryResults: results.map((r) => ({
+          channel: r.channel,
+          outcome: r.outcome,
+          ...(r.detail ? { detail: r.detail } : {}),
+          ...(r.attempts ? { attempts: r.attempts } : {}),
+        })),
+        externalDeliveryFailed,
+      },
+    },
+  );
+
   const summary = results.map((r) => `${r.channel}:${r.outcome}`).join(' ');
   logger.info(`reminder ${reminder._id.toString()} → ${summary}`);
+  if (externalDeliveryFailed) {
+    logger.warn(
+      `reminder ${reminder._id.toString()} delivered in-app only — all external channels failed`,
+    );
+  }
 }

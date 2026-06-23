@@ -26,3 +26,5 @@ export const forbidden = (message = "You don't have access to this.") =>
 export const notFound = (message = "We couldn't find that.") =>
   new HttpError(404, message, { code: 'not_found' });
 export const conflict = (message: string) => new HttpError(409, message, { code: 'conflict' });
+export const tooManyRequests = (message = 'Too many requests. Please wait a moment and try again.') =>
+  new HttpError(429, message, { code: 'rate_limited' });

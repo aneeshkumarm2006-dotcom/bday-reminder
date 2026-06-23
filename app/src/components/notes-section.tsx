@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { Pressable, View } from 'react-native';
 
 import { Button, Card, Icon, Input, Text, useConfirm, useToast } from '@/components/ui';
+import { cn, focusRing } from '@/lib/cn';
 import { ApiError, notesApi, type Note } from '@/lib/api';
 import { relativeDate } from '@/lib/dates';
 import { useTokens } from '@/theme/theme-provider';
@@ -22,6 +23,7 @@ export function NotesSection({ personId, canEdit = true }: { personId: string; c
 
   const [notes, setNotes] = useState<Note[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [text, setText] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -30,9 +32,14 @@ export function NotesSection({ personId, canEdit = true }: { personId: string; c
     (async () => {
       try {
         const res = await notesApi.list(personId);
-        if (active) setNotes(res.notes);
+        if (active) {
+          setNotes(res.notes);
+          setLoadError(false);
+        }
       } catch {
-        // The section is non-critical; a transient error just shows the empty copy.
+        // Distinguish a load failure from genuinely having no notes — important
+        // on shared lists where notes may exist but couldn't be fetched.
+        if (active) setLoadError(true);
       } finally {
         if (active) setLoading(false);
       }
@@ -41,6 +48,20 @@ export function NotesSection({ personId, canEdit = true }: { personId: string; c
       active = false;
     };
   }, [personId]);
+
+  // Retry after a load failure (invoked from a button handler, never an effect).
+  const retryLoad = async () => {
+    setLoading(true);
+    setLoadError(false);
+    try {
+      const res = await notesApi.list(personId);
+      setNotes(res.notes);
+    } catch {
+      setLoadError(true);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const add = async () => {
     const value = text.trim();
@@ -101,7 +122,7 @@ export function NotesSection({ personId, canEdit = true }: { personId: string; c
                     hitSlop={8}
                     accessibilityRole="button"
                     accessibilityLabel="Delete note"
-                    className="active:scale-90">
+                    className={cn('rounded-full active:scale-90', focusRing)}>
                     <Icon icon={Trash2} size={18} color={t.inkMuted} />
                   </Pressable>
                 ) : null}
@@ -109,6 +130,15 @@ export function NotesSection({ personId, canEdit = true }: { personId: string; c
             </View>
           ))}
         </Card>
+      ) : loadError ? (
+        <View className="flex-row items-center justify-between gap-2">
+          <Text variant="caption" className="flex-1">
+            Couldn’t load notes.
+          </Text>
+          <Button variant="ghost" onPress={() => void retryLoad()}>
+            Retry
+          </Button>
+        </View>
       ) : !loading ? (
         <Text variant="caption" className="mb-1">
           No notes yet.

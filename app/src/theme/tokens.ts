@@ -38,7 +38,9 @@ export const lightTokens: Tokens = {
   borderStrong: '#DAD6CC',
   ink: '#232020',
   inkSecondary: '#5C574F',
-  inkMuted: '#8B847C',
+  // WCAG AA: ~5.1:1 on the lightest surface (was #8B847C ≈ 3.4:1). Keep in sync
+  // with --ink-muted in src/global.css.
+  inkMuted: '#6E675F',
   biro: '#2C4BD8',
   biroHover: '#2440B8',
   biroPressed: '#1E37A0',
@@ -61,7 +63,8 @@ export const darkTokens: Tokens = {
   borderStrong: '#3A3940',
   ink: '#F4F2EC',
   inkSecondary: '#B7B2A8',
-  inkMuted: '#87827A',
+  // WCAG AA in dark (~5.4:1 on surface; was #87827A ≈ 4.3:1). Sync with global.css.
+  inkMuted: '#9A948B',
   biro: '#7E93F0',
   biroHover: '#92A4F4',
   biroPressed: '#B9C5FA',

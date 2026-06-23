@@ -1,6 +1,6 @@
 import { Pressable } from 'react-native';
 
-import { cn } from '@/lib/cn';
+import { cn, focusRing } from '@/lib/cn';
 
 import { Text } from './text';
 
@@ -25,6 +25,7 @@ export function Chip({ label, selected = false, onPress }: ChipProps) {
       accessibilityState={{ selected }}
       className={cn(
         'min-h-[40px] flex-row items-center justify-center rounded-sm border px-3 active:scale-[0.98]',
+        focusRing,
         selected ? 'border-biro bg-biro-tint' : 'border-transparent bg-surface-sunken',
       )}>
       <Text variant="label" className={selected ? 'text-biro-pressed' : 'text-ink-secondary'}>

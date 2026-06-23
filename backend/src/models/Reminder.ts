@@ -29,6 +29,16 @@ export interface ReminderDoc {
   channels: ChannelKey[];
   snoozeUntil?: Date;
   sentAt?: Date;
+  /**
+   * Delivery outcome of the last dispatch attempt (Stage 12 observability).
+   * `status:'sent'` means "claimed + attempted", not "delivered" — these fields
+   * record what actually happened per external channel. `externalDeliveryFailed`
+   * flags a reminder that reached the in-app feed but failed every external
+   * channel (after retries), so failures aren't invisible.
+   */
+  deliveryAttemptedAt?: Date;
+  deliveryResults?: { channel: ChannelKey; outcome: string; detail?: string; attempts?: number }[];
+  externalDeliveryFailed?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -44,6 +54,12 @@ const reminderSchema = new Schema<ReminderDoc>(
     channels: { type: [String], enum: CHANNEL_KEYS, default: () => [] },
     snoozeUntil: { type: Date },
     sentAt: { type: Date },
+    deliveryAttemptedAt: { type: Date },
+    deliveryResults: {
+      type: [{ channel: String, outcome: String, detail: String, attempts: Number, _id: false }],
+      default: undefined,
+    },
+    externalDeliveryFailed: { type: Boolean },
   },
   { timestamps: true },
 );

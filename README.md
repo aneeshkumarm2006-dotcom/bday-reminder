@@ -87,6 +87,35 @@ npm run dev               # http://localhost:3000
 
 ---
 
+## Testing & QA
+
+Each package has its own test suite; CI (`.github/workflows/ci.yml`) runs them all
+on every push/PR. No Atlas or external accounts are needed — the backend tests and
+E2E run against an **in-memory MongoDB**.
+
+| Where | Command | What runs |
+| ----- | ------- | --------- |
+| `backend/` | `npm test` | Vitest unit + integration (supertest over the real app on in-memory Mongo) |
+| `backend/` | `npm run smoke` … `npm run smoke:stage12` | The end-to-end smoke suites (acceptance net) |
+| `app/` | `npm test` | Jest (jest-expo + Testing Library) component + logic tests |
+| `website/` | `npm run build` | Production build (type-checked) |
+| `e2e/` | `npm run test:ci` | Playwright web E2E (builds the app, boots the in-memory backend + static export) |
+
+**QA harness — drive the app with no Atlas, and fire a reminder on demand:**
+
+```bash
+cd backend
+npm run dev:memory        # API on :4040 backed by an ephemeral in-memory Mongo
+npm run seed              # demo user (demo@circlethedate.app / demopassword123) + sample people
+# trigger reminders for QA (dev-only; never mounted in production):
+#   POST http://localhost:4040/dev/reminders/run   { "email": "demo@circlethedate.app" }
+```
+
+The cross-platform manual acceptance matrix (web + iOS + Android) lives in
+`docs/qa-cross-platform-matrix.md`.
+
+---
+
 ## Conventions
 
 - **TypeScript everywhere.**

@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { Modal, Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { cn, focusRing } from '@/lib/cn';
 import { useFloatingShadow } from '@/theme/theme-provider';
 
 import { Icon } from './icon';
@@ -46,7 +47,12 @@ export function Sheet({
           {title ? (
             <View className="flex-row items-center justify-between px-5 pb-1 pt-3">
               <Text variant="heading">{title}</Text>
-              <Pressable onPress={onClose} hitSlop={10} accessibilityRole="button" accessibilityLabel="Close">
+              <Pressable
+                onPress={onClose}
+                hitSlop={10}
+                accessibilityRole="button"
+                accessibilityLabel="Close"
+                className={cn('rounded-full', focusRing)}>
                 <Icon icon={X} size={20} />
               </Pressable>
             </View>

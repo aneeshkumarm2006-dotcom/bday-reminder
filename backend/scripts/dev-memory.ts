@@ -8,6 +8,12 @@
  */
 import { MongoMemoryServer } from 'mongodb-memory-server';
 
+// Pin the in-memory MongoDB version so every entry point (tests, smokes, this
+// dev server, the E2E backend) reuses ONE cached binary instead of downloading
+// a different default — keeps CI fast and offline-friendly. Must be set before
+// MongoMemoryServer.create() reads it.
+process.env.MONGOMS_VERSION ??= '7.0.24';
+
 async function main(): Promise<void> {
   const mongod = await MongoMemoryServer.create();
 

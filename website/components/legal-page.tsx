@@ -28,7 +28,7 @@ export function LegalPage({
         <p className="mt-5 text-lg leading-relaxed text-ink-secondary">{intro}</p>
       ) : null}
       <div
-        className="mt-8 flex flex-col gap-6 leading-relaxed text-ink-secondary [&_a]:text-biro [&_a:hover]:underline [&_h2]:mt-2 [&_h2]:font-display [&_h2]:text-xl [&_h2]:font-semibold [&_h2]:text-ink [&_li]:ml-1 [&_strong]:font-medium [&_strong]:text-ink [&_ul]:flex [&_ul]:list-disc [&_ul]:flex-col [&_ul]:gap-2 [&_ul]:pl-5"
+        className="mt-8 flex flex-col gap-6 leading-relaxed text-ink-secondary [&_a]:text-biro [&_a]:underline [&_a]:underline-offset-2 [&_h2]:mt-2 [&_h2]:font-display [&_h2]:text-xl [&_h2]:font-semibold [&_h2]:text-ink [&_li]:ml-1 [&_strong]:font-medium [&_strong]:text-ink [&_ul]:flex [&_ul]:list-disc [&_ul]:flex-col [&_ul]:gap-2 [&_ul]:pl-5"
       >
         {children}
       </div>

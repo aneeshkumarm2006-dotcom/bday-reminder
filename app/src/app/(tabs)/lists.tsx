@@ -1,6 +1,6 @@
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Plus, Users } from 'lucide-react-native';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, ScrollView, View } from 'react-native';
 
 import { MemberAvatars } from '@/components/member-avatars';
@@ -33,15 +33,25 @@ export default function ListsScreen() {
   const [error, setError] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [joinOpen, setJoinOpen] = useState(false);
+  // Mirror of `lists` so the load callback can tell a first-load failure (show
+  // the full-screen error) from a refocus failure with data already on screen.
+  const listsRef = useRef<SharedListView[] | null>(null);
+  useEffect(() => {
+    listsRef.current = lists;
+  }, [lists]);
 
   const load = useCallback(async () => {
     setError(null);
     try {
       setLists((await listsApi.list()).lists);
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : "Couldn't load your lists. Try again.");
+      const msg = e instanceof ApiError ? e.message : "Couldn't load your lists. Try again.";
+      // Any prior successful load (incl. an empty list) keeps its view + a toast;
+      // only a true first-load failure (still null) shows the full-screen error.
+      if (listsRef.current !== null) toast.show(msg);
+      else setError(msg);
     }
-  }, []);
+  }, [toast]);
 
   useFocusEffect(
     useCallback(() => {
@@ -64,7 +74,7 @@ export default function ListsScreen() {
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator color={t.biro} />
         </View>
-      ) : error ? (
+      ) : error && !lists ? (
         <View className="flex-1 items-center justify-center gap-4 px-6">
           <Text variant="body" className="text-center text-ink-secondary">
             {error}

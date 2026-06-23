@@ -5,6 +5,7 @@ import { Pressable, ScrollView, View } from 'react-native';
 
 import { DateRing, type RingState } from '@/components/date-ring';
 import { Button, Card, Icon, Screen, Text } from '@/components/ui';
+import { cn, focusRing } from '@/lib/cn';
 
 /**
  * Design preview — exercises the ⭐ ring in every state and size and replays the
@@ -27,7 +28,12 @@ export default function RingPreviewScreen() {
   return (
     <Screen edges={['top', 'bottom']}>
       <View className="flex-row items-center gap-2 pb-2 pt-3">
-        <Pressable onPress={() => router.back()} hitSlop={10} accessibilityRole="button" accessibilityLabel="Back">
+        <Pressable
+          onPress={() => router.back()}
+          hitSlop={10}
+          accessibilityRole="button"
+          accessibilityLabel="Back"
+          className={cn('rounded-full', focusRing)}>
           <Icon icon={ChevronLeft} size={24} />
         </Pressable>
         <Text variant="title">Ring preview</Text>

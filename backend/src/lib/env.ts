@@ -21,8 +21,14 @@ const EnvSchema = z.object({
   // Stage 9; set it to the deployed API origin in production.
   API_PUBLIC_URL: z.string().default('http://localhost:4040'),
 
-  JWT_ACCESS_SECRET: z.string().min(16, 'JWT_ACCESS_SECRET must be a long random string'),
-  JWT_REFRESH_SECRET: z.string().min(16, 'JWT_REFRESH_SECRET must be a long random string'),
+  // HS256 keys should carry >=256 bits of entropy; require >=32 chars and
+  // generate with `openssl rand -base64 48` (see .env.example).
+  JWT_ACCESS_SECRET: z
+    .string()
+    .min(32, 'JWT_ACCESS_SECRET must be at least 32 random characters (openssl rand -base64 48)'),
+  JWT_REFRESH_SECRET: z
+    .string()
+    .min(32, 'JWT_REFRESH_SECRET must be at least 32 random characters (openssl rand -base64 48)'),
   JWT_ACCESS_EXPIRES_IN: z.string().default('15m'),
   JWT_REFRESH_EXPIRES_IN: z.string().default('30d'),
 
@@ -46,6 +52,25 @@ const EnvSchema = z.object({
   // per-user monthly cap is real and business-configurable (FR-55/56). Read from
   // here, never hardcoded into UI copy; the app fetches it from GET /config.
   SMS_WHATSAPP_MONTHLY_CAP: z.coerce.number().int().min(0).default(20),
+
+  // --- Rate limiting [Stage 12]. A strict limiter guards the credential
+  // endpoints (brute-force / enumeration) and a lenient one caps overall flood.
+  // Left unset, limiting is ON everywhere except NODE_ENV=test (so smokes aren't
+  // throttled); set RATE_LIMIT_ENABLED=true to exercise it in a test.
+  RATE_LIMIT_ENABLED: z
+    .enum(['true', 'false'])
+    .optional()
+    .transform((v) => (v == null ? undefined : v === 'true')),
+  AUTH_RATE_LIMIT_MAX: z.coerce.number().int().min(1).default(10),
+  AUTH_RATE_LIMIT_WINDOW_MS: z.coerce.number().int().min(1000).default(15 * 60 * 1000),
+  GLOBAL_RATE_LIMIT_MAX: z.coerce.number().int().min(1).default(300),
+  GLOBAL_RATE_LIMIT_WINDOW_MS: z.coerce.number().int().min(1000).default(60 * 1000),
+  // Number of trusted proxy hops in front of the app (Express `trust proxy`), so
+  // req.ip is the real client for rate-limit keying. MUST match the deploy
+  // topology: 0 = direct, 1 = one proxy (Render/Railway/Fly default). Defaults to
+  // 1 in production, 0 elsewhere. Set wrong and the limiter either lumps everyone
+  // under the proxy IP (0 too low) or trusts a spoofable XFF (too high).
+  TRUST_PROXY_HOPS: z.coerce.number().int().min(0).optional(),
 
   // node-cron dispatch cadence (FR-22). Every 15 min by default.
   REMINDER_DISPATCH_CRON: z.string().default('*/15 * * * *'),

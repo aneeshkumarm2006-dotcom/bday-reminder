@@ -11,6 +11,13 @@ dist/
 .next/
 *.tsbuildinfo
 
+# Test outputs (Stage 13)
+coverage/
+e2e/playwright-report/
+e2e/test-results/
+e2e/blob-report/
+e2e/.cache/
+
 # Expo / React Native
 app/.expo/
 app/expo-env.d.ts

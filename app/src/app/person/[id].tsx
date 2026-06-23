@@ -8,6 +8,7 @@ import { AddEventSheet } from '@/components/add-event-sheet';
 import { DateRing, type RingState } from '@/components/date-ring';
 import { NotesSection } from '@/components/notes-section';
 import { Button, Card, Icon, Pill, Screen, Text, useConfirm, useToast } from '@/components/ui';
+import { cn, focusRing } from '@/lib/cn';
 import {
   ApiError,
   eventsApi,
@@ -130,7 +131,8 @@ export default function PersonScreen() {
           onPress={() => router.back()}
           hitSlop={10}
           accessibilityRole="button"
-          accessibilityLabel="Back">
+          accessibilityLabel="Back"
+          className={cn('rounded-full', focusRing)}>
           <Icon icon={ChevronLeft} size={24} />
         </Pressable>
         <Text variant="title">Profile</Text>
@@ -283,7 +285,7 @@ function ProfileBody({
                     hitSlop={8}
                     accessibilityRole="button"
                     accessibilityLabel={`Remove ${eventLabel(r.event)}`}
-                    className="active:scale-90">
+                    className={cn('rounded-full active:scale-90', focusRing)}>
                     <Icon icon={Trash2} size={18} color={t.inkMuted} />
                   </Pressable>
                 )
@@ -300,7 +302,10 @@ function ProfileBody({
           onPress={() => setAddOpen(true)}
           accessibilityRole="button"
           accessibilityLabel="Add event"
-          className="mt-2 flex-row items-center justify-center gap-2 rounded-lg border border-dashed border-border-strong py-3 active:scale-[0.99]">
+          className={cn(
+            'mt-2 flex-row items-center justify-center gap-2 rounded-lg border border-dashed border-border-strong py-3 active:scale-[0.99]',
+            focusRing,
+          )}>
           <Icon icon={CalendarPlus} size={18} color={t.biro} />
           <Text variant="button" className="text-biro">
             Add event
@@ -350,7 +355,12 @@ function Avatar({ person }: { person: Person }) {
   return (
     <View className="h-[72px] w-[72px] items-center justify-center overflow-hidden rounded-full bg-surface-sunken">
       {person.photoUrl ? (
-        <Image source={{ uri: person.photoUrl }} style={{ width: 72, height: 72 }} contentFit="cover" />
+        <Image
+          source={{ uri: person.photoUrl }}
+          style={{ width: 72, height: 72 }}
+          contentFit="cover"
+          accessibilityLabel={`Photo of ${person.fullName}`}
+        />
       ) : (
         <Text variant="ringLg" className="text-ink-secondary">
           {initials(person.fullName)}

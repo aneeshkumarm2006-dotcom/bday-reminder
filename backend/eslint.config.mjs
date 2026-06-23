@@ -26,4 +26,13 @@ export default tseslint.config(
       ],
     },
   },
+  {
+    // Test + QA glue code legitimately inspects untyped JSON response bodies, so
+    // `any` is allowed here (not in src/). Console output stays a warning — the
+    // scripts opt out per-file with their existing `eslint-disable no-console`.
+    files: ['tests/**/*.ts', 'scripts/**/*.ts'],
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'off',
+    },
+  },
 );

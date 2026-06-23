@@ -6,6 +6,7 @@ import { useReducedMotion } from 'react-native-reanimated';
 
 import { PersonCard } from '@/components/person-card';
 import { Button, Chip, EmptyState, Icon, Screen, Text } from '@/components/ui';
+import { cn, focusRing } from '@/lib/cn';
 import { ApiError, peopleApi, type UpcomingGroup, type UpcomingResponse } from '@/lib/api';
 import { syncWidget } from '@/lib/widget';
 import { useTokens } from '@/theme/theme-provider';
@@ -185,7 +186,7 @@ function FeedHeader({ onAdd }: { onAdd: () => void }) {
         hitSlop={10}
         accessibilityRole="button"
         accessibilityLabel="Add person"
-        className="h-9 w-9 items-center justify-center rounded-full active:scale-95">
+        className={cn('h-9 w-9 items-center justify-center rounded-full active:scale-95', focusRing)}>
         <Icon icon={Plus} size={24} />
       </Pressable>
     </View>

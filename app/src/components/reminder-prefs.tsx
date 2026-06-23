@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Pressable, View } from 'react-native';
 
 import { Button, Chip, Icon, Select, Sheet, Text, ToggleRow, type SelectOption } from '@/components/ui';
+import { cn, focusRing } from '@/lib/cn';
 import type { ChannelKey, ChannelPreferences } from '@/lib/api';
 
 /**
@@ -103,7 +104,10 @@ function Stepper({
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={label}
-      className="h-11 w-11 items-center justify-center rounded-md border border-border-strong bg-surface active:scale-[0.96]">
+      className={cn(
+        'h-11 w-11 items-center justify-center rounded-md border border-border-strong bg-surface active:scale-[0.96]',
+        focusRing,
+      )}>
       <Icon icon={icon} size={20} />
     </Pressable>
   );
@@ -153,7 +157,11 @@ export function ChannelToggles({
           <Text variant="caption" className="text-warn-fg">
             {zeroMessage}
           </Text>
-          <Pressable onPress={() => set('push', true)} accessibilityRole="button" hitSlop={6} className="mt-2 self-start">
+          <Pressable
+            onPress={() => set('push', true)}
+            accessibilityRole="button"
+            hitSlop={6}
+            className={cn('mt-2 self-start rounded-sm', focusRing)}>
             <Text variant="label" className="text-biro">
               Turn on push
             </Text>
