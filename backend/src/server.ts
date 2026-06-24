@@ -1,5 +1,7 @@
 import 'dotenv/config';
 
+import dns from 'node:dns';
+
 import { createApp } from './app';
 import { startReminderJobs } from './jobs';
 import { connectDb } from './lib/db';
@@ -13,6 +15,20 @@ import { logger } from './lib/logger';
  */
 async function main(): Promise<void> {
   const env = loadEnv();
+
+  // Work around Node/c-ares falling back to 127.0.0.1 for DNS on some Windows
+  // setups, which breaks the SRV/TXT lookups behind `mongodb+srv://`. No-op
+  // unless DNS_SERVERS is set (see .env / lib/env.ts).
+  if (env.DNS_SERVERS) {
+    const servers = env.DNS_SERVERS.split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (servers.length > 0) {
+      dns.setServers(servers);
+      logger.info(`DNS servers overridden: ${servers.join(', ')}`);
+    }
+  }
+
   await connectDb(env.MONGODB_URI);
 
   const app = createApp();

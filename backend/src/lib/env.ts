@@ -12,6 +12,13 @@ const EnvSchema = z.object({
 
   MONGODB_URI: z.string().min(1, 'MONGODB_URI is required'),
 
+  // Comma-separated DNS server IPs (e.g. `1.1.1.1,8.8.8.8`). Optional escape
+  // hatch: on some Windows setups Node's resolver (c-ares) can't enumerate the
+  // system DNS servers and falls back to 127.0.0.1, which breaks the SRV/TXT
+  // lookups that `mongodb+srv://` requires (querySrv ECONNREFUSED) even though
+  // the OS resolves DNS fine. Setting this points Node at a working resolver.
+  DNS_SERVERS: z.string().optional(),
+
   // Comma-separated origins are split in app.ts.
   APP_ORIGIN: z.string().default('http://localhost:8081'),
   WEBSITE_ORIGIN: z.string().default('http://localhost:3000'),
