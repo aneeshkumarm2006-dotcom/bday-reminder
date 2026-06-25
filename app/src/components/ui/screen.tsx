@@ -5,7 +5,7 @@ import { SafeAreaView, type Edge } from 'react-native-safe-area-context';
 import { cn } from '@/lib/cn';
 
 /**
- * Screen container — warm `paper` background, safe-area aware, single column
+ * Screen container - warm `paper` background, safe-area aware, single column
  * centered to 560px on web (DESIGN.md §5). Wrap a `ScrollView` inside for long
  * content.
  */

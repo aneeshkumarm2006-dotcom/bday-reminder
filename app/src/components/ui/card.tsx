@@ -4,7 +4,7 @@ import { Pressable, View } from 'react-native';
 import { cn, focusRing } from '@/lib/cn';
 
 /**
- * Surface card (DESIGN.md §5, §8.1). Flat — a hairline border defines it, never
+ * Surface card (DESIGN.md §5, §8.1). Flat - a hairline border defines it, never
  * a shadow. Tappable cards scale slightly on press (§9), announce as a button,
  * and show the shared focus ring for keyboard users (§11).
  */

@@ -1,4 +1,4 @@
-# Circle the date — marketing website
+# Circle the date - marketing website
 
 The public landing site for **Circle the date**, the free birthday & event
 reminder app. Built with **Next.js 16** (App Router, Turbopack) + **Tailwind
@@ -6,12 +6,12 @@ CSS v4**, on-brand with the app's design system (`_ai_context/Bday_design`).
 
 ## Stack
 
-- **Next.js 16** — App Router, static prerendered marketing pages.
-- **Tailwind CSS v4** — CSS-first `@theme`; design tokens live in `app/globals.css`.
-- **shadcn/ui foundation** — `components.json` + `cn()` (`lib/utils.ts`) + cva
+- **Next.js 16** - App Router, static prerendered marketing pages.
+- **Tailwind CSS v4** - CSS-first `@theme`; design tokens live in `app/globals.css`.
+- **shadcn/ui foundation** - `components.json` + `cn()` (`lib/utils.ts`) + cva
   primitives (`components/ui`), themed to the design tokens.
-- **lucide-react** — icons. **framer-motion** — the restrained §9 motion (ring
-  draw-on, mount fade+rise). **next-themes** — class-based light/dark.
+- **lucide-react** - icons. **framer-motion** - the restrained §9 motion (ring
+  draw-on, mount fade+rise). **next-themes** - class-based light/dark.
 
 ## Develop
 
@@ -29,8 +29,8 @@ npm run typecheck  # tsc --noEmit
 Copy `.env.example` to `.env.local`. Both vars are optional (defaults in
 `lib/site.ts`):
 
-- `NEXT_PUBLIC_SITE_URL` — the site's own origin (canonical, OG, sitemap, robots).
-- `NEXT_PUBLIC_APP_URL` — the deployed web app, the "open the app" CTA target.
+- `NEXT_PUBLIC_SITE_URL` - the site's own origin (canonical, OG, sitemap, robots).
+- `NEXT_PUBLIC_APP_URL` - the deployed web app, the "open the app" CTA target.
 
 ## Structure
 

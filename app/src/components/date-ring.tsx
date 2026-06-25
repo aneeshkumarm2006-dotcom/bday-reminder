@@ -19,19 +19,19 @@ import { fontFamily } from '@/theme/tokens';
 import { Icon } from './ui/icon';
 
 /**
- * ⭐ The ring — the one signature element (DESIGN.md §7). A hand-drawn circle
+ * ⭐ The ring - the one signature element (DESIGN.md §7). A hand-drawn circle
  * (one wobbly SVG path, tilted -4°, number upright) around an event's day
  * number with a month caption below.
  *
  * States: upcoming (biro outline) · today (biro outline + fill, paper number) ·
  * done (muted outline + check) · past (strong-border outline). On a `today`
- * card mount the ring draws on, fills, and the number cross-fades to paper —
+ * card mount the ring draws on, fills, and the number cross-fades to paper -
  * the only orchestrated motion in the app. `prefers-reduced-motion` renders the
  * filled state instantly (§7.6, §9).
  */
 
 const RING_PATH = 'M33 8 C49 7 58 19 57 32 C56 47 41 57 26 55 C12 53 6 39 9 25 C12 13 22 8 36 9';
-// Approximate length of the path above — used as the stroke-dasharray for the
+// Approximate length of the path above - used as the stroke-dasharray for the
 // draw-on. Slightly longer than the true length so the line fully hides/reveals.
 const PATH_LENGTH = 160;
 

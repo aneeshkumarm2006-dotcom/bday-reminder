@@ -104,7 +104,7 @@ export function daysUntil(target: Date, from: Date): number {
 
 /**
  * The age the person is turning on a given occurrence. Returns null when the
- * birth year is unknown — callers MUST omit age entirely, never guess (FR-14).
+ * birth year is unknown - callers MUST omit age entirely, never guess (FR-14).
  */
 export function ageTurning(occurrence: Date, birthYear?: number | null): number | null {
   if (!birthYear) return null;

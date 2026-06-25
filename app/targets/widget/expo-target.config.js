@@ -1,7 +1,7 @@
 /**
  * iOS WidgetKit target (TODO Stage 10; FR-48/49/50, DESIGN.md §8.13), generated
  * by `@bacons/apple-targets` at prebuild. Shares data with the app through the
- * App Group below — the app writes the next-3 payload via `ExtensionStorage`
+ * App Group below - the app writes the next-3 payload via `ExtensionStorage`
  * (see `src/lib/widget.ios.ts`) and the Swift timeline provider reads it.
  *
  * The design tokens (DESIGN.md §3) are exposed to Swift as named colors with

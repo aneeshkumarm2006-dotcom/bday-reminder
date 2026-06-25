@@ -8,9 +8,9 @@ import { Event } from '../models/Event';
 import { Person } from '../models/Person';
 
 /**
- * GET /upcoming — the computed Upcoming feed (TODO Stage 3; DESIGN.md §8.2).
- * One row per event occurrence across everyone the viewer can see — their own
- * people plus anyone in a shared list they belong to (Stage 8, FR-44) — with
+ * GET /upcoming - the computed Upcoming feed (TODO Stage 3; DESIGN.md §8.2).
+ * One row per event occurrence across everyone the viewer can see - their own
+ * people plus anyone in a shared list they belong to (Stage 8, FR-44) - with
  * days-remaining and age-turning resolved in the viewer's own timezone (FR-53),
  * grouped This week / This month / Later and sorted ascending.
  */
@@ -66,7 +66,7 @@ upcomingRouter.get(
         customName: event.customName ?? null,
         occurrenceDate: occurrence.toISOString(),
         daysRemaining,
-        // Age is a birthday concept only — never shown for anniversaries/custom
+        // Age is a birthday concept only - never shown for anniversaries/custom
         // events even when they carry a year (FR-13/14, §11).
         ageTurning: event.type === 'birthday' ? ageTurning : null,
         group,

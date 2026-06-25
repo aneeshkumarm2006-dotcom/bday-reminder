@@ -22,7 +22,7 @@ describe('reminder-content: reminderMessage (birthday)', () => {
   it('day-of with year appends the new age', () => {
     expect(
       reminderMessage({ name: 'Ravi', eventType: 'birthday', daysRemaining: 0, ageTurning: 29 }),
-    ).toBe("It's Ravi's birthday today — turns 29.");
+    ).toBe("It's Ravi's birthday today, turns 29.");
   });
 
   it('no year, days>0 falls back to the plain birthday line', () => {

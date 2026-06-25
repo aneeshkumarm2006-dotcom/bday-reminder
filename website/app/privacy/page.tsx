@@ -14,7 +14,7 @@ export default function PrivacyPage() {
     <LegalPage
       title="Privacy policy"
       updated="June 2026"
-      intro={`${siteConfig.name} is built to help you remember the people who matter — not to harvest your data. Here's exactly what we store and why.`}
+      intro={`${siteConfig.name} is built to help you remember the people who matter, not to harvest your data. Here's exactly what we store and why.`}
     >
       <p>
         This is a plain-language summary of how we handle your information. It is a starting
@@ -25,7 +25,7 @@ export default function PrivacyPage() {
       <ul>
         <li>
           <strong>Your account:</strong> your name, email and/or phone number, timezone, and
-          notification preferences — used to sign you in and send reminders.
+          notification preferences, used to sign you in and send reminders.
         </li>
         <li>
           <strong>The people you add:</strong> names, dates, optional photos, relationships,

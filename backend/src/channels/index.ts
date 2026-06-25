@@ -9,7 +9,7 @@ import type { ChannelProvider, ReminderPayload, SendResult } from './types';
  * Channel registry + fan-out (TODO Stage 4). `dispatchToChannels` delivers one
  * reminder across the channels resolved for it (event override → user default),
  * best-effort: a failing/skipped channel never blocks the others, and results
- * come back for logging. The in-app feed is always implied — even with zero
+ * come back for logging. The in-app feed is always implied - even with zero
  * channels selected the reminder still persists and lists (FR-26).
  */
 

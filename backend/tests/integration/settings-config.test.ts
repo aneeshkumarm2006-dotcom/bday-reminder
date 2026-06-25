@@ -4,7 +4,7 @@ import { addPerson, makeApi, signUp, type Api } from '../helpers/api';
 import { useTestDb } from '../helpers/db';
 
 /**
- * Stage 5 — settings & notification preferences (FR-19/21/22/24/56). Mirrors the
+ * Stage 5 - settings & notification preferences (FR-19/21/22/24/56). Mirrors the
  * assertions in scripts/smoke-settings.ts: GET /config exposes the SMS/WhatsApp
  * monthly fair-use cap (default 20) without auth; PATCH /me persists channel
  * preferences, lead days, and reminder time and they read back on GET /me;

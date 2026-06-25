@@ -6,8 +6,8 @@ import { buildWidgetPayload, WIDGET_STORAGE_KEY, type WidgetPayload } from '@/li
 import { renderBirthdaysWidget } from './birthdays-widget';
 
 /**
- * Android widget background task (TODO Stage 10; FR-49). The OS invokes this —
- * including headlessly, when the app isn't open — on add / periodic update /
+ * Android widget background task (TODO Stage 10; FR-49). The OS invokes this -
+ * including headlessly, when the app isn't open - on add / periodic update /
  * resize. It reads the cached payload the app last wrote and re-renders, which
  * recomputes "days remaining" from the absolute dates, so the countdown stays
  * correct as days pass without the user opening the app.
@@ -21,7 +21,7 @@ async function loadPayload(): Promise<WidgetPayload> {
     const raw = await AsyncStorage.getItem(WIDGET_STORAGE_KEY);
     if (raw) return JSON.parse(raw) as WidgetPayload;
   } catch {
-    // Corrupt/missing cache — fall through to an empty payload.
+    // Corrupt/missing cache - fall through to an empty payload.
   }
   return buildWidgetPayload([]);
 }

@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 /*
- * Design tokens — single source of truth for color (DESIGN.md §3, §12.1).
+ * Design tokens - single source of truth for color (DESIGN.md §3, §12.1).
  * Light lives in :root, dark in `.dark:root`. NativeWind resolves these `var()`
  * references on web and native; the active set flips when the color scheme
  * changes (system or the in-app override). Tailwind colors in tailwind.config.js

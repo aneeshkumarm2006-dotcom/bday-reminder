@@ -4,7 +4,7 @@ import { addPerson, makeApi, signUp, type Api } from '../helpers/api';
 import { useTestDb } from '../helpers/db';
 
 /**
- * GET /upcoming — the computed Upcoming feed (Stage 3, FR-9/13/14, §8.2).
+ * GET /upcoming - the computed Upcoming feed (Stage 3, FR-9/13/14, §8.2).
  * Mirrors scripts/smoke-people.ts: one item per event occurrence, grouped
  * This week / This month / Later, sorted ascending by days remaining, age only
  * when a birth year is known, distinct relationship tags for the filter chips,

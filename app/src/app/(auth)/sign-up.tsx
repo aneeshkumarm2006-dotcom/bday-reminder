@@ -76,7 +76,7 @@ export default function SignUpScreen() {
                 value={password}
                 onChangeText={setPassword}
                 placeholder="At least 8 characters"
-                secureTextEntry
+                secureToggle
                 autoComplete="password-new"
                 textContentType="newPassword"
                 hint="At least 8 characters."

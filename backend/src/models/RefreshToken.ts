@@ -1,7 +1,7 @@
 import { Schema, model, models, type Model, type Types } from 'mongoose';
 
 /**
- * Refresh token record (auth implementation detail — not a PRD §7 entity).
+ * Refresh token record (auth implementation detail - not a PRD §7 entity).
  * The refresh JWT carries a `jti`; we persist that id so a token can be rotated
  * (deleted + reissued on refresh) and revoked (deleted on logout). A TTL index
  * lets Mongo reap expired rows automatically.

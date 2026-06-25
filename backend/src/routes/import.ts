@@ -21,13 +21,13 @@ import { Person } from '../models/Person';
  * Bulk import (TODO Stage 7; FR-6/7/11). Two steps so the user always confirms
  * before anything is written:
  *
- *   1. POST /import/preview — accept a pasted CSV (parsed + column-mapped server-
+ *   1. POST /import/preview - accept a pasted CSV (parsed + column-mapped server-
  *      side, FR-7) and/or already-structured device-contact rows (FR-6). Each
  *      candidate is annotated: `ready`, `invalid` (no name / unreadable date), or
  *      `duplicate` (same name + same DOB as an existing person, or an earlier row
- *      in the same batch — FR-11). Nothing is created here.
+ *      in the same batch - FR-11). Nothing is created here.
  *
- *   2. POST /import/commit — the client sends each row back with an explicit
+ *   2. POST /import/commit - the client sends each row back with an explicit
  *      resolution (`add` = keep both, `merge` = fill the existing person's empty
  *      fields, `skip`). Never silently auto-merges and never overwrites populated
  *      data without the user asking (FR-11, §10). Reminders are generated once at
@@ -45,7 +45,7 @@ const photoUrlSchema = z
   .nullable()
   .optional();
 
-// Loose dob for contacts — bad values become an `invalid` row, not a 400.
+// Loose dob for contacts - bad values become an `invalid` row, not a 400.
 const contactDobSchema = z
   .object({
     month: z.number().int(),
@@ -231,7 +231,7 @@ importRouter.post(
           skipped += 1;
           continue;
         }
-        // Fill only empty fields — never overwrite populated data without asking (§10).
+        // Fill only empty fields - never overwrite populated data without asking (§10).
         let changed = false;
         if (!target.phone && item.phone) {
           target.phone = item.phone;
@@ -253,7 +253,7 @@ importRouter.post(
         continue;
       }
 
-      // 'add' — keep both / a brand-new person: create + auto-birthday (FR-5/12).
+      // 'add' - keep both / a brand-new person: create + auto-birthday (FR-5/12).
       const person = await Person.create({
         owner: userId,
         fullName: item.name.trim(),

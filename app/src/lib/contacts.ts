@@ -12,7 +12,7 @@ import type { ImportCandidate } from './api';
  * Web has no address book, so `contacts.web.ts` resolves instead with an
  * `unsupported` result and `expo-contacts` is never bundled there (the same
  * platform-split pattern as `notifications`). The web import screen falls back
- * to CSV / manual entry.
+ * to manual entry.
  */
 
 export type ContactImportResult =
@@ -49,7 +49,7 @@ export async function importDeviceContacts(): Promise<ContactImportResult> {
       candidates.push({
         name,
         phone,
-        // Year is optional on a contact birthday — keep it omitted (FR-14).
+        // Year is optional on a contact birthday - keep it omitted (FR-14).
         dob: { month: birthday.month, day: birthday.day, year: birthday.year ?? null },
       });
     }

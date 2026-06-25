@@ -1,6 +1,6 @@
 /* eslint-disable no-console */
 /**
- * End-to-end smoke test for Stage 5 — settings & notification preferences
+ * End-to-end smoke test for Stage 5 - settings & notification preferences
  * (SMS/WhatsApp stub + fair-use cap + per-event overrides), against an
  * ephemeral MongoDB. Verifies the "Done when": global vs per-event channels /
  * lead times change what actually fires, the SMS cap (test-lowered to 2) is
@@ -122,9 +122,9 @@ async function main(): Promise<void> {
     const summary = await dispatchDue(new Date());
     check(summary.sent === 3, `all 3 due reminders dispatch (got ${summary.sent})`);
     const used = await getSmsUsage(userAId, smsPeriod(new Date()));
-    check(used === CAP, `SMS sends counted and capped at ${CAP} (got ${used}) — the 3rd fell back, didn't count`);
+    check(used === CAP, `SMS sends counted and capped at ${CAP} (got ${used}) - the 3rd fell back, didn't count`);
     const sentCount = await Reminder.countDocuments({ user: userAId, status: 'sent' });
-    check(sentCount === 3, 'every reminder still delivered (sent) — capped SMS fell back, never lost (FR-55)');
+    check(sentCount === 3, 'every reminder still delivered (sent) - capped SMS fell back, never lost (FR-55)');
 
     // --- resolveFairUse fallback channel set (unit-level, separate period) ---
     const farDate = new Date(Date.UTC(2099, 0, 15));

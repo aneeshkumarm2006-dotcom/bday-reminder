@@ -70,7 +70,7 @@ export function ReminderCard({
         ) : null}
       </View>
 
-      {/* Actions row — hidden once done (§8.3). */}
+      {/* Actions row - hidden once done (§8.3). */}
       {!done ? (
         <View className="mt-3 flex-row flex-wrap items-center gap-2">
           {item.canGreet ? (

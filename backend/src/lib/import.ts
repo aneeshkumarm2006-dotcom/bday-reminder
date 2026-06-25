@@ -11,7 +11,7 @@ import { maxDayInMonth } from './dates';
 
 const CURRENT_YEAR = new Date().getUTCFullYear();
 
-/** A parsed date of birth — month/day required, year optional (FR-14). */
+/** A parsed date of birth - month/day required, year optional (FR-14). */
 export interface ParsedDob {
   month: number;
   day: number;
@@ -61,7 +61,7 @@ function validate(month: number, day: number, year: number | null): ParsedDob | 
 
 /**
  * Validate an already-structured DOB (e.g. from a device contact). Returns the
- * normalized parts or null when it can't be a real date — callers turn null into
+ * normalized parts or null when it can't be a real date - callers turn null into
  * an `invalid` import row rather than rejecting the whole request.
  */
 export function validateDob(parts: { month: number; day: number; year?: number | null }): ParsedDob | null {
@@ -74,7 +74,7 @@ export function validateDob(parts: { month: number; day: number; year?: number |
  *   • month names `5 March 1990`, `March 5, 1990`, `Mar 5`, `5 Mar 90`
  *   • numeric `05/03/1990`, `5-3`, `03.05.90`
  * Numeric forms disambiguate by the >12 rule; when still ambiguous they default
- * to **day-first** (DD/MM) — the preview echoes the parsed date so the user can
+ * to **day-first** (DD/MM) - the preview echoes the parsed date so the user can
  * catch a misread before committing. Returns null when it can't be read.
  */
 export function parseDob(raw: string | null | undefined): ParsedDob | null {

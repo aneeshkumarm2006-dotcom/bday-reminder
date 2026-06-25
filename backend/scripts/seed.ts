@@ -22,7 +22,7 @@ const DEMO = {
 };
 
 // Compute occurrence dates in UTC so they line up with the demo user's UTC
-// timezone — otherwise an off-UTC host could seed a "today" birthday that the
+// timezone - otherwise an off-UTC host could seed a "today" birthday that the
 // server doesn't treat as today, leaving the feed empty.
 const today = new Date();
 const offsetDay = (days: number): { month: number; day: number } => {
@@ -75,7 +75,7 @@ async function main(): Promise<void> {
   const existing = await req('/people', 'GET', undefined, token);
   const existingCount = Array.isArray(existing.body?.people) ? existing.body.people.length : 0;
   if (existingCount > 0) {
-    console.log(`Demo user already has ${existingCount} people — skipping people seed.`);
+    console.log(`Demo user already has ${existingCount} people - skipping people seed.`);
   } else {
     const people = [
       { fullName: 'Aisha Khan', dob: { ...offsetDay(0), year: 1990 }, relationshipTag: 'Friend', phone: '+15555550100' },

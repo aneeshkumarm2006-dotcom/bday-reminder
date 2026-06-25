@@ -9,7 +9,7 @@ import { Text } from './text';
 
 /**
  * Pill / tag (DESIGN.md §8.3, §8.7). Relationship tags are `neutral` (no
- * per-tag color — color is reserved for the ring). Status pills use their own
+ * per-tag color - color is reserved for the ring). Status pills use their own
  * state color and never appear as page accents. `done` gets a check.
  */
 

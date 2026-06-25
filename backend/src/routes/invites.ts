@@ -10,7 +10,7 @@ import { SharedList } from '../models/SharedList';
 import { User } from '../models/User';
 
 /**
- * Invite acceptance (TODO Stage 8; FR-42). Membership is never automatic — an
+ * Invite acceptance (TODO Stage 8; FR-42). Membership is never automatic - an
  * invited user must be logged in and explicitly accept before gaining access.
  * On accept the user joins the list's `members[]` with the invite's permission,
  * the invite is marked accepted, and their reminders are generated so the shared
@@ -21,7 +21,7 @@ export const invitesRouter = Router();
 
 invitesRouter.use(requireAuth);
 
-/** GET /invites/:token — preview an invite before accepting (list + inviter). */
+/** GET /invites/:token - preview an invite before accepting (list + inviter). */
 invitesRouter.get(
   '/:token',
   asyncHandler(async (req, res) => {
@@ -48,7 +48,7 @@ invitesRouter.get(
   }),
 );
 
-/** POST /invites/:token/accept — explicitly join the list (FR-42). */
+/** POST /invites/:token/accept - explicitly join the list (FR-42). */
 invitesRouter.post(
   '/:token/accept',
   asyncHandler(async (req, res) => {
@@ -72,7 +72,7 @@ invitesRouter.post(
       await list.save();
       invite.status = 'accepted';
       await invite.save();
-      // The shared people are now visible to this user — schedule their reminders.
+      // The shared people are now visible to this user - schedule their reminders.
       await generateForUser(req.user!);
     }
 

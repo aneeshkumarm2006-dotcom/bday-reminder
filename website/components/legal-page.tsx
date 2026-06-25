@@ -1,7 +1,7 @@
 import type * as React from "react";
 
 /**
- * Shared shell for the legal / contact pages — a quiet, readable single column
+ * Shared shell for the legal / contact pages - a quiet, readable single column
  * (DESIGN.md §5). Prose styling is applied to plain semantic HTML via child
  * selectors so the pages read as clean markup.
  */

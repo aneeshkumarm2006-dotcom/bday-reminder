@@ -62,7 +62,7 @@ const channelPreferencesSchema = new Schema<ChannelPreferences>(
 const calendarSyncSchema = new Schema<CalendarSync>(
   {
     enabled: { type: Boolean, default: false },
-    // No `index` here — the unique+sparse index is declared on the parent schema
+    // No `index` here - the unique+sparse index is declared on the parent schema
     // so multiple users can sit token-less (sparse) until they enable sync.
     token: { type: String },
     includePersonal: { type: Boolean, default: true },
@@ -76,7 +76,7 @@ const userSchema = new Schema<UserDoc>(
     name: { type: String, required: true, trim: true },
     // `unique` creates the index the TODO asks for; don't double-declare it.
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
-    // Never returned by default — login re-selects it explicitly.
+    // Never returned by default - login re-selects it explicitly.
     passwordHash: { type: String, required: true, select: false },
     phone: { type: String, trim: true },
     timezone: { type: String, default: 'UTC' },
@@ -91,7 +91,7 @@ const userSchema = new Schema<UserDoc>(
 );
 
 // The feed token must be globally unique, but most users never enable sync, so
-// the index is sparse — token-less users aren't indexed and don't collide.
+// the index is sparse - token-less users aren't indexed and don't collide.
 userSchema.index({ 'calendarSync.token': 1 }, { unique: true, sparse: true });
 
 export const User: Model<UserDoc> =

@@ -1,17 +1,17 @@
 /* eslint-disable no-console */
 /**
  * End-to-end smoke test for the Stage 12 cross-cutting hardening against an
- * ephemeral MongoDB (mongodb-memory-server) — no Atlas/Resend/Expo needed.
+ * ephemeral MongoDB (mongodb-memory-server) - no Atlas/Resend/Expo needed.
  * Verifies the "Done when": a security pass, a reliability pass, and the
  * edge-case rules that earlier smokes only partially covered, all with no open
  * criticals.
  *
  * Covers:
- *   Security    — auth rate limiting (429 + Retry-After), malformed ObjectId →
+ *   Security    - auth rate limiting (429 + Retry-After), malformed ObjectId →
  *                 404 (not 500), malformed JSON body → 400.
- *   Reliability — withRetry backoff (transient retried, permanent not, exhausted
+ *   Reliability - withRetry backoff (transient retried, permanent not, exhausted
  *                 throws), and per-channel delivery outcome persisted on dispatch.
- *   Edge §10    — Rule 3 Feb-29 (feb28/feb29only/mar1) across non-leap + leap;
+ *   Edge §10    - Rule 3 Feb-29 (feb28/feb29only/mar1) across non-leap + leap;
  *                 Rule 2 DOB edit regenerates pending to the new date while a
  *                 sent reminder keeps its old occurrence (history preserved);
  *                 Rule 6 timezone travel re-anchors pending scheduledFor but not

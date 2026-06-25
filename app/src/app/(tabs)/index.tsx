@@ -13,7 +13,7 @@ import { useTokens } from '@/theme/theme-provider';
 
 /**
  * Upcoming feed (DESIGN.md §8.2). The computed feed comes from `GET /upcoming`
- * — each person's next event, grouped This week / This month / Later and sorted
+ * - each person's next event, grouped This week / This month / Later and sorted
  * ascending. A relationship-tag chip row filters the list (FR-9); the feed
  * mounts with a subtle stagger fade+rise (§9), reduced-motion safe.
  */
@@ -110,7 +110,7 @@ export default function UpcomingScreen() {
 
   const tags = data?.tags ?? [];
   // Fall back to "All" if the active tag no longer exists (e.g. its last person
-  // was deleted) — otherwise the chip row vanishes and strands the filter.
+  // was deleted) - otherwise the chip row vanishes and strands the filter.
   const effectiveTag = activeTag && tags.includes(activeTag) ? activeTag : null;
   const visible = effectiveTag
     ? items.filter((i) => i.relationshipTag === effectiveTag)
@@ -214,7 +214,7 @@ function FeedItem({
   reduced: boolean;
   children: ReactNode;
 }) {
-  // Held in state (not a ref) so it's safe to read in render — matches Toast.
+  // Held in state (not a ref) so it's safe to read in render - matches Toast.
   const [progress] = useState(() => new Animated.Value(reduced ? 1 : 0));
 
   useEffect(() => {

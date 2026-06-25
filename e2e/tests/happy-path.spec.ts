@@ -23,7 +23,7 @@ test('sign up, add a person, receive and complete a reminder', async ({ page, re
   const password = 'e2epassword123';
 
   // The new user is created with the default timezone UTC, and the server
-  // resolves "today" in UTC — so compute today's calendar parts in UTC too,
+  // resolves "today" in UTC - so compute today's calendar parts in UTC too,
   // otherwise off-UTC machines near the day boundary would add a non-today date.
   const now = new Date();
   const todayMonthName = MONTHS[now.getUTCMonth()];

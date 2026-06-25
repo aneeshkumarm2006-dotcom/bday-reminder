@@ -3,7 +3,7 @@ import { Schema, model, models, type Model, type Types } from 'mongoose';
 import { dateParts, FEB29_RULES, type DateParts, type Feb29Rule } from './common';
 
 /**
- * Person (PRD §7.2, FR-17). The individual whose event is tracked — human or
+ * Person (PRD §7.2, FR-17). The individual whose event is tracked - human or
  * pet. Scoped to an owner and, optionally, one or more shared lists (Stage 8).
  * `createdBy`/`updatedBy` back the "last edited by" attribution (FR-45).
  */

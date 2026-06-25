@@ -1,20 +1,20 @@
-# Birthday Reminder — "Circle the date"
+# Birthday Reminder - "Circle the date"
 
 Remember **and act on** the birthdays and special dates that matter. A reminder
-app that doesn't just nudge you — it helps you reach out, with the right message,
+app that doesn't just nudge you - it helps you reach out, with the right message,
 at the right local time.
 
 This is a **monorepo** with three independent packages plus shared planning docs.
 
 ```
 .
-├── app/         ← Expo (React Native) — web + iOS + Android, one codebase
-├── backend/     ← Node + Express + TypeScript — the API server (talks to MongoDB)
-├── website/     ← Next.js — the public marketing/landing site
+├── app/         ← Expo (React Native) - web + iOS + Android, one codebase
+├── backend/     ← Node + Express + TypeScript - the API server (talks to MongoDB)
+├── website/     ← Next.js - the public marketing/landing site
 └── _ai_context/ ← Product, design, and stack docs (PRD, design system, build TODO)
 ```
 
-> The app never talks to the database directly — it always goes through the
+> The app never talks to the database directly - it always goes through the
 > backend API. See `_ai_context/techstack.md` for the architecture.
 
 ---
@@ -23,17 +23,17 @@ This is a **monorepo** with three independent packages plus shared planning docs
 
 - **Node.js LTS** (v18+; this repo is developed on v24) and **npm**
 - **Git**
-- For mobile: an **Expo** account and `eas-cli` (`npm i -g eas-cli`) — only needed
+- For mobile: an **Expo** account and `eas-cli` (`npm i -g eas-cli`) - only needed
   for device/store builds, not for local web/dev.
 
-External service accounts (free tiers) are needed as features land — see the
+External service accounts (free tiers) are needed as features land - see the
 checklist in `_ai_context/TODO.md`:
 
-- **MongoDB Atlas** (database) — Stage 1
-- **Resend** (transactional email) — Stage 4
-- **Cloudinary** (person photos) — Stage 6
-- **Render / Railway** (backend host) + **Vercel** (site + web app) — Stage 14
-- _(Deferred)_ **Twilio** — only when SMS goes live
+- **MongoDB Atlas** (database) - Stage 1
+- **Resend** (transactional email) - Stage 4
+- **Cloudinary** (person photos) - Stage 6
+- **Render / Railway** (backend host) + **Vercel** (site + web app) - Stage 14
+- _(Deferred)_ **Twilio** - only when SMS goes live
 
 ---
 
@@ -41,7 +41,7 @@ checklist in `_ai_context/TODO.md`:
 
 **Independent installs.** Each package has its own `package.json`, its own
 `node_modules`, and is installed/run on its own. There is no root workspace tool
-(no pnpm/npm workspaces) — this keeps each package self-contained and matches the
+(no pnpm/npm workspaces) - this keeps each package self-contained and matches the
 deployment story (backend, website, and app deploy separately).
 
 Each package exposes the same baseline scripts where they apply:
@@ -68,7 +68,7 @@ npm install
 npm run dev               # http://localhost:4040  (GET /health, GET /)
 ```
 
-### App (Expo — web + iOS + Android)
+### App (Expo - web + iOS + Android)
 
 ```bash
 cd app
@@ -90,7 +90,7 @@ npm run dev               # http://localhost:3000
 ## Testing & QA
 
 Each package has its own test suite; CI (`.github/workflows/ci.yml`) runs them all
-on every push/PR. No Atlas or external accounts are needed — the backend tests and
+on every push/PR. No Atlas or external accounts are needed - the backend tests and
 E2E run against an **in-memory MongoDB**.
 
 | Where | Command | What runs |
@@ -101,7 +101,7 @@ E2E run against an **in-memory MongoDB**.
 | `website/` | `npm run build` | Production build (type-checked) |
 | `e2e/` | `npm run test:ci` | Playwright web E2E (builds the app, boots the in-memory backend + static export) |
 
-**QA harness — drive the app with no Atlas, and fire a reminder on demand:**
+**QA harness - drive the app with no Atlas, and fire a reminder on demand:**
 
 ```bash
 cd backend

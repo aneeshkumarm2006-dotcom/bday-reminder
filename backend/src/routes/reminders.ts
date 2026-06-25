@@ -19,7 +19,7 @@ import { Reminder, type ReminderDoc, type ReminderStatus } from '../models/Remin
  * occurrence can have several lead-time instances (e.g. "1 week before" + "on
  * the day"); the feed collapses them into one row per occurrence with an
  * effective status, and Done/Snooze act on the whole occurrence so further
- * reminders for *that* occurrence stop — next year is untouched (FR-32).
+ * reminders for *that* occurrence stop - next year is untouched (FR-32).
  */
 
 export const remindersRouter = Router();
@@ -43,7 +43,7 @@ function collapse(instances: ReminderDoc[]): { rep: ReminderDoc; status: Reminde
 const groupKey = (r: ReminderDoc): string => `${r.event.toString()}|${r.occurrenceDate.getTime()}`;
 
 /**
- * GET /reminders — the in-app feed. One row per due occurrence, active rows
+ * GET /reminders - the in-app feed. One row per due occurrence, active rows
  * first then done (de-emphasized), each sorted by soonest occurrence.
  */
 remindersRouter.get(
@@ -118,7 +118,7 @@ async function occurrenceItem(reminder: ReminderDoc, today: Date) {
 }
 
 /**
- * POST /reminders/:id/done — mark this occurrence done (FR-31/32). Stops every
+ * POST /reminders/:id/done - mark this occurrence done (FR-31/32). Stops every
  * remaining reminder for *this* occurrence (all its lead-time instances), keeps
  * the row in the feed (de-emphasized), and never affects next year's occurrence.
  */
@@ -141,7 +141,7 @@ remindersRouter.post(
 const snoozeSchema = z.object({ preset: z.enum(SNOOZE_PRESETS as [SnoozePreset, ...SnoozePreset[]]) });
 
 /**
- * POST /reminders/:id/snooze — snooze this occurrence (FR-33). All of its
+ * POST /reminders/:id/snooze - snooze this occurrence (FR-33). All of its
  * not-done instances reappear after the delay; the dispatcher promotes them back
  * to pending and re-delivers when the snooze elapses.
  */

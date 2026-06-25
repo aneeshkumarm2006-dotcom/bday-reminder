@@ -57,7 +57,7 @@ function RootNavigator() {
 
   useEffect(() => {
     if (status === 'loading') return;
-    // Session resolved — reveal the app.
+    // Session resolved - reveal the app.
     void SplashScreen.hideAsync();
 
     const inAuthGroup = segments[0] === '(auth)';

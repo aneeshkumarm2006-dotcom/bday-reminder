@@ -11,7 +11,7 @@ import {
 } from '../../src/lib/access';
 import type { PersonDoc } from '../../src/models/Person';
 
-/** Mint a fresh Mongo id string — no DB connection required for these pure fns. */
+/** Mint a fresh Mongo id string - no DB connection required for these pure fns. */
 const id = () => new Types.ObjectId().toString();
 
 /** Build a UserListAccess with sane derived (writable/accessible) aggregates. */

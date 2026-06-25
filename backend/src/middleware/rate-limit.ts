@@ -11,7 +11,7 @@ import { tooManyRequests } from '../lib/http-error';
  * and a `Retry-After`, and forwards a 429 HttpError to the central handler so
  * the body matches every other error response.
  *
- * Single-process only — fine for the free-tier single instance this app targets.
+ * Single-process only - fine for the free-tier single instance this app targets.
  * A multi-instance deploy would swap the Map for a shared store (Redis); the
  * middleware shape stays the same.
  */

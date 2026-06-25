@@ -84,7 +84,7 @@ export function useTokens(): Tokens {
 }
 
 /**
- * Elevation for things that genuinely float — popovers, sheets, the mobile
+ * Elevation for things that genuinely float - popovers, sheets, the mobile
  * action bar (DESIGN.md §5). Cards use borders, never this. Returns a `style`
  * object using the cross-platform `boxShadow` supported by React Native 0.85+.
  */

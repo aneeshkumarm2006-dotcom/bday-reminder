@@ -1,6 +1,6 @@
 import { Schema } from 'mongoose';
 
-/** A birthday/event date — month + day required, year optional (PRD FR-14). */
+/** A birthday/event date - month + day required, year optional (PRD FR-14). */
 export interface DateParts {
   month: number; // 1-12
   day: number; // 1-31

@@ -22,7 +22,7 @@ import { useTokens } from '@/theme/theme-provider';
  * Calendar sync settings (DESIGN.md §8.10; FR-38/39/40). Opt in, choose what to
  * include (your own birthdays + each shared list you belong to), copy the
  * subscribe link, and reset it to revoke. The feed itself updates automatically
- * as people change (FR-39) — there's nothing to "re-export".
+ * as people change (FR-39) - there's nothing to "re-export".
  */
 export default function CalendarSyncScreen() {
   const router = useRouter();

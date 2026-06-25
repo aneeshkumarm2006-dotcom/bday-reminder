@@ -24,7 +24,7 @@ export async function syncWidget(items: UpcomingItem[]): Promise<void> {
     storage.set(WIDGET_STORAGE_KEY, JSON.stringify(payload));
     ExtensionStorage.reloadWidget();
   } catch {
-    // Non-fatal — the widget just keeps its previous content.
+    // Non-fatal - the widget just keeps its previous content.
   }
 }
 

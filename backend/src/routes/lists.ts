@@ -18,7 +18,7 @@ import { SharedList } from '../models/SharedList';
 import { User } from '../models/User';
 
 /**
- * Shared / family lists (TODO Stage 8; FR-41–47, §8.11). A list has an owner and
+ * Shared / family lists (TODO Stage 8; FR-41-47, §8.11). A list has an owner and
  * accepted members, each with `view` or `edit` permission. The owner manages
  * membership and invites; everyone in the list sees the same people/events
  * (scoped via `Person.lists`), but each keeps their own notification settings
@@ -30,7 +30,7 @@ export const listsRouter = Router();
 
 listsRouter.use(requireAuth);
 
-/** Load a list the caller owns or is a member of (else 404 — don't leak it). */
+/** Load a list the caller owns or is a member of (else 404 - don't leak it). */
 async function loadAccessibleList(id: string, userId: string) {
   const list = await SharedList.findById(id);
   if (!list) throw notFound("We couldn't find that list.");
@@ -51,7 +51,7 @@ const nameSchema = z
   .object({ name: z.string().trim().min(1, 'Name your list so everyone knows what it is.').max(60) })
   .strict();
 
-/** POST /lists — create a shared list owned by the caller (FR-41). */
+/** POST /lists - create a shared list owned by the caller (FR-41). */
 listsRouter.post(
   '/',
   validateBody(nameSchema),
@@ -63,7 +63,7 @@ listsRouter.post(
   }),
 );
 
-/** GET /lists — every list the caller owns or belongs to (FR-44). */
+/** GET /lists - every list the caller owns or belongs to (FR-44). */
 listsRouter.get(
   '/',
   asyncHandler(async (req, res) => {
@@ -76,7 +76,7 @@ listsRouter.get(
   }),
 );
 
-/** GET /lists/:id — one list's detail (owner or member). */
+/** GET /lists/:id - one list's detail (owner or member). */
 listsRouter.get(
   '/:id',
   asyncHandler(async (req, res) => {
@@ -85,7 +85,7 @@ listsRouter.get(
   }),
 );
 
-/** PATCH /lists/:id — rename the list (owner only). */
+/** PATCH /lists/:id - rename the list (owner only). */
 listsRouter.patch(
   '/:id',
   validateBody(nameSchema),
@@ -98,7 +98,7 @@ listsRouter.patch(
 );
 
 /**
- * DELETE /lists/:id — delete the list (owner only, FR-47). People stay owned by
+ * DELETE /lists/:id - delete the list (owner only, FR-47). People stay owned by
  * their owner but are detached from the list; pending invites are dropped; every
  * member loses access, so their reminders for the list's people are re-synced
  * (the ones they can no longer see are removed).
@@ -128,7 +128,7 @@ const inviteSchema = z
   .strict();
 
 /**
- * POST /lists/:id/invite — invite by email / phone / link (owner only, FR-41).
+ * POST /lists/:id/invite - invite by email / phone / link (owner only, FR-41).
  * Creates a pending Invite with a secret token and emails it when the target is
  * an email + Resend is configured; otherwise the owner shares the returned link.
  * The invitee must explicitly accept before gaining access (FR-42).
@@ -165,7 +165,7 @@ listsRouter.post(
   }),
 );
 
-/** DELETE /lists/:id/invites/:inviteId — revoke a pending invite (owner only). */
+/** DELETE /lists/:id/invites/:inviteId - revoke a pending invite (owner only). */
 listsRouter.delete(
   '/:id/invites/:inviteId',
   asyncHandler(async (req, res) => {
@@ -179,7 +179,7 @@ listsRouter.delete(
 
 const permissionSchema = z.object({ permission: z.enum(['view', 'edit']) }).strict();
 
-/** PATCH /lists/:id/members/:memberId — set a member's permission (owner, FR-43). */
+/** PATCH /lists/:id/members/:memberId - set a member's permission (owner, FR-43). */
 listsRouter.patch(
   '/:id/members/:memberId',
   validateBody(permissionSchema),
@@ -190,13 +190,13 @@ listsRouter.patch(
     member.permission = (req.body as z.infer<typeof permissionSchema>).permission;
     await list.save();
     // View↔edit doesn't change *which* people the member sees, so their reminder
-    // set is unaffected — only their write access changes.
+    // set is unaffected - only their write access changes.
     res.json({ list: await buildListView(list, req.userId!) });
   }),
 );
 
 /**
- * DELETE /lists/:id/members/:memberId — remove a member (owner only, FR-46).
+ * DELETE /lists/:id/members/:memberId - remove a member (owner only, FR-46).
  * The removed user loses access, so their reminders for the list's people stop.
  */
 listsRouter.delete(
@@ -215,7 +215,7 @@ listsRouter.delete(
 );
 
 /**
- * POST /lists/:id/leave — the caller leaves a list they're a member of (FR-46).
+ * POST /lists/:id/leave - the caller leaves a list they're a member of (FR-46).
  * The owner can't leave (they delete the list instead). Reminders for the list's
  * people stop immediately.
  */

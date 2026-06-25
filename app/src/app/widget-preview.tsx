@@ -18,8 +18,8 @@ import { useTokens } from '@/theme/theme-provider';
 /**
  * Home-screen widget preview (TODO Stage 10; DESIGN.md §8.13). The real widget
  * is native (iOS WidgetKit / Android App Widget) and can't render on web, so
- * this surface mirrors its look with RN primitives — driven by the *same* pure
- * `buildWidgetPayload` + countdown logic the native widgets use — to verify the
+ * this surface mirrors its look with RN primitives - driven by the *same* pure
+ * `buildWidgetPayload` + countdown logic the native widgets use - to verify the
  * next-3 selection and the layout (`DateRing sm` + name + "in Nd", radius-xl,
  * surface over paper). On a phone the live widget lives on the home screen and
  * deep-links into a profile (FR-50); here, tapping a row does the same.

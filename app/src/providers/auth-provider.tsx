@@ -24,7 +24,7 @@ import { clearWidget } from '@/lib/widget';
  * Auth state (FR-1, FR-4). Custom JWT (access + refresh): tokens live in the
  * secure store, the user is re-hydrated on launch via `GET /me`, and the same
  * login works across web / iOS / Android with synced data. Phone is a profile
- * field only — phone OTP login is deferred (TODO Stage 1 note).
+ * field only - phone OTP login is deferred (TODO Stage 1 note).
  */
 
 type AuthStatus = 'loading' | 'authenticated' | 'unauthenticated';
@@ -134,7 +134,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (active) setUser(updated);
         })
         .catch(() => {
-          /* non-fatal — the server keeps the last known zone */
+          /* non-fatal - the server keeps the last known zone */
         });
     }
     return () => {

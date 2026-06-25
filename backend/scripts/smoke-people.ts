@@ -1,7 +1,7 @@
 /* eslint-disable no-console */
 /**
  * End-to-end smoke test for the Stage 3 People & Birthdays slice against an
- * ephemeral MongoDB (mongodb-memory-server) — no Atlas needed. Verifies the
+ * ephemeral MongoDB (mongodb-memory-server) - no Atlas needed. Verifies the
  * "Done when": add people with/without a birth year, see them grouped + sorted
  * in /upcoming (age only when the year is known), open/edit/delete the profile,
  * the DOB edit syncs the birthday event, deletes cascade, and ownership holds.

@@ -10,7 +10,7 @@ import { useTokens } from '@/theme/theme-provider';
 /**
  * Invite acceptance (DESIGN.md §8.9; FR-42). Reached from an invite link
  * (`/invite/<token>`) or by pasting a code on the Lists screen. Membership is
- * never automatic — the user sees who invited them and to what, then explicitly
+ * never automatic - the user sees who invited them and to what, then explicitly
  * accepts before gaining access.
  */
 export default function InviteScreen() {
@@ -82,7 +82,7 @@ export default function InviteScreen() {
               {preview.inviterName} invited you to “{preview.listName}”
             </Text>
             <Text variant="body" className="mt-2 text-center text-ink-secondary">
-              You’ll see everyone in this list and get your own reminders for them — with your own
+              You’ll see everyone in this list and get your own reminders for them, with your own
               settings.
             </Text>
             <View className="mt-3">

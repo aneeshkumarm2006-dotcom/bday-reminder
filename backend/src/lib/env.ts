@@ -39,14 +39,14 @@ const EnvSchema = z.object({
   JWT_ACCESS_EXPIRES_IN: z.string().default('15m'),
   JWT_REFRESH_EXPIRES_IN: z.string().default('30d'),
 
-  // --- Reminder delivery [Stage 4] — all optional. When a key is absent the
+  // --- Reminder delivery [Stage 4] - all optional. When a key is absent the
   // matching channel degrades gracefully (logs + reports "skipped") so the
   // engine runs end-to-end in dev/QA without provisioning the external account.
   RESEND_API_KEY: z.string().optional(),
   EMAIL_FROM: z.string().default('Birthday Reminder <onboarding@resend.dev>'),
   EXPO_ACCESS_TOKEN: z.string().optional(),
 
-  // --- Photo hosting — Cloudinary [Stage 6] — all optional (FR-10). When the
+  // --- Photo hosting - Cloudinary [Stage 6] - all optional (FR-10). When the
   // account isn't configured the upload endpoint degrades gracefully (echoes the
   // image back as a data URL) so add-photo works end-to-end in dev/QA without
   // provisioning Cloudinary; a real key swaps in hosted, CDN-served URLs.
@@ -55,7 +55,7 @@ const EnvSchema = z.object({
   CLOUDINARY_API_SECRET: z.string().optional(),
   CLOUDINARY_UPLOAD_FOLDER: z.string().default('birthday-reminder'),
 
-  // --- SMS / WhatsApp fair-use [Stage 5] — the actual send is stubbed, but the
+  // --- SMS / WhatsApp fair-use [Stage 5] - the actual send is stubbed, but the
   // per-user monthly cap is real and business-configurable (FR-55/56). Read from
   // here, never hardcoded into UI copy; the app fetches it from GET /config.
   SMS_WHATSAPP_MONTHLY_CAP: z.coerce.number().int().min(0).default(20),

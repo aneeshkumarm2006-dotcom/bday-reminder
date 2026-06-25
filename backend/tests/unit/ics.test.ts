@@ -18,7 +18,7 @@ const baseEvent = (over: Partial<IcsEvent> = {}): IcsEvent => ({
   ...over,
 });
 
-describe('ics: buildCalendar — calendar envelope', () => {
+describe('ics: buildCalendar - calendar envelope', () => {
   it('wraps events in BEGIN/END:VCALENDAR with VERSION 2.0', () => {
     const ics = buildCalendar({ name: 'My Birthdays', events: [baseEvent()] });
     expect(ics).toContain('BEGIN:VCALENDAR');
@@ -33,7 +33,7 @@ describe('ics: buildCalendar — calendar envelope', () => {
   });
 });
 
-describe('ics: buildCalendar — VEVENT shape', () => {
+describe('ics: buildCalendar - VEVENT shape', () => {
   it('emits an all-day DTSTART;VALUE=DATE, a yearly RRULE, and the stable UID', () => {
     const ics = buildCalendar({ name: 'Cal', events: [baseEvent()] });
     expect(ics).toContain('BEGIN:VEVENT');
@@ -52,7 +52,7 @@ describe('ics: buildCalendar — VEVENT shape', () => {
   });
 });
 
-describe('ics: buildCalendar — TEXT escaping (§3.3.11)', () => {
+describe('ics: buildCalendar - TEXT escaping (§3.3.11)', () => {
   it('escapes comma, semicolon, backslash and newline in SUMMARY', () => {
     const ics = buildCalendar({
       name: 'Cal',
@@ -78,7 +78,7 @@ describe('ics: buildCalendar — TEXT escaping (§3.3.11)', () => {
   });
 });
 
-describe('ics: buildCalendar — line folding (§3.5)', () => {
+describe('ics: buildCalendar - line folding (§3.5)', () => {
   it('folds a long content line with CRLF + a leading space, each piece <=75 octets', () => {
     const longSummary = 'X'.repeat(200);
     const ics = buildCalendar({ name: 'Cal', events: [baseEvent({ summary: longSummary })] });
@@ -103,7 +103,7 @@ describe('ics: buildCalendar — line folding (§3.5)', () => {
   });
 });
 
-describe('ics: buildCalendar — line endings', () => {
+describe('ics: buildCalendar - line endings', () => {
   it('uses CRLF between every content line and a trailing CRLF', () => {
     const ics = buildCalendar({ name: 'Cal', events: [baseEvent()] });
     // No bare LF that is not preceded by CR.

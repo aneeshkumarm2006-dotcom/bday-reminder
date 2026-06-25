@@ -10,7 +10,7 @@ import { validateBody } from '../middleware/validate';
 import { User } from '../models/User';
 
 /**
- * Auth routes — custom JWT (TODO Stage 1, FR-1). Email + password is the primary
+ * Auth routes - custom JWT (TODO Stage 1, FR-1). Email + password is the primary
  * login. Phone is captured as a profile field elsewhere; **phone OTP login is
  * deferred** until the SMS provider is live.
  */

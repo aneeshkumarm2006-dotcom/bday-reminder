@@ -59,7 +59,7 @@ export const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
   }
 
   // A malformed id in a path/body (e.g. GET /people/not-an-id) is a lookup that
-  // can't match anything — treat it as 404, never a 500 (which leaks internals).
+  // can't match anything - treat it as 404, never a 500 (which leaks internals).
   if (err instanceof mongoose.Error.CastError) {
     res.status(404).json({ message: "We couldn't find that.", code: 'not_found' });
     return;

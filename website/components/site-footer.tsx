@@ -5,7 +5,7 @@ import { siteConfig } from "@/lib/site";
 
 /**
  * Site footer: brand, legal + contact links, and a plain "free, no ads" note
- * (the product is free at launch — PRD §2, §13). Sentence case throughout.
+ * (the product is free at launch - PRD §2, §13). Sentence case throughout.
  */
 const footerLinks = [
   { href: "/privacy", label: "Privacy" },

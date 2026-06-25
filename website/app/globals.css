@@ -1,10 +1,10 @@
 @import "tailwindcss";
 
 /* Dark mode is class-based (next-themes toggles `.dark` on <html>), not the
-   media query — so `dark:` utilities follow the user's chosen theme. */
+   media query - so `dark:` utilities follow the user's chosen theme. */
 @custom-variant dark (&:where(.dark, .dark *));
 
-/* Design tokens — the single source of truth (DESIGN.md §3, §12.1). Light is
+/* Design tokens - the single source of truth (DESIGN.md §3, §12.1). Light is
    primary; dark is fully specified and stays warm (no cold gray). */
 :root {
   --paper: #fcfbf8;
@@ -92,7 +92,7 @@
   --font-body: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
 }
 
-/* Base canvas — warm paper, ink text, body font, tabular numerals where they
+/* Base canvas - warm paper, ink text, body font, tabular numerals where they
    count are opted in per-element. */
 body {
   background: var(--paper);

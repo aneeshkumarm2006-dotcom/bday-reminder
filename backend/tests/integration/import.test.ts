@@ -14,7 +14,7 @@ type PreviewRow = {
   duplicate: { kind: 'existing' | 'batch'; personId: string | null; fullName: string } | null;
 };
 
-// Mirrors scripts/smoke-stage7.ts — the CSV exercises ISO + DD/MM + month-name +
+// Mirrors scripts/smoke-stage7.ts - the CSV exercises ISO + DD/MM + month-name +
 // 2-digit-year + quoted-comma + invalid + duplicate (existing & batch) rows.
 const SAMPLE_CSV = [
   'name,relationship,date of birth,phone',
@@ -30,7 +30,7 @@ const SAMPLE_CSV = [
   'Henry Hill,Friend,03/04/1991,', // ambiguous numeric ⇒ day-first (3 Apr)
 ].join('\n');
 
-describe('bulk import — preview + commit (Stage 7, FR-6/7/11, §10)', () => {
+describe('bulk import - preview + commit (Stage 7, FR-6/7/11, §10)', () => {
   useTestDb();
   let api: Api;
   beforeEach(() => {
@@ -68,7 +68,7 @@ describe('bulk import — preview + commit (Stage 7, FR-6/7/11, §10)', () => {
     expect(rows).toHaveLength(10);
     expect(res.body.summary).toEqual({ total: 10, ready: 6, duplicates: 2, invalid: 2 });
 
-    // Nothing is written during preview — only the seeded person exists.
+    // Nothing is written during preview - only the seeded person exists.
     const people = await api.get('/people').set('Authorization', u.auth);
     expect(people.status).toBe(200);
     expect((people.body.people as unknown[]).length).toBe(1);
@@ -143,7 +143,7 @@ describe('bulk import — preview + commit (Stage 7, FR-6/7/11, §10)', () => {
     expect(graceRows[1].duplicate?.personId).toBeNull();
   });
 
-  it('dedup is per-owner — another user\'s identical person is NOT flagged', async () => {
+  it('dedup is per-owner - another user\'s identical person is NOT flagged', async () => {
     const owner = await signUp(api);
     await addPerson(api, owner.auth, {
       fullName: 'Frank Foster',
@@ -210,7 +210,7 @@ describe('bulk import — preview + commit (Stage 7, FR-6/7/11, §10)', () => {
 
   it('merge fills only EMPTY fields and never overwrites a populated value (§10)', async () => {
     const u = await signUp(api);
-    // Frank has a tag but NO phone — merge should fill the phone, keep the tag.
+    // Frank has a tag but NO phone - merge should fill the phone, keep the tag.
     const seed = await addPerson(api, u.auth, {
       fullName: 'Frank Foster',
       relationshipTag: 'Cousin',
@@ -251,7 +251,7 @@ describe('bulk import — preview + commit (Stage 7, FR-6/7/11, §10)', () => {
     expect(res.status).toBe(400);
   });
 
-  it('skips (does not apply) a merge into another user\'s person — ownership (§10)', async () => {
+  it('skips (does not apply) a merge into another user\'s person - ownership (§10)', async () => {
     const owner = await signUp(api);
     const seed = await addPerson(api, owner.auth, {
       fullName: 'Frank Foster',

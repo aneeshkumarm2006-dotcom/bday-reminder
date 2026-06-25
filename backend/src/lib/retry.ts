@@ -27,7 +27,7 @@ export interface RetryOptions {
   baseMs?: number;
   /** Backoff ceiling in ms (default 8000). */
   maxMs?: number;
-  /** Called before each retry sleep — for logging. */
+  /** Called before each retry sleep - for logging. */
   onRetry?: (err: TransientError, attempt: number, delayMs: number) => void;
   /** Injectable sleep so tests run instantly. */
   sleep?: (ms: number) => Promise<void>;

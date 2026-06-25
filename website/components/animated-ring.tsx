@@ -5,7 +5,7 @@ import { motion, useReducedMotion } from "framer-motion";
 import { RING_PATH, type RingSize } from "@/components/ring";
 
 /**
- * The day-of ring draw-on (DESIGN.md §7.6, §9) — the app's one signature
+ * The day-of ring draw-on (DESIGN.md §7.6, §9) - the app's one signature
  * motion, reused once on the web hero. The stroke draws on (~600ms ease-out),
  * the fill comes in (~250ms), and the number cross-fades to paper. With
  * `prefers-reduced-motion`, it renders the completed filled state instantly.

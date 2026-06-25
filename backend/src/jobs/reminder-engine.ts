@@ -1,14 +1,14 @@
 /**
  * Reminder engine (TODO Stage 4; FR-12/19/21/22/51-53). Two responsibilities:
  *
- *  1. Generation — from each Event + the user's (or event's) lead-time config,
+ *  1. Generation - from each Event + the user's (or event's) lead-time config,
  *     create one Reminder instance per lead time for the upcoming occurrence,
  *     each stamped with the absolute instant it should fire in the recipient's
  *     timezone. Idempotent: re-running only fills gaps, so it doubles as the
  *     annual rotation (once an occurrence passes, "next" rolls to next year and
  *     fresh instances appear) (FR-12).
  *
- *  2. Dispatch — find reminders due now, claim each atomically (no double-send
+ *  2. Dispatch - find reminders due now, claim each atomically (no double-send
  *     if cron ticks overlap), and deliver across its channels. Snoozed reminders
  *     whose delay elapsed are promoted back to pending and re-delivered.
  *
@@ -57,7 +57,7 @@ export function resolveLeadDays(user: UserDoc, event: EventDoc): number[] {
  */
 export async function generateForUser(user: UserDoc, now: Date = new Date()): Promise<number> {
   const today = todayInTimeZone(user.timezone);
-  // Every person the user can see — their own plus anyone in a shared list they
+  // Every person the user can see - their own plus anyone in a shared list they
   // own or belong to. Each member gets their own instances with their own lead
   // times / channels / timezone, so shared data still means personal reminders
   // (FR-44).
@@ -79,7 +79,7 @@ export async function generateForUser(user: UserDoc, now: Date = new Date()): Pr
     for (const lead of leadDays) {
       const scheduledFor = fireInstant(occurrence, lead, user.timezone, user.defaultReminderTime);
       // Don't backfill a lead time whose moment already passed by more than a
-      // day — adding someone two days before their birthday shouldn't resurface
+      // day - adding someone two days before their birthday shouldn't resurface
       // a stale "1 week before" reminder. The day-of instance still survives.
       if (scheduledFor.getTime() < now.getTime() - MS_PER_DAY) continue;
 
@@ -115,7 +115,7 @@ export async function regenerateForUser(user: UserDoc, now: Date = new Date()): 
   return generateForUser(user, now);
 }
 
-/** Generate across every user — the cron "ensure" pass that also rotates years. */
+/** Generate across every user - the cron "ensure" pass that also rotates years. */
 export async function generateForAllUsers(now: Date = new Date()): Promise<number> {
   const users = await User.find();
   let created = 0;
@@ -152,8 +152,8 @@ export async function generateForPersonViewers(
 
 /**
  * Re-derive one user's reminder set from their *current* access (FR-46/47).
- * Deletes reminders for events of people the user can no longer see — so
- * leaving / being removed from a list stops those reminders immediately — then
+ * Deletes reminders for events of people the user can no longer see - so
+ * leaving / being removed from a list stops those reminders immediately - then
  * fills any gaps for the people they can still see. Their own owned-people
  * reminders are untouched.
  */
@@ -207,7 +207,7 @@ export async function dispatchDue(now: Date = new Date()): Promise<DispatchSumma
     } catch (err) {
       // The reminder is already persisted to the in-app feed; external channel
       // failures are retried with backoff inside each provider (Stage 12) and a
-      // throw here is logged, not fatal — the loop continues.
+      // throw here is logged, not fatal - the loop continues.
       logger.error('reminder delivery failed', err instanceof Error ? err.message : err);
     }
     sent += 1;
@@ -269,7 +269,7 @@ async function deliverReminder(reminder: ReminderDoc, now: Date = new Date()): P
   const attemptedExternal = external.filter((r) => r.outcome !== 'skipped');
   const externalDeliveryFailed =
     attemptedExternal.length > 0 && attemptedExternal.every((r) => r.outcome === 'failed');
-  // Guard on status:'sent' — a long retry window could overlap a user marking
+  // Guard on status:'sent' - a long retry window could overlap a user marking
   // this occurrence done/snoozed; don't stamp delivery metadata onto a row the
   // user has since changed (status is never written here, so the claim/idempotency
   // guarantees are untouched regardless).
@@ -293,7 +293,7 @@ async function deliverReminder(reminder: ReminderDoc, now: Date = new Date()): P
   logger.info(`reminder ${reminder._id.toString()} → ${summary}`);
   if (externalDeliveryFailed) {
     logger.warn(
-      `reminder ${reminder._id.toString()} delivered in-app only — all external channels failed`,
+      `reminder ${reminder._id.toString()} delivered in-app only - all external channels failed`,
     );
   }
 }

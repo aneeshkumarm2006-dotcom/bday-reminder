@@ -10,7 +10,7 @@ import { RefreshToken } from '../models/RefreshToken';
  * Token issuance + refresh-token rotation/revocation (TODO Stage 1).
  *
  * Each refresh token carries a unique `jti` that we persist. Refreshing rotates
- * it (old row deleted, new one issued), so a refresh token is single-use — a
+ * it (old row deleted, new one issued), so a refresh token is single-use - a
  * stolen/replayed old token is rejected. Logout deletes the row.
  */
 
@@ -55,12 +55,12 @@ export async function rotateRefreshToken(presented: string): Promise<TokenPair> 
   return issueTokens(payload.sub);
 }
 
-/** Revoke a refresh token (logout). Idempotent — invalid tokens are ignored. */
+/** Revoke a refresh token (logout). Idempotent - invalid tokens are ignored. */
 export async function revokeRefreshToken(presented: string): Promise<void> {
   try {
     const payload = verifyRefreshToken(presented);
     await RefreshToken.deleteOne({ jti: payload.jti });
   } catch {
-    // Already invalid/expired — nothing to revoke.
+    // Already invalid/expired - nothing to revoke.
   }
 }

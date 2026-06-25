@@ -8,7 +8,7 @@ import { navLinks, siteConfig } from "@/lib/site";
 
 /**
  * Sticky site header (DESIGN.md §5 layout): brand, in-page nav, theme toggle,
- * and the primary "Open the app" CTA. Flat — a hairline border defines it.
+ * and the primary "Open the app" CTA. Flat - a hairline border defines it.
  */
 export function SiteHeader() {
   return (

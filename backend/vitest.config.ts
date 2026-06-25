@@ -9,7 +9,7 @@ import { defineConfig } from 'vitest/config';
  * coarser end-to-end net; these add fast, isolated, framework-reported coverage.
  *
  * Files run sequentially (`fileParallelism: false`) so at most one in-memory
- * mongod is alive at a time — cheaper and more deterministic on CI runners than
+ * mongod is alive at a time - cheaper and more deterministic on CI runners than
  * spawning one per worker. Required JWT/CORS env is injected here so `loadEnv()`
  * validates in every test; each DB-backed file sets its own `MONGODB_URI`.
  */

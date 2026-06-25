@@ -1,7 +1,7 @@
 import WidgetKit
 import SwiftUI
 
-// Circle the date — iOS home-screen widget (TODO Stage 10; FR-48/49/50,
+// Circle the date - iOS home-screen widget (TODO Stage 10; FR-48/49/50,
 // DESIGN.md §8.13). Shows the next 3 events as `DateRing sm` + name + "in Nd"
 // on a surface-over-paper card. Data comes from the App Group the app writes to
 // (src/lib/widget.ios.ts); the timeline recomputes days-remaining for each of

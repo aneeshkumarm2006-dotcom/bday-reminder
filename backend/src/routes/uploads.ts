@@ -29,7 +29,7 @@ const photoSchema = z
   })
   .strict();
 
-/** POST /uploads/photo — host a person photo, returns `{ url, hosted }`. */
+/** POST /uploads/photo - host a person photo, returns `{ url, hosted }`. */
 uploadsRouter.post(
   '/photo',
   validateBody(photoSchema),

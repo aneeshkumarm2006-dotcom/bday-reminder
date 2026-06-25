@@ -1,7 +1,7 @@
 /* eslint-disable no-console */
 /**
- * End-to-end smoke test for Stage 6 — other event types, pets, photos, custom
- * tags, and gift notes — against an ephemeral MongoDB over real HTTP. Verifies
+ * End-to-end smoke test for Stage 6 - other event types, pets, photos, custom
+ * tags, and gift notes - against an ephemeral MongoDB over real HTTP. Verifies
  * the "Done when": a person can have a birthday + anniversary + custom event
  * (each reminding independently), a pet is stored as its own type (the paw
  * indicator), a photo uploads and is stored + served back, custom relationship
@@ -12,7 +12,7 @@
  */
 import { MongoMemoryServer } from 'mongodb-memory-server';
 
-// A 1x1 transparent PNG as a data URI — a valid image payload for /uploads/photo.
+// A 1x1 transparent PNG as a data URI - a valid image payload for /uploads/photo.
 const TINY_PNG =
   'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
 
@@ -123,7 +123,7 @@ async function main(): Promise<void> {
     body = await res.json();
     check(body.events.length === 3, 'person now has 3 events: birthday + anniversary + custom');
 
-    // Age is birthday-only — the anniversary carries year 2015 but must not show
+    // Age is birthday-only - the anniversary carries year 2015 but must not show
     // "turns N" in the feed (FR-13/14, §11); the birthday (2018) still does.
     body = await (await get('/upcoming', tokenA)).json();
     const upBirthday = body.items.find((i: { eventType: string }) => i.eventType === 'birthday');
@@ -131,7 +131,7 @@ async function main(): Promise<void> {
     check(upBirthday && upBirthday.ageTurning !== null, 'birthday feed item carries the age (turns N)');
     check(upAnniversary && upAnniversary.ageTurning === null, 'anniversary feed item omits age even with a year (FR-13/14)');
 
-    // Each event reminds independently — one day-of reminder per event (FR-18).
+    // Each event reminds independently - one day-of reminder per event (FR-18).
     const reminders = await Reminder.find({ user: (await (await get('/me', tokenA)).json()).id });
     const eventIdsWithReminders = new Set(reminders.map((r) => r.event.toString()));
     check(reminders.length === 3 && eventIdsWithReminders.size === 3, 'one day-of reminder generated per event, independently (got ' + reminders.length + ')');

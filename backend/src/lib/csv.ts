@@ -1,5 +1,5 @@
 /**
- * Minimal RFC-4180-ish CSV parser (TODO Stage 7; FR-7). No dependency — the rest
+ * Minimal RFC-4180-ish CSV parser (TODO Stage 7; FR-7). No dependency - the rest
  * of the backend deliberately avoids SDKs (Cloudinary/Expo push are raw REST),
  * and a spreadsheet export is a constrained, well-understood format. Handles
  * quoted fields, embedded commas/newlines, escaped quotes (`""`), and CRLF.

@@ -6,14 +6,14 @@ import type { ChannelProvider, ReminderPayload, SendResult } from './types';
 
 /**
  * Push via the Expo push API (FR-23/54, unlimited). Posts to Expo's HTTPS
- * endpoint — no SDK needed. Degrades gracefully: a user with no registered
+ * endpoint - no SDK needed. Degrades gracefully: a user with no registered
  * device tokens is "skipped", not "failed".
  *
  * Stage 12 hardening:
  *  - Transient failures (network, 429, 5xx) retry with backoff; permanent 4xx
  *    fails fast. Retries stay inside the provider so the dispatcher sees one
  *    result and is never blocked beyond a few seconds.
- *  - The 200 body carries a per-token ticket array — a 200 does NOT mean every
+ *  - The 200 body carries a per-token ticket array - a 200 does NOT mean every
  *    token was accepted. We parse it, prune `DeviceNotRegistered` tokens from
  *    the user (so dead tokens don't accumulate and silently fail forever), and
  *    report a mixed ok/failed outcome.
@@ -84,7 +84,7 @@ export const pushProvider: ChannelProvider = {
             };
           }
 
-          // 200 OK — inspect the per-token tickets (a 200 can still hold errors).
+          // 200 OK - inspect the per-token tickets (a 200 can still hold errors).
           const body = (await res.json().catch(() => null)) as { data?: ExpoTicket[] } | null;
           const tickets = body?.data ?? [];
           return await resolveTickets(payload.userId, tokens, tickets, attempt);
@@ -95,7 +95,7 @@ export const pushProvider: ChannelProvider = {
         },
       );
     } catch (err) {
-      // Retries exhausted (persistent transient failure) — record the attempt
+      // Retries exhausted (persistent transient failure) - record the attempt
       // count too, so telemetry is consistent with the success/permanent paths.
       return {
         channel: 'push',
@@ -140,7 +140,7 @@ async function resolveTickets(
   });
 
   if (dead.length > 0) {
-    // Stop sending to uninstalled/expired devices — and keep pushTokens bounded.
+    // Stop sending to uninstalled/expired devices - and keep pushTokens bounded.
     // Idempotent, so it's safe even if a later attempt re-sends the same batch.
     await User.updateOne({ _id: userId }, { $pull: { pushTokens: { $in: dead } } }).catch((err) =>
       logger.warn(`could not prune ${dead.length} dead push token(s): ${String(err)}`),

@@ -19,7 +19,7 @@ import { User } from '../models/User';
 export const devRouter = Router();
 
 /**
- * POST /dev/reminders/run — make reminders fire now.
+ * POST /dev/reminders/run - make reminders fire now.
  * Body (optional): { email } to scope to one user; omitted = all users.
  * Steps: ensure instances exist (generation/rotation), fast-forward every
  * pending reminder's `scheduledFor` to now, then dispatch. Returns a summary.
@@ -52,7 +52,7 @@ devRouter.post(
   }),
 );
 
-/** POST /dev/reminders/dispatch — run the dispatcher once at `now` (no forwarding). */
+/** POST /dev/reminders/dispatch - run the dispatcher once at `now` (no forwarding). */
 devRouter.post(
   '/reminders/dispatch',
   asyncHandler(async (_req, res) => {

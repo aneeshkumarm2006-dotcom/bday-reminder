@@ -31,8 +31,8 @@ import { User } from '../models/User';
  * People + their birthday events (TODO Stage 3; FR-5/8/9/12/13/14/15). Creating
  * a Person auto-creates their Birthday Event; deleting one cascades its events,
  * pending reminders, and notes (PRD §10). Reads are scoped to everything the
- * caller can see — their own people plus anyone in a shared list they belong to
- * (Stage 8) — and writes require owner/edit access (FR-43/45). Every write
+ * caller can see - their own people plus anyone in a shared list they belong to
+ * (Stage 8) - and writes require owner/edit access (FR-43/45). Every write
  * stamps `updatedBy` for the "Last edited by" attribution (FR-45) and fans
  * reminder changes out to every member who receives reminders for the person.
  */
@@ -141,7 +141,7 @@ async function lastEditedBy(person: PersonDoc): Promise<PersonExtras['lastEdited
 }
 
 /**
- * POST /people — create a Person and auto-create their Birthday Event (FR-5/12).
+ * POST /people - create a Person and auto-create their Birthday Event (FR-5/12).
  * Name + DOB month/day are required; the year is optional. An optional `lists`
  * places the person into shared lists the caller can write to.
  */
@@ -190,7 +190,7 @@ peopleRouter.post(
 );
 
 /**
- * GET /people — everyone the caller can see (FR-9/44): their own people plus
+ * GET /people - everyone the caller can see (FR-9/44): their own people plus
  * anyone in a shared list they belong to. Optional `?tag=` relationship filter
  * and `?sort=next|name` (default `next`, ascending by soonest occurrence).
  */
@@ -237,7 +237,7 @@ peopleRouter.get(
   }),
 );
 
-/** GET /people/:id — one person with their events (FR-8), scoped by access. */
+/** GET /people/:id - one person with their events (FR-8), scoped by access. */
 peopleRouter.get(
   '/:id',
   asyncHandler(async (req, res) => {
@@ -251,7 +251,7 @@ peopleRouter.get(
 );
 
 /**
- * PATCH /people/:id — edit a person (FR-8/45). Requires owner/edit access.
+ * PATCH /people/:id - edit a person (FR-8/45). Requires owner/edit access.
  * Changing the DOB syncs the birthday event and clears its future
  * pending/snoozed reminders so they regenerate (sent history untouched, §10);
  * the change fans out to every member who receives reminders for the person.
@@ -329,7 +329,7 @@ peopleRouter.patch(
 );
 
 /**
- * DELETE /people/:id — remove a person and cascade their events, reminders, and
+ * DELETE /people/:id - remove a person and cascade their events, reminders, and
  * notes (PRD §10). Requires owner/edit access (FR-8/45). Reminders are deleted
  * across every recipient (no user filter), so the person disappears for all
  * members. Idempotent at the data layer.

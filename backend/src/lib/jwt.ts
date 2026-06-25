@@ -3,7 +3,7 @@ import jwt, { type SignOptions } from 'jsonwebtoken';
 import { loadEnv } from './env';
 
 /**
- * JWT helpers (custom auth — TODO Stage 1). Two token types signed with
+ * JWT helpers (custom auth - TODO Stage 1). Two token types signed with
  * separate secrets: a short-lived access token and a long-lived refresh token.
  * The refresh token carries a `jti` so it can be tracked/revoked server-side
  * (see the RefreshToken model + auth route rotation).

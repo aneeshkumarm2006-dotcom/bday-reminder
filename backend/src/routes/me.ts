@@ -10,8 +10,8 @@ import { validateBody } from '../middleware/validate';
 /**
  * Account routes (TODO Stage 1). Profile, timezone, and notification
  * preferences. All require a valid access token. Changing anything that affects
- * *when* or *through what* reminders fire — timezone, reminder time, lead times,
- * channels — regenerates the user's pending reminders so the change takes effect
+ * *when* or *through what* reminders fire - timezone, reminder time, lead times,
+ * channels - regenerates the user's pending reminders so the change takes effect
  * (FR-21/52); snoozed/done/sent history is preserved (Stage 4).
  */
 
@@ -35,7 +35,7 @@ const patchSchema = z
       .regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Use a 24-hour time like 09:00.')
       .optional(),
     // One-way: marks first-run onboarding complete (Stage 7, FR-2/3). Only
-    // `true` is meaningful — onboarding can't be "undone".
+    // `true` is meaningful - onboarding can't be "undone".
     onboarded: z.literal(true).optional(),
   })
   .strict();
@@ -96,7 +96,7 @@ const pushTokenSchema = z.object({
 });
 
 /**
- * POST /me/push-tokens — register this device's Expo push token (FR-23/54).
+ * POST /me/push-tokens - register this device's Expo push token (FR-23/54).
  * Idempotent: `$addToSet` de-dups, so re-registering on every launch is safe.
  */
 meRouter.post(
@@ -113,7 +113,7 @@ meRouter.post(
   }),
 );
 
-/** DELETE /me/push-tokens — unregister a device's token (e.g. on logout). */
+/** DELETE /me/push-tokens - unregister a device's token (e.g. on logout). */
 meRouter.delete(
   '/push-tokens',
   validateBody(pushTokenSchema),

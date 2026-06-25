@@ -4,7 +4,7 @@ import { ReminderCard } from '@/components/reminder-card';
 import { fireEvent, renderWithTheme, screen } from '../../test-utils/render';
 
 /**
- * ReminderCard — in-app feed item (TODO Stage 13; DESIGN.md §8.3). Asserts the
+ * ReminderCard - in-app feed item (TODO Stage 13; DESIGN.md §8.3). Asserts the
  * server-rendered copy is the primary line, "Send greeting" appears only when
  * day-of + a phone exists (canGreet, FR-28/30), Done rows are de-emphasized with
  * their actions hidden, the status pill matches, and the action callbacks fire.
@@ -21,7 +21,7 @@ function reminder(overrides: Partial<ReminderItem> = {}): ReminderItem {
     sentAt: '2026-06-22T09:00:00.000Z',
     daysRemaining: 0,
     ageTurning: 36,
-    message: "It's Aisha Khan's birthday today — turns 36.",
+    message: "It's Aisha Khan's birthday today - turns 36.",
     canGreet: true,
     person: { id: 'p1', fullName: 'Aisha Khan', type: 'human', relationshipTag: 'Friend', photoUrl: null, phone: '+1555' },
     event: { id: 'e1', type: 'birthday', customName: null },
@@ -36,7 +36,7 @@ describe('ReminderCard', () => {
     renderWithTheme(
       <ReminderCard item={reminder()} onGreet={noop} onDone={noop} onSnooze={noop} />,
     );
-    expect(screen.getByText("It's Aisha Khan's birthday today — turns 36.")).toBeTruthy();
+    expect(screen.getByText("It's Aisha Khan's birthday today - turns 36.")).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Send greeting' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Mark as done' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Snooze' })).toBeTruthy();

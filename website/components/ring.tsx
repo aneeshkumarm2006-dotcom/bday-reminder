@@ -3,7 +3,7 @@ import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /**
- * ⭐ The ring — the one signature element (DESIGN.md §7), ported to the web for
+ * ⭐ The ring - the one signature element (DESIGN.md §7), ported to the web for
  * brand consistency with the app. A hand-drawn wobbly circle (one SVG path,
  * tilted -4°, number upright) around an event's day number with a month caption.
  *

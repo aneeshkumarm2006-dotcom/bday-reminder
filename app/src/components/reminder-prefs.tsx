@@ -10,7 +10,7 @@ import type { ChannelKey, ChannelPreferences } from '@/lib/api';
  * Reminder-preference controls (DESIGN.md §8.4/§8.5), shared by the global
  * Settings screen and the per-event override in Add/Edit person so both render
  * the identical chip + toggle set (FR-19/20/21/24/26/56). Pure controlled
- * components — they hold no server state; the parent persists the change.
+ * components - they hold no server state; the parent persists the change.
  */
 
 // --- Lead-time chips (§8.4, FR-19/20) ---------------------------------------
@@ -172,7 +172,7 @@ export function ChannelToggles({
   );
 }
 
-/** Persistent fair-use note under SMS — number read from config, not hardcoded. */
+/** Persistent fair-use note under SMS - number read from config, not hardcoded. */
 function FairUseNote({ cap }: { cap: number | null }) {
   const copy =
     cap != null

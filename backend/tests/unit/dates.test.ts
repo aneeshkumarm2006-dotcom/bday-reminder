@@ -100,7 +100,7 @@ describe('dates: ageTurning (FR-13/14)', () => {
     expect(ageTurning(utc(2026, 6, 22), 1996)).toBe(30);
   });
 
-  it('returns null when the birth year is unknown — never guesses', () => {
+  it('returns null when the birth year is unknown - never guesses', () => {
     expect(ageTurning(utc(2026, 6, 22), undefined)).toBeNull();
     expect(ageTurning(utc(2026, 6, 22), null)).toBeNull();
     expect(ageTurning(utc(2026, 6, 22), 0)).toBeNull();
@@ -134,7 +134,7 @@ describe('dates: todayInTimeZone (FR-53)', () => {
     expect(d.getUTCMinutes()).toBe(0);
   });
 
-  it('resolves the calendar day IN the given zone — not just the host UTC day', () => {
+  it('resolves the calendar day IN the given zone - not just the host UTC day', () => {
     // 2026-06-21T20:00:00Z: still the 21st in UTC, but already the 22nd in
     // Asia/Kolkata (UTC+5:30). The zone must actually shift the day.
     vi.useFakeTimers();

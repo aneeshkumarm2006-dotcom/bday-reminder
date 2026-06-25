@@ -1,11 +1,11 @@
 /* eslint-disable no-console */
 /**
- * End-to-end smoke test for Stage 7 — onboarding, contact import, CSV bulk
- * import, and duplicate detection — against an ephemeral MongoDB over real HTTP.
+ * End-to-end smoke test for Stage 7 - onboarding, contact import, CSV bulk
+ * import, and duplicate detection - against an ephemeral MongoDB over real HTTP.
  * Verifies the "Done when": a new user can finish onboarding (defaults set +
  * flag persisted), import a CSV (parsed + column-mapped + many date formats) and
  * structured device-contact rows, and is correctly prompted to resolve
- * duplicates (merge / keep both / skip) — never a silent auto-merge or overwrite
+ * duplicates (merge / keep both / skip) - never a silent auto-merge or overwrite
  * (FR-2/3/6/7/11, §10).
  *
  * Run: npm run smoke:stage7
@@ -82,7 +82,7 @@ async function main(): Promise<void> {
     res = await patch('/me', { onboarded: true }, tokenA);
     check(res.status === 200 && (await res.json()).hasOnboarded === true, 'PATCH /me { onboarded:true } marks onboarding complete');
     me = await (await get('/me', tokenA)).json();
-    check(me.hasOnboarded === true, 'the onboarded flag persists across requests (one account, synced — FR-4)');
+    check(me.hasOnboarded === true, 'the onboarded flag persists across requests (one account, synced - FR-4)');
     res = await patch('/me', { onboarded: true }, tokenA);
     check(res.status === 200, 're-marking onboarded is an idempotent no-op');
 

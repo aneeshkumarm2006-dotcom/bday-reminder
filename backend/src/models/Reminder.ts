@@ -31,7 +31,7 @@ export interface ReminderDoc {
   sentAt?: Date;
   /**
    * Delivery outcome of the last dispatch attempt (Stage 12 observability).
-   * `status:'sent'` means "claimed + attempted", not "delivered" — these fields
+   * `status:'sent'` means "claimed + attempted", not "delivered" - these fields
    * record what actually happened per external channel. `externalDeliveryFailed`
    * flags a reminder that reached the in-app feed but failed every external
    * channel (after retries), so failures aren't invisible.
@@ -69,7 +69,7 @@ reminderSchema.index({ status: 1, scheduledFor: 1 });
 reminderSchema.index({ status: 1, snoozeUntil: 1 });
 reminderSchema.index({ user: 1, status: 1 });
 reminderSchema.index({ event: 1 });
-// One instance per (user, event, occurrence, lead time) — generation upserts on this.
+// One instance per (user, event, occurrence, lead time) - generation upserts on this.
 reminderSchema.index({ user: 1, event: 1, occurrenceDate: 1, leadDays: 1 }, { unique: true });
 
 export const Reminder: Model<ReminderDoc> =

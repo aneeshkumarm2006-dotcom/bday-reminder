@@ -9,7 +9,7 @@
  * The payload caches the next few events on-device as **absolute** occurrence
  * dates. The widget recomputes "days remaining" from those dates on each OS
  * refresh, so the countdown ticks down as days pass without the app being
- * opened (FR-49) — never a stored, going-stale number.
+ * opened (FR-49) - never a stored, going-stale number.
  */
 
 import type { UpcomingItem } from './api';
@@ -25,13 +25,13 @@ export const WIDGET_NAME = 'Birthdays';
 export const WIDGET_APP_GROUP = 'group.com.circlethedate.app.widget';
 export const WIDGET_STORAGE_KEY = 'circle-the-date.widget';
 
-/** The canonical hand-drawn ring path (DESIGN.md §7.4) — shared with the SVG. */
+/** The canonical hand-drawn ring path (DESIGN.md §7.4) - shared with the SVG. */
 export const RING_PATH =
   'M33 8 C49 7 58 19 57 32 C56 47 41 57 26 55 C12 53 6 39 9 25 C12 13 22 8 36 9';
 
 /** One event as the widget needs it: enough to render a row + deep-link it. */
 export type WidgetEvent = {
-  /** Deep-link target — tapping opens this person's profile (FR-50). */
+  /** Deep-link target - tapping opens this person's profile (FR-50). */
   personId: string;
   eventId: string;
   name: string;
@@ -89,7 +89,7 @@ export function buildWidgetPayload(
 /**
  * Whole days from "today" until an occurrence, recomputed live. "Today" is the
  * device's local calendar day, pinned to UTC midnight to compare against the
- * server's UTC-midnight occurrence — DST-proof day math (mirrors the backend).
+ * server's UTC-midnight occurrence - DST-proof day math (mirrors the backend).
  */
 export function daysUntilOccurrence(occurrenceISO: string, now: Date = new Date()): number {
   const occ = new Date(occurrenceISO);
@@ -105,7 +105,7 @@ export function widgetCountdown(days: number): string {
   return `in ${days} days`;
 }
 
-/** Deep link into a person's profile — the FR-50 tap target. */
+/** Deep link into a person's profile - the FR-50 tap target. */
 export function deepLinkForPerson(personId: string): string {
   return `circlethedate://person/${personId}`;
 }

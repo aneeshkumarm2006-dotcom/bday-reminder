@@ -1,7 +1,7 @@
 /* eslint-disable no-console */
 /**
  * End-to-end smoke test for the Stage 4 reminders engine against an ephemeral
- * MongoDB (mongodb-memory-server) — no Atlas, Resend, or Expo account needed
+ * MongoDB (mongodb-memory-server) - no Atlas, Resend, or Expo account needed
  * (delivery channels degrade to "skipped" without keys). Verifies the "Done
  * when": reminders generate per lead time at the right local fire-time, the
  * dispatcher fires due ones (idempotently, no double-send), the in-app feed
@@ -120,7 +120,7 @@ async function main(): Promise<void> {
     const userARes = await (await get('/me', tokenA)).json();
     const userAId: string = userARes.id;
     const allA = await Reminder.find({ user: userAId });
-    // P1: lead0 (due) — lead7 is 7 days stale, skipped. P2: lead0. P3: lead0+lead7. P6: lead0+lead7. = 6.
+    // P1: lead0 (due) - lead7 is 7 days stale, skipped. P2: lead0. P3: lead0+lead7. P6: lead0+lead7. = 6.
     check(allA.length === 6, `generated 6 reminder instances across lead times (got ${allA.length})`);
     check(
       allA.every((r) => r.channels.length === 3 && r.channels.includes('push') && r.channels.includes('email') && r.channels.includes('inApp')),
@@ -137,7 +137,7 @@ async function main(): Promise<void> {
     check(!items.some((i) => i.person.fullName === 'Soon Friend'), 'a fully-future occurrence is not in the feed yet');
 
     const aisha = items.find((i) => i.person.fullName === 'Aisha Khan')!;
-    check(aisha.daysRemaining === 0 && /^It's Aisha Khan's birthday today — turns \d+\.$/.test(aisha.message), 'day-of + year copy: "It\'s … today — turns N."');
+    check(aisha.daysRemaining === 0 && /^It's Aisha Khan's birthday today - turns \d+\.$/.test(aisha.message), 'day-of + year copy: "It\'s … today - turns N."');
     check(typeof aisha.ageTurning === 'number' && aisha.ageTurning! > 0, 'age shown when birth year known');
     check(aisha.canGreet === true, 'Send-greeting eligible day-of when a phone exists (FR-28)');
 
@@ -156,7 +156,7 @@ async function main(): Promise<void> {
 
     // Idempotency: a second pass sends nothing (no double-send).
     summary = await dispatchDue(new Date());
-    check(summary.sent === 0, 'dispatch is idempotent — no double-send on the second pass');
+    check(summary.sent === 0, 'dispatch is idempotent - no double-send on the second pass');
 
     // --- Mark as done (FR-31/32) -------------------------------------------
     res = await post(`/reminders/${aisha.id}/done`, undefined, tokenA);

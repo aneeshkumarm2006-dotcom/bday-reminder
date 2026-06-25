@@ -1,5 +1,5 @@
 /**
- * Quick runtime check for the pure widget logic (Stage 10) — the code that
+ * Quick runtime check for the pure widget logic (Stage 10) - the code that
  * drives both native widgets and the in-app preview. Run:
  *   cd backend && npx tsx ../app/scripts/widget-check.ts
  */

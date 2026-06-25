@@ -3,10 +3,10 @@ import { Text as RNText, type TextProps as RNTextProps } from 'react-native';
 import { cn } from '@/lib/cn';
 
 /**
- * Typography primitive — the type scale from DESIGN.md §4.1. Each variant pins
+ * Typography primitive - the type scale from DESIGN.md §4.1. Each variant pins
  * the right family (Hanken 600 for display, Inter 400/500 for body) since React
  * Native can't synthesize weights from one family. Sentence case everywhere
- * (§4.2) — that's a copy convention, enforced by authoring, not by transform.
+ * (§4.2) - that's a copy convention, enforced by authoring, not by transform.
  */
 
 export type TextVariant =

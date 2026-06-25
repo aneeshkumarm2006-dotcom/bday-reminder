@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { CalendarHeart, ChevronRight, Upload, UserPlus, Users } from 'lucide-react-native';
+import { CalendarHeart, ChevronRight, UserPlus, Users } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Platform, Pressable, ScrollView, View } from 'react-native';
 
@@ -16,14 +16,14 @@ import { useTokens } from '@/theme/theme-provider';
 
 /**
  * First-run onboarding (TODO Stage 7; FR-2/3). After signup we land here once:
- * confirm the default reminder lead time(s) + channel(s) — sensible defaults are
- * pre-selected so it's skippable without friction — then pick a fast way to add
- * people (import contacts, import a CSV, or add manually). Any choice persists
+ * confirm the default reminder lead time(s) + channel(s) - sensible defaults are
+ * pre-selected so it's skippable without friction - then pick a fast way to add
+ * people (import contacts or add manually). Any choice persists
  * the defaults and marks onboarding done so we don't show this again. The nav
  * guard in `_layout.tsx` routes a not-yet-onboarded user here.
  */
 
-type Destination = 'contacts' | 'csv' | 'manual' | 'skip';
+type Destination = 'contacts' | 'manual' | 'skip';
 
 export default function OnboardingScreen() {
   const router = useRouter();
@@ -68,7 +68,6 @@ export default function OnboardingScreen() {
     }
     router.replace('/');
     if (dest === 'contacts') router.push({ pathname: '/import', params: { source: 'contacts' } });
-    else if (dest === 'csv') router.push({ pathname: '/import', params: { source: 'csv' } });
     else if (dest === 'manual') router.push('/add-person');
   };
 
@@ -131,14 +130,6 @@ export default function OnboardingScreen() {
               disabled={!!busy}
             />
           ) : null}
-          <ChoiceCard
-            icon={Upload}
-            title="Import a CSV"
-            body="Paste a spreadsheet of names and birthdays."
-            onPress={() => go('csv')}
-            loading={busy === 'csv'}
-            disabled={!!busy}
-          />
           <ChoiceCard
             icon={UserPlus}
             title="Add someone manually"

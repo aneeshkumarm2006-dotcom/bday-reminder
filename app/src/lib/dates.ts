@@ -30,7 +30,7 @@ export function startOfDay(date: Date): Date {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate());
 }
 
-/** Today at local midnight — "today" in the viewer's timezone (FR-53). */
+/** Today at local midnight - "today" in the viewer's timezone (FR-53). */
 export function todayLocal(): Date {
   return startOfDay(new Date());
 }
@@ -86,7 +86,7 @@ export function isToday(month: number, day: number, rule: Feb29Rule = 'feb28'): 
 
 /**
  * The age the person is turning on a given occurrence. Returns null when the
- * birth year is unknown — callers must omit age entirely, never guess (FR-14).
+ * birth year is unknown - callers must omit age entirely, never guess (FR-14).
  */
 export function ageTurning(occurrence: Date, birthYear?: number | null): number | null {
   if (!birthYear) return null;
@@ -117,7 +117,7 @@ export function proximityGroup(days: number): 'This week' | 'This month' | 'Late
 
 /**
  * Relative "time ago" label for a past timestamp (DESIGN.md §8.6 gift notes:
- * each entry shows text + relative date). Coarse buckets — notes don't need
+ * each entry shows text + relative date). Coarse buckets - notes don't need
  * second precision.
  */
 export function relativeDate(iso: string, now: Date = new Date()): string {

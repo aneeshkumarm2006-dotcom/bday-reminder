@@ -1,5 +1,5 @@
 /**
- * Web has no push channel — the one allowed parity exception is the widget, but
+ * Web has no push channel - the one allowed parity exception is the widget, but
  * push registration simply no-ops here (FR parity §5). Metro resolves this file
  * for web so `expo-notifications` is never bundled into the web build.
  */

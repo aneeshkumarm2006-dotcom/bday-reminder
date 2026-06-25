@@ -6,8 +6,8 @@ import { logger } from './logger';
 /**
  * Cloudinary image hosting (TODO Stage 6; FR-10). Person photos are uploaded
  * here and only the resulting URL is stored on the Person. Uses Cloudinary's
- * signed REST upload directly (no SDK) — the same "talk to the provider over
- * HTTPS" approach as the Expo push and Resend email channels — so the API
+ * signed REST upload directly (no SDK) - the same "talk to the provider over
+ * HTTPS" approach as the Expo push and Resend email channels - so the API
  * secret never leaves the server.
  *
  * When the account isn't configured the upload degrades gracefully: the image

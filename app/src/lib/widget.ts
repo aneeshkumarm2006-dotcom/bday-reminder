@@ -4,12 +4,12 @@
  * Metro swaps in the per-platform implementation at bundle time:
  *   · `widget.ios.ts`     → WidgetKit via an App Group (`@bacons/apple-targets`)
  *   · `widget.android.ts` → App Widget via `react-native-android-widget`
- *   · `widget.web.ts`     → no-op (web has no home screen — the one parity
+ *   · `widget.web.ts`     → no-op (web has no home screen - the one parity
  *                            exception, PRD §5)
  *
  * Callers import from `@/lib/widget`; the platform file actually runs. The
  * widget is mobile-only, so this base module is never the one executing on a
- * real device — it just gives TypeScript a single, consistent signature.
+ * real device - it just gives TypeScript a single, consistent signature.
  */
 
 import { type UpcomingItem } from './api';

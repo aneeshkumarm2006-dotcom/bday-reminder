@@ -1,5 +1,5 @@
 /**
- * Web has no home-screen widget — the one allowed parity exception (PRD §5).
+ * Web has no home-screen widget - the one allowed parity exception (PRD §5).
  * Metro resolves this file for web so neither native widget library is ever
  * bundled into the web build. Both calls no-op.
  */

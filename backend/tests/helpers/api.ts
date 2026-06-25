@@ -1,7 +1,7 @@
 /**
  * Integration-test helpers (TODO Stage 13): build the real Express app and drive
  * it with supertest, plus shortcuts to sign up users and authenticate requests.
- * No network listener — supertest binds the app ephemerally per request.
+ * No network listener - supertest binds the app ephemerally per request.
  */
 import supertest from 'supertest';
 import type { Express } from 'express';

@@ -2,7 +2,7 @@
  * Shared in-memory MongoDB harness for integration tests (TODO Stage 13).
  * Boots one ephemeral `mongodb-memory-server` per test file, connects Mongoose,
  * and clears every collection between tests so each `it` starts from a clean DB
- * — no Atlas required, mirroring the `scripts/smoke-*.ts` pattern.
+ * - no Atlas required, mirroring the `scripts/smoke-*.ts` pattern.
  *
  * Usage:
  *   import { useTestDb } from './helpers/db';

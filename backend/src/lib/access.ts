@@ -19,7 +19,7 @@ type PersonFilter = Record<string, unknown>;
  *     permission, can edit (`edit`);
  *   - a list member with `view` permission can only read (`view`).
  *
- * Membership means *accepted* membership — pending invites grant nothing
+ * Membership means *accepted* membership - pending invites grant nothing
  * (FR-42). Every people/event/note route resolves access through here so the
  * same rules are enforced everywhere; writes additionally call `assertCanEdit`.
  */
@@ -33,9 +33,9 @@ export interface UserListAccess {
   editListIds: string[];
   /** Lists the user is an accepted member of with `view` permission. */
   viewListIds: string[];
-  /** owned + edit + view — everything the user can at least see. */
+  /** owned + edit + view - everything the user can at least see. */
   accessibleListIds: string[];
-  /** owned + edit — lists whose people the user may modify. */
+  /** owned + edit - lists whose people the user may modify. */
   writableListIds: string[];
 }
 
@@ -120,7 +120,7 @@ export function assertCanEdit(level: PersonAccessLevel): void {
 }
 
 /**
- * Validate that the caller may place people into each of `listIds` — they must
+ * Validate that the caller may place people into each of `listIds` - they must
  * own the list or be an `edit` member. Returns the de-duped, validated ids.
  * Throws 403 on any list the caller can't write to (or that doesn't exist).
  */

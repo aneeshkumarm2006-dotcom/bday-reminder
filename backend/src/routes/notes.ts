@@ -11,10 +11,10 @@ import { Note } from '../models/Note';
 
 /**
  * Gift notes (TODO Stage 6; FR-35/36/37). A running list of separate,
- * timestamped entries per person — not one overwritable field — so old gift
+ * timestamped entries per person - not one overwritable field - so old gift
  * ideas aren't lost when a new one is added. Notes are private to the user/list:
  * everyone who can see the person can read them, but adding/deleting follows the
- * Can-edit permission (PRD §14 default — view-only members can't add notes).
+ * Can-edit permission (PRD §14 default - view-only members can't add notes).
  * Mounted nested under a person (`/people/:personId/notes`) so every route is
  * scoped to that person; deleting the person cascades their notes.
  */
@@ -23,7 +23,7 @@ export const notesRouter = Router({ mergeParams: true });
 
 notesRouter.use(requireAuth);
 
-/** GET /people/:personId/notes — the person's notes, newest first (any access). */
+/** GET /people/:personId/notes - the person's notes, newest first (any access). */
 notesRouter.get(
   '/',
   asyncHandler(async (req, res) => {
@@ -39,7 +39,7 @@ const createSchema = z
   })
   .strict();
 
-/** POST /people/:personId/notes — add a note entry (FR-35/36; needs edit access). */
+/** POST /people/:personId/notes - add a note entry (FR-35/36; needs edit access). */
 notesRouter.post(
   '/',
   validateBody(createSchema),
@@ -54,7 +54,7 @@ notesRouter.post(
   }),
 );
 
-/** DELETE /people/:personId/notes/:noteId — remove a single entry (needs edit access). */
+/** DELETE /people/:personId/notes/:noteId - remove a single entry (needs edit access). */
 notesRouter.delete(
   '/:noteId',
   asyncHandler(async (req, res) => {

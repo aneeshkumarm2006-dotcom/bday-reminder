@@ -4,7 +4,7 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 
 /**
- * Button (DESIGN.md §8.14) — built the shadcn/ui way (cva + cn), themed to the
+ * Button (DESIGN.md §8.14) - built the shadcn/ui way (cva + cn), themed to the
  * design tokens. Primary = biro; secondary = bordered surface; ghost = quiet.
  * 44px min height, visible focus, subtle active scale (§9). Use `buttonVariants`
  * to style a `<Link>`/`<a>` as a button.

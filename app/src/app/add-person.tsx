@@ -78,7 +78,7 @@ const CURRENT_YEAR = new Date().getFullYear();
 
 type Errors = { name?: string; dob?: string; year?: string };
 
-/** Lists the caller may add people to — those they own or can edit (FR-43/45). */
+/** Lists the caller may add people to - those they own or can edit (FR-43/45). */
 function writableLists(lists: SharedListView[]): { id: string; name: string }[] {
   return lists
     .filter((l) => l.permission === 'owner' || l.permission === 'edit')
@@ -188,7 +188,7 @@ export default function AddPersonScreen() {
         setYear(person.dob.year != null ? String(person.dob.year) : '');
         const tag = person.relationshipTag ?? '';
         setRelationship(tag);
-        // A stored tag that isn't a preset is a custom one — show the text field.
+        // A stored tag that isn't a preset is a custom one - show the text field.
         setCustomTag(!!tag && !PRESET_TAGS.has(tag));
         setPhone(person.phone ?? '');
         setPhotoUrl(person.photoUrl ?? null);
@@ -432,7 +432,7 @@ export default function AddPersonScreen() {
                 </Text>
               ) : (
                 <Text variant="caption" className="mt-1.5 text-ink-muted">
-                  {"Year is optional — leave it blank if you don't know it."}
+                  {"Year is optional; leave it blank if you don't know it."}
                 </Text>
               )}
             </View>
@@ -462,7 +462,7 @@ export default function AddPersonScreen() {
                     placeholder="e.g. Neighbour, Mentor"
                     autoCapitalize="words"
                     maxLength={40}
-                    hint="Your own label — it joins the filter chips on the feed."
+                    hint="Your own label, it joins the filter chips on the feed."
                   />
                 </View>
               ) : null}
@@ -510,7 +510,7 @@ export default function AddPersonScreen() {
               hint="Used only to open your own SMS with a prefilled greeting."
             />
 
-            {/* Shared with — add to shared lists the user can edit (Stage 8). */}
+            {/* Shared with - add to shared lists the user can edit (Stage 8). */}
             {availableLists.length > 0 ? (
               <View>
                 <Label optional>Shared with</Label>
@@ -530,7 +530,7 @@ export default function AddPersonScreen() {
               </View>
             ) : null}
 
-            {/* Reminder override — collapsed by default (§8.4, FR-21/24). */}
+            {/* Reminder override - collapsed by default (§8.4, FR-21/24). */}
             <View>
               <ToggleRow
                 title="Reminder override"

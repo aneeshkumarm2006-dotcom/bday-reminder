@@ -1,5 +1,5 @@
 /**
- * Design tokens as plain JS — the source of truth for imperative styling
+ * Design tokens as plain JS - the source of truth for imperative styling
  * (SVG stroke/fill, status bar, native controls) where a NativeWind `className`
  * / CSS variable can't reach. These hex values MUST stay in sync with the CSS
  * variables in `src/global.css` (which drive the className utilities).

@@ -1,6 +1,6 @@
 /* eslint-disable no-console */
 /**
- * End-to-end smoke test for Stage 9 — calendar sync — against an ephemeral
+ * End-to-end smoke test for Stage 9 - calendar sync - against an ephemeral
  * MongoDB over real HTTP. Verifies the "Done when": subscribing to the feed
  * shows the birthdays/events, and adding/deleting a person updates the calendar
  * on its next refresh (FR-38/39/40).

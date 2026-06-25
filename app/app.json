@@ -11,7 +11,9 @@
       "icon": "./assets/expo.icon",
       "bundleIdentifier": "com.circlethedate.app",
       "entitlements": {
-        "com.apple.security.application-groups": ["group.com.circlethedate.app.widget"]
+        "com.apple.security.application-groups": [
+          "group.com.circlethedate.app.widget"
+        ]
       }
     },
     "android": {
@@ -22,7 +24,12 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.READ_CONTACTS",
+        "android.permission.WRITE_CONTACTS"
+      ]
     },
     "web": {
       "output": "static",
@@ -79,6 +86,29 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "build": {
+          "experimental": {
+            "ios": {
+              "appExtensions": [
+                {
+                  "bundleIdentifier": "com.circlethedate.app.widget",
+                  "targetName": "Birthdays",
+                  "entitlements": {
+                    "com.apple.security.application-groups": [
+                      "group.com.circlethedate.app.widget"
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "projectId": "267bd311-09eb-4980-b19b-6e28660983de"
+      }
     }
   }
 }

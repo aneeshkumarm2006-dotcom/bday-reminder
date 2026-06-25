@@ -3,11 +3,11 @@ import { logger } from './logger';
 
 /**
  * Shared-list invite email (TODO Stage 8; FR-41). Sends through Resend's REST
- * API — same approach as the reminder email channel, no SDK. When
+ * API - same approach as the reminder email channel, no SDK. When
  * `RESEND_API_KEY` is unset (or the invite is to a phone/link rather than an
  * email), the send is logged and reported "skipped" instead of failing, so the
  * invite flow runs end-to-end in dev/QA without a Resend account. The invite is
- * always persisted regardless of email outcome — the accept link/token works
+ * always persisted regardless of email outcome - the accept link/token works
  * even when no email goes out.
  */
 
@@ -22,7 +22,7 @@ export interface InviteEmailInput {
   acceptUrl: string;
 }
 
-/** Loose email check — enough to decide whether to attempt an email send. */
+/** Loose email check - enough to decide whether to attempt an email send. */
 export function looksLikeEmail(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
 }
@@ -35,7 +35,7 @@ function escapeHtml(text: string): string {
     .replace(/"/g, '&quot;');
 }
 
-/** Minimal templated HTML — static copy only, no AI (PRD §11). */
+/** Minimal templated HTML - static copy only, no AI (PRD §11). */
 function renderHtml(input: InviteEmailInput): string {
   return [
     '<div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;color:#232020">',
@@ -51,12 +51,12 @@ export async function sendInviteEmail(input: InviteEmailInput): Promise<InviteEm
   const env = loadEnv();
 
   if (!looksLikeEmail(input.to)) {
-    // Phone / invite-link path — nothing to email; the owner shares the link.
+    // Phone / invite-link path - nothing to email; the owner shares the link.
     logger.info(`[invite:link] ${input.listName} → ${input.to}: ${input.acceptUrl}`);
     return 'skipped';
   }
   if (!env.RESEND_API_KEY) {
-    logger.info(`[invite:stub] → ${input.to}: join "${input.listName}" — ${input.acceptUrl}`);
+    logger.info(`[invite:stub] → ${input.to}: join "${input.listName}" - ${input.acceptUrl}`);
     return 'skipped';
   }
 

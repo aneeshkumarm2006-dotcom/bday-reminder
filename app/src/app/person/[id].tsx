@@ -28,7 +28,7 @@ import {
 import { useTokens } from '@/theme/theme-provider';
 
 /**
- * Person profile (DESIGN.md §8.6) — the widget deep-link target (FR-50). Header
+ * Person profile (DESIGN.md §8.6) - the widget deep-link target (FR-50). Header
  * is a perfect-circle avatar + name + relationship tag + the `lg` ring for the
  * next event; below it, each event is a compact `sm`-ring row. Edit reuses the
  * add-person form; delete confirms with plain consequence copy (§10) and
@@ -189,7 +189,7 @@ function ProfileBody({
   const [addOpen, setAddOpen] = useState(false);
   const [removingId, setRemovingId] = useState<string | null>(null);
 
-  // Remove an anniversary/custom event (the birthday has no delete — it lives
+  // Remove an anniversary/custom event (the birthday has no delete - it lives
   // with the person). Cascades its reminders server-side (FR-16, §10).
   const onRemoveEvent = async (event: EventItem) => {
     const ok = await confirm({
@@ -212,7 +212,7 @@ function ProfileBody({
 
   return (
     <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>
-      {/* Header (§8.6) — avatar, name + tag, and the lg ring for the next event. */}
+      {/* Header (§8.6) - avatar, name + tag, and the lg ring for the next event. */}
       <View className="items-center gap-3 pb-2 pt-2">
         <Avatar person={person} />
         <View className="items-center gap-2">
@@ -251,7 +251,7 @@ function ProfileBody({
         ) : null}
       </View>
 
-      {/* Events list (§8.6) — birthday + anniversary + custom, each independent. */}
+      {/* Events list (§8.6) - birthday + anniversary + custom, each independent. */}
       <Text variant="label" className="mb-2 mt-6 text-ink-muted">
         Events
       </Text>
@@ -295,7 +295,7 @@ function ProfileBody({
         ))}
       </Card>
 
-      {/* Dashed "Add event" row (§8.6) — anniversaries / custom events.
+      {/* Dashed "Add event" row (§8.6) - anniversaries / custom events.
           Hidden for view-only members (FR-45). */}
       {canEdit ? (
         <Pressable
@@ -313,10 +313,10 @@ function ProfileBody({
         </Pressable>
       ) : null}
 
-      {/* Gift notes (§8.6) — running, timestamped list. */}
+      {/* Gift notes (§8.6) - running, timestamped list. */}
       <NotesSection personId={person.id} canEdit={canEdit} />
 
-      {/* Attribution — who last touched this entry (FR-45). */}
+      {/* Attribution - who last touched this entry (FR-45). */}
       {person.lastEditedBy ? (
         <Text variant="caption" className="mt-6 text-center text-ink-muted">
           Last edited by {person.lastEditedBy.name}
@@ -350,7 +350,7 @@ function ProfileBody({
   );
 }
 
-/** Perfect-circle avatar (never a ring — §1). Photo in Stage 6; initials now. */
+/** Perfect-circle avatar (never a ring - §1). Photo in Stage 6; initials now. */
 function Avatar({ person }: { person: Person }) {
   return (
     <View className="h-[72px] w-[72px] items-center justify-center overflow-hidden rounded-full bg-surface-sunken">

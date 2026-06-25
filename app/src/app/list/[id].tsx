@@ -102,7 +102,7 @@ export default function ListDetailScreen() {
     if (!list) return;
     const ok = await confirm({
       title: `Delete ${list.name}?`,
-      message: 'This deletes the list for everyone — all members lose access and their reminders for it stop. The people themselves stay in your own list. This can’t be undone.',
+      message: 'This deletes the list for everyone - all members lose access and their reminders for it stop. The people themselves stay in your own list. This can’t be undone.',
       confirmLabel: 'Delete list',
       destructive: true,
     });

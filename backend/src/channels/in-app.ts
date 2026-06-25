@@ -5,7 +5,7 @@ import type { ChannelProvider, ReminderPayload, SendResult } from './types';
  * in-app notification, and `GET /reminders` lists it the moment it's due and
  * keeps it forever (it never disappears on view). This provider exists so the
  * in-app channel is a first-class member of the dispatch interface and always
- * succeeds — it's the silent fallback when every other channel is off (FR-26).
+ * succeeds - it's the silent fallback when every other channel is off (FR-26).
  */
 export const inAppProvider: ChannelProvider = {
   key: 'inApp',

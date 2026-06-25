@@ -58,7 +58,7 @@ export function createApp(): Express {
   // breaks the limiter, so it's explicit, not coupled to an unrelated feature.
   app.set('trust proxy', env.TRUST_PROXY_HOPS ?? (env.NODE_ENV === 'production' ? 1 : 0));
 
-  // CORS first — before the rate limiters — so even a 429 carries
+  // CORS first - before the rate limiters - so even a 429 carries
   // Access-Control-Allow-Origin and the browser can read the friendly message
   // (the limiter short-circuits to the error handler, skipping later middleware).
   // Each origin may be a comma-separated list; non-browser clients (mobile, REST
@@ -116,7 +116,7 @@ export function createApp(): Express {
   app.use('/reminders', remindersRouter);
   app.use('/upcoming', upcomingRouter);
   app.use('/uploads', uploadsRouter);
-  // Public, tokenized ICS feed — no auth (the URL token is the credential).
+  // Public, tokenized ICS feed - no auth (the URL token is the credential).
   app.use('/calendar', calendarFeedRouter);
 
   // Dev/QA-only reminder triggers (TODO Stage 13). Never mounted in production.

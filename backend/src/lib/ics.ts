@@ -1,6 +1,6 @@
 /**
  * iCalendar (RFC 5545) serialization for the subscribable feed (TODO Stage 9;
- * FR-38). Pure string building — no I/O — so the calendar route and the smoke
+ * FR-38). Pure string building - no I/O - so the calendar route and the smoke
  * test can exercise it directly. Each event is one all-day, yearly-recurring
  * VEVENT (`RRULE:FREQ=YEARLY`) with a stable UID, so a calendar that refreshes
  * the feed updates an event in place rather than duplicating it (FR-39).

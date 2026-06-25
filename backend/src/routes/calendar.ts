@@ -17,7 +17,7 @@ import { User, type UserDoc } from '../models/User';
  * Calendar sync (TODO Stage 9; FR-38/39/40). Two surfaces:
  *
  *  - A PUBLIC, tokenized feed (`GET /calendar/:token.ics`) a calendar app can
- *    subscribe to. No auth header — calendar clients can't send one — so the
+ *    subscribe to. No auth header - calendar clients can't send one - so the
  *    secret token in the URL is the credential. Built fresh per request, so it
  *    reflects current adds/edits/deletes (FR-39). Disabling sync or rotating the
  *    token makes the old URL 404 immediately (revoke).
@@ -35,7 +35,7 @@ function ensureCalendarSync(user: UserDoc): void {
   }
 }
 
-/** Every list the caller owns or belongs to — the choices for per-list opt-in. */
+/** Every list the caller owns or belongs to - the choices for per-list opt-in. */
 async function accessibleLists(userId: string) {
   return SharedList.find({ $or: [{ owner: userId }, { 'members.user': userId }] }).sort({
     createdAt: 1,
@@ -47,7 +47,7 @@ async function accessibleLists(userId: string) {
 export const calendarFeedRouter = Router();
 
 /**
- * GET /calendar/:token(.ics) — the subscribable ICS feed (FR-38). The `.ics`
+ * GET /calendar/:token(.ics) - the subscribable ICS feed (FR-38). The `.ics`
  * suffix is optional (some clients append it); it's stripped before lookup.
  */
 calendarFeedRouter.get(
@@ -78,7 +78,7 @@ async function settingsResponse(user: UserDoc) {
   return serializeCalendarSync(user, await accessibleLists(user._id.toString()));
 }
 
-/** GET /me/calendar — current sync settings + the subscribe link. */
+/** GET /me/calendar - current sync settings + the subscribe link. */
 calendarRouter.get(
   '/',
   asyncHandler(async (req, res) => {
@@ -95,7 +95,7 @@ const patchSchema = z
   .strict();
 
 /**
- * PATCH /me/calendar — opt in/out, choose what to include (FR-40). Enabling for
+ * PATCH /me/calendar - opt in/out, choose what to include (FR-40). Enabling for
  * the first time mints a feed token; the token is kept when disabling so toggling
  * back on restores the same link (use POST /rotate to truly revoke).
  */
@@ -127,7 +127,7 @@ calendarRouter.patch(
 );
 
 /**
- * POST /me/calendar/rotate — issue a new token, invalidating the old link
+ * POST /me/calendar/rotate - issue a new token, invalidating the old link
  * (revoke). Leaves the enabled/include settings as they are.
  */
 calendarRouter.post(

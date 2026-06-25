@@ -1,7 +1,7 @@
 import { clearTokens, loadTokens, saveTokens, type Tokens } from './token-store';
 
 /**
- * API client (techstack §3) — the only thing that talks to the backend; the app
+ * API client (techstack §3) - the only thing that talks to the backend; the app
  * never touches the database. Reads the base URL from env, attaches the access
  * token, and transparently refreshes once on a 401 before giving up. Endpoint
  * shapes match the Stage 1 auth contract (custom JWT: access + refresh).
@@ -61,7 +61,7 @@ async function doRefreshAccessToken(): Promise<Tokens | null> {
   const current = await loadTokens();
   if (!current) return null;
   // A network failure here throws (offline) and propagates out of apiFetch as a
-  // friendly connection error WITHOUT clearing tokens — only a real server 401
+  // friendly connection error WITHOUT clearing tokens - only a real server 401
   // on refresh signs the user out, below.
   const res = await fetch(`${API_URL}/auth/refresh`, {
     method: 'POST',
@@ -158,7 +158,7 @@ export type UpdateMeInput = {
   channelPreferences?: Partial<ChannelPreferences>;
   defaultLeadDays?: number[];
   defaultReminderTime?: string;
-  /** Mark first-run onboarding complete — one-way (Stage 7; FR-2/3). */
+  /** Mark first-run onboarding complete - one-way (Stage 7; FR-2/3). */
   onboarded?: true;
 };
 
@@ -287,7 +287,7 @@ function queryString(params: Record<string, string | undefined>): string {
 }
 
 export const peopleApi = {
-  /** The computed Upcoming feed — grouped + sorted server-side (DESIGN.md §8.2). */
+  /** The computed Upcoming feed - grouped + sorted server-side (DESIGN.md §8.2). */
   upcoming: () => apiFetch<UpcomingResponse>('/upcoming'),
 
   list: (params: { tag?: string; sort?: 'next' | 'name' } = {}) =>
@@ -370,7 +370,7 @@ export const uploadsApi = {
     apiFetch<UploadResult>('/uploads/photo', { method: 'POST', body: { image } }),
 };
 
-// --- Bulk import: contacts + CSV + duplicates (Stage 7 contract; FR-6/7/11) --
+// --- Bulk import: contacts + duplicates (Stage 7 contract; FR-6/11) --
 
 /** A structured import row (device contacts produce these directly). */
 export type ImportCandidate = {
@@ -420,8 +420,8 @@ export type ImportCommitResponse = {
 };
 
 export const importApi = {
-  /** Preview a CSV and/or contact rows — validates + flags duplicates, creates nothing. */
-  preview: (input: { csv?: string; candidates?: ImportCandidate[] }) =>
+  /** Preview contact rows - validates + flags duplicates, creates nothing. */
+  preview: (input: { candidates: ImportCandidate[] }) =>
     apiFetch<ImportPreviewResponse>('/import/preview', { method: 'POST', body: input }),
 
   /** Commit the user's resolved rows; returns the import summary (FR-11). */
@@ -460,7 +460,7 @@ export type ReminderItem = {
   sentAt: string | null;
   daysRemaining: number;
   ageTurning: number | null;
-  /** The server-rendered §11 reminder line — single source of truth for copy. */
+  /** The server-rendered §11 reminder line - single source of truth for copy. */
   message: string;
   /** Day-of + a phone number on file → show "Send greeting" (FR-28/30). */
   canGreet: boolean;
@@ -492,7 +492,7 @@ export const remindersApi = {
     apiFetch<{ pushTokens: string[] }>('/me/push-tokens', { method: 'DELETE', body: { token } }),
 };
 
-// --- Shared / family lists (Stage 8 contract; FR-41–47) ---------------------
+// --- Shared / family lists (Stage 8 contract; FR-41-47) ---------------------
 
 /** A member's permission within a list. The owner reads as `owner` (FR-43). */
 export type ListPermission = 'view' | 'edit';
@@ -533,7 +533,7 @@ export type SharedListView = {
   createdAt: string;
 };
 
-/** The invite create response — carries the secret token + a shareable link. */
+/** The invite create response - carries the secret token + a shareable link. */
 export type CreatedInvite = PendingInvite & { token: string; acceptUrl: string };
 
 export type InvitePreview = {
@@ -559,7 +559,7 @@ export const listsApi = {
   rename: (id: string, name: string) =>
     apiFetch<{ list: SharedListView }>(`/lists/${id}`, { method: 'PATCH', body: { name } }),
 
-  /** Delete the list — people detach, every member loses access (FR-47). */
+  /** Delete the list - people detach, every member loses access (FR-47). */
   remove: (id: string) => apiFetch<void>(`/lists/${id}`, { method: 'DELETE' }),
 
   /** Invite by email / phone / link; the invitee must accept (FR-41/42). */
@@ -602,13 +602,13 @@ export const invitesApi = {
 export type CalendarListRef = { id: string; name: string };
 
 export type CalendarSyncSettings = {
-  /** Opt-in master switch — the feed only serves while this is on (FR-40). */
+  /** Opt-in master switch - the feed only serves while this is on (FR-40). */
   enabled: boolean;
   /** Include people the user owns ("My birthdays"). */
   includePersonal: boolean;
   /** Shared lists the user chose to sync (intersected with current access). */
   lists: string[];
-  /** The subscribe URLs — present only while enabled. */
+  /** The subscribe URLs - present only while enabled. */
   feedUrl: string | null;
   webcalUrl: string | null;
   /** Every list the user owns or belongs to (the per-list opt-in choices). */

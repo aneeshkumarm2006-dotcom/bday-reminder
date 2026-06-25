@@ -1,7 +1,7 @@
 /* eslint-disable no-console */
 /**
  * End-to-end smoke test for the Stage 1 auth flow against an ephemeral MongoDB
- * (mongodb-memory-server) — no Atlas needed. Verifies the "Done when":
+ * (mongodb-memory-server) - no Atlas needed. Verifies the "Done when":
  * sign up, log in, refresh (with rotation), authed GET /me, and that
  * invalid/expired/revoked tokens are rejected.
  *

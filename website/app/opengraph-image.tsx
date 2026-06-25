@@ -6,7 +6,7 @@ import { siteConfig } from "@/lib/site";
  * Generated Open Graph / Twitter card (Stage 11 SEO). On-brand: the filled
  * "today" ring on a date, the wordmark, and the tagline on warm paper.
  */
-export const alt = `${siteConfig.name} — ${siteConfig.tagline}`;
+export const alt = `${siteConfig.name} - ${siteConfig.tagline}`;
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -65,10 +65,10 @@ export default function OpengraphImage() {
 
         <div style={{ display: "flex", flexDirection: "column" }}>
           <div style={{ fontSize: 88, fontWeight: 700, color: "#232020", letterSpacing: "-2px" }}>
-            Remember — and act.
+            Remember, and act.
           </div>
           <div style={{ fontSize: 34, color: "#5C574F", marginTop: 20 }}>
-            Never miss a birthday — free on web, iOS &amp; Android.
+            Never miss a birthday: free on web, iOS &amp; Android.
           </div>
         </div>
       </div>

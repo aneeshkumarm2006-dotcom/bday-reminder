@@ -5,7 +5,7 @@ import { useTestDb } from '../helpers/db';
 import { Reminder } from '../../src/models/Reminder';
 
 /**
- * Shared / family lists (Stage 8, FR-41–47, §8.11, §10). Mirrors
+ * Shared / family lists (Stage 8, FR-41-47, §8.11, §10). Mirrors
  * scripts/smoke-stage8.ts: two accounts share a list, the invitee must accept
  * before access, view-only is read-only, the owner promotes to edit, both see
  * the same people but get reminders per their own settings (with attribution),
@@ -191,10 +191,10 @@ describe('shared lists (FR-41/47)', () => {
     // But a view member CAN read the shared person.
     expect((await api.get(`/people/${mum.id}`).set('Authorization', bo.auth)).status).toBe(200);
 
-    // The blocked writes had NO EFFECT — re-read as the owner and confirm.
+    // The blocked writes had NO EFFECT - re-read as the owner and confirm.
     const asOwner = (await api.get(`/people/${mum.id}`).set('Authorization', ada.auth)).body;
     expect(asOwner.person.phone == null || asOwner.person.phone !== '+100').toBe(true);
-    expect(asOwner.events.length).toBe(1); // only the birthday — Bo's anniversary was rejected
+    expect(asOwner.events.length).toBe(1); // only the birthday - Bo's anniversary was rejected
     const notes = (await api.get(`/people/${mum.id}/notes`).set('Authorization', ada.auth)).body
       .notes as { text: string }[];
     expect(notes.some((n) => n.text === 'socks')).toBe(false);

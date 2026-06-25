@@ -8,7 +8,7 @@ import { countdownLabel, monthAbbr } from '@/lib/dates';
 import { useTokens } from '@/theme/theme-provider';
 
 /**
- * Person / event card — the feed hero (DESIGN.md §8.1). Layout:
+ * Person / event card - the feed hero (DESIGN.md §8.1). Layout:
  * `[ DateRing md ] [ name + relationship · age ] [ countdown ]`. The ring (the
  * date) leads, never a photo. Pets get a `paw-print` before the name; age is
  * omitted entirely when no birth year is known (FR-14). Tapping opens the

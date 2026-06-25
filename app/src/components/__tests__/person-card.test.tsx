@@ -4,7 +4,7 @@ import { PersonCard } from '@/components/person-card';
 import { fireEvent, renderWithTheme, screen } from '../../test-utils/render';
 
 /**
- * PersonCard — the feed hero (TODO Stage 13; DESIGN.md §8.1). Asserts the date
+ * PersonCard - the feed hero (TODO Stage 13; DESIGN.md §8.1). Asserts the date
  * leads (ring labelled with the name), age shows only with a year (FR-14), the
  * event label distinguishes non-birthday rows, pets get the paw, and the
  * countdown copy + tap target are correct.

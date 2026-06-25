@@ -10,10 +10,10 @@ import { useTokens } from '@/theme/theme-provider';
 
 /**
  * Gift notes (DESIGN.md §8.6, PRD §8.9; FR-35/36/37). A running list of
- * separate, timestamped entries — never one overwritable box — so old ideas
+ * separate, timestamped entries - never one overwritable box - so old ideas
  * aren't lost. Each entry shows its text + relative date + a delete; the add
  * input is pinned at the bottom of the section. Shared within a list, but adding
- * and deleting follow Can-edit permission (PRD §14) — `canEdit` hides those for
+ * and deleting follow Can-edit permission (PRD §14) - `canEdit` hides those for
  * view-only members.
  */
 export function NotesSection({ personId, canEdit = true }: { personId: string; canEdit?: boolean }) {
@@ -37,7 +37,7 @@ export function NotesSection({ personId, canEdit = true }: { personId: string; c
           setLoadError(false);
         }
       } catch {
-        // Distinguish a load failure from genuinely having no notes — important
+        // Distinguish a load failure from genuinely having no notes - important
         // on shared lists where notes may exist but couldn't be fetched.
         if (active) setLoadError(true);
       } finally {
@@ -100,7 +100,7 @@ export function NotesSection({ personId, canEdit = true }: { personId: string; c
         Notes
       </Text>
       <Text variant="caption" className="mb-2">
-        Gift ideas, sizes, preferences — only you (and your list) can see these.
+        Gift ideas, sizes, preferences. Only you (and your list) can see these.
       </Text>
 
       {!loading && notes.length > 0 ? (
@@ -146,7 +146,7 @@ export function NotesSection({ personId, canEdit = true }: { personId: string; c
       ) : null}
 
       {/* Add-entry input pinned at the bottom of the notes section (§8.6).
-          Hidden for view-only members — adding follows Can-edit (PRD §14). */}
+          Hidden for view-only members - adding follows Can-edit (PRD §14). */}
       {canEdit ? (
         <View className="mt-3 flex-row items-end gap-2">
           <View className="flex-1">

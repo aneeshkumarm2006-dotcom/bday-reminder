@@ -1,11 +1,11 @@
 /* eslint-disable no-console */
 /**
- * End-to-end smoke test for Stage 8 — shared / family lists — against an
+ * End-to-end smoke test for Stage 8 - shared / family lists - against an
  * ephemeral MongoDB over real HTTP. Verifies the "Done when": two accounts can
  * share a list, the invitee must accept before access, edit permissions are
  * enforced, both see the same people but receive reminders per their own
  * settings, attribution shows, and leaving/removal stops reminders
- * (FR-41–47, §8.11, §10).
+ * (FR-41-47, §8.11, §10).
  *
  * Run: npm run smoke:stage8
  */
@@ -181,7 +181,7 @@ async function main(): Promise<void> {
     const boBday = await Reminder.findOne({ user: boId, leadDays: 0 }).sort({ scheduledFor: 1 });
     check(
       adaBday !== null && boBday !== null && adaBday.scheduledFor.getUTCHours() === 9 && boBday.scheduledFor.getUTCHours() === 18,
-      'each member fires at their own configured time (Ada 09:00, Bo 18:00) — shared data, personal settings',
+      'each member fires at their own configured time (Ada 09:00, Bo 18:00) - shared data, personal settings',
     );
 
     // --- Leaving stops reminders (FR-46) ------------------------------------

@@ -19,8 +19,8 @@ export default function ContactPage() {
       intro="Found a bug, have an idea, or need a hand? We'd love to hear from you."
     >
       <p>
-        {siteConfig.name} is a small, free project. The fastest way to reach us is email —
-        we read every message.
+        {siteConfig.name} is a small, free project. The fastest way to reach us is email.
+        We read every message.
       </p>
 
       <div className="not-prose flex flex-col items-start gap-4 rounded-lg border border-border-subtle bg-surface p-6">

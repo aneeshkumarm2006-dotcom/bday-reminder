@@ -10,9 +10,9 @@ import { useTokens } from '@/theme/theme-provider';
 
 /**
  * In-app reminder feed (DESIGN.md §8.3; FR-27/28/31/33). Lists the persistent
- * reminders from `GET /reminders` — they never vanish on view. Each row supports
+ * reminders from `GET /reminders` - they never vanish on view. Each row supports
  * the day-of "Send greeting" quick action (opens the messaging app with an
- * editable template, never auto-sent — FR-29), "Mark as done", and "Snooze".
+ * editable template, never auto-sent - FR-29), "Mark as done", and "Snooze".
  * Toasts confirm each action with the spec's verb-consistent copy (§8.11).
  */
 

@@ -14,7 +14,7 @@ import type { PersonDoc } from '../models/Person';
 import { Reminder } from '../models/Reminder';
 
 /**
- * Events — additional event types + per-event overrides (TODO Stage 6; FR-16/18,
+ * Events - additional event types + per-event overrides (TODO Stage 6; FR-16/18,
  * Stage 5; FR-21/24). Beyond the auto-created birthday, a person can have
  * Anniversary and Custom (user-named) events; each reminds/recurs independently
  * with the same rules unless overridden. Lead time and channels override the
@@ -23,7 +23,7 @@ import { Reminder } from '../models/Reminder';
  * not-yet-acted reminders (across every recipient) and regenerates them for
  * everyone who can see the person, so the change takes effect immediately;
  * sent/done history is preserved (PRD §10). The birthday's date is owned by the
- * person's DOB (PATCH /people), so it can't be edited or deleted here — it lives
+ * person's DOB (PATCH /people), so it can't be edited or deleted here - it lives
  * and dies with the person. Access follows the person: owner/edit members can
  * add/edit/remove events, view-only members can't (FR-43/45).
  */
@@ -67,7 +67,7 @@ const overrideFields = {
 };
 
 /**
- * POST /events — add an Anniversary or Custom event to a person (FR-16). The
+ * POST /events - add an Anniversary or Custom event to a person (FR-16). The
  * birthday is auto-created with the person, so only these two types are created
  * here. A custom event needs a name (e.g. "Met on this day").
  */
@@ -132,7 +132,7 @@ const patchSchema = z
   .strict();
 
 /**
- * PATCH /events/:id — edit an event's name/date and/or its lead-time / channel
+ * PATCH /events/:id - edit an event's name/date and/or its lead-time / channel
  * overrides. The birthday's date can't be edited here (it mirrors the DOB); its
  * overrides can. Scoped to the owner of the event's person.
  */
@@ -181,8 +181,8 @@ eventsRouter.patch(
 );
 
 /**
- * DELETE /events/:id — remove an Anniversary/Custom event and cascade its
- * reminders (PRD §10). The birthday can't be deleted on its own — deleting the
+ * DELETE /events/:id - remove an Anniversary/Custom event and cascade its
+ * reminders (PRD §10). The birthday can't be deleted on its own - deleting the
  * person removes it (DELETE /people/:id).
  */
 eventsRouter.delete(
@@ -192,7 +192,7 @@ eventsRouter.delete(
     assertCanEdit(level);
 
     if (event.type === 'birthday') {
-      throw badRequest("A birthday can't be removed on its own — delete the person instead.");
+      throw badRequest("A birthday can't be removed on its own - delete the person instead.");
     }
 
     // Cascade across every recipient (no user filter), so the event disappears

@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 /**
  * Light/dark toggle (DESIGN.md §11). The icon swaps purely via the `.dark`
  * class that next-themes sets before hydration, so there's no flash and no
- * hydration mismatch — no client state needed. The click direction reads the
+ * hydration mismatch - no client state needed. The click direction reads the
  * resolved theme, which is settled by the time a user can interact.
  */
 export function ThemeToggle({ className }: { className?: string }) {

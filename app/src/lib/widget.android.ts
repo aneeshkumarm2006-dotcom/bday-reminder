@@ -7,7 +7,7 @@ import { renderBirthdaysWidget } from '../widget/birthdays-widget';
 
 /**
  * Android widget bridge (TODO Stage 10; FR-48/49). Caches the next-3 payload to
- * AsyncStorage — the same store the background task handler reads — then asks
+ * AsyncStorage - the same store the background task handler reads - then asks
  * any placed widget to re-render immediately so a just-added/edited person shows
  * without waiting for the periodic update. Between app opens, the OS triggers
  * the task handler on its update period to keep the countdown current (FR-49).
@@ -21,7 +21,7 @@ async function pushUpdate(items: UpcomingItem[]): Promise<void> {
   await requestWidgetUpdate({
     widgetName: WIDGET_NAME,
     renderWidget: () => renderBirthdaysWidget(payload),
-    // No widget on the home screen yet — nothing to render, not an error.
+    // No widget on the home screen yet - nothing to render, not an error.
     widgetNotFound: () => {},
   });
 }
@@ -32,7 +32,7 @@ export async function syncWidget(items: UpcomingItem[]): Promise<void> {
   try {
     await pushUpdate(items);
   } catch {
-    // Non-fatal — the widget keeps its previous content.
+    // Non-fatal - the widget keeps its previous content.
   }
 }
 

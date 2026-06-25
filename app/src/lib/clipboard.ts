@@ -12,7 +12,7 @@ export async function copyText(text: string): Promise<boolean> {
       return true;
     }
   } catch {
-    // Fall through — caller shows the manual-copy hint.
+    // Fall through - caller shows the manual-copy hint.
   }
   return false;
 }

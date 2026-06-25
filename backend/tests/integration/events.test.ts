@@ -4,7 +4,7 @@ import { addPerson, makeApi, signUp, type Api } from '../helpers/api';
 import { useTestDb } from '../helpers/db';
 
 /**
- * Stage 6 — additional event types + per-event overrides (FR-16/18). Mirrors the
+ * Stage 6 - additional event types + per-event overrides (FR-16/18). Mirrors the
  * assertions in scripts/smoke-stage6.ts: anniversary/custom events, the
  * birthday's date/name being owned by the DOB, delete cascade of reminders, and
  * lead/channel overrides that fall back to user defaults when cleared.

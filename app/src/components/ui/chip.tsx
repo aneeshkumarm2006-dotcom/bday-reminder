@@ -5,7 +5,7 @@ import { cn, focusRing } from '@/lib/cn';
 import { Text } from './text';
 
 /**
- * Multi-select chip (DESIGN.md §8.4) — used for lead-time and relationship
+ * Multi-select chip (DESIGN.md §8.4) - used for lead-time and relationship
  * filters. Selected: biro-tint bg, biro-pressed text, biro border. Unselected:
  * surface-sunken bg, ink-secondary text. Multiple can be active at once.
  */

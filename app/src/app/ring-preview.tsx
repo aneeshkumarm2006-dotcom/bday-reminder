@@ -8,7 +8,7 @@ import { Button, Card, Icon, Screen, Text } from '@/components/ui';
 import { cn, focusRing } from '@/lib/cn';
 
 /**
- * Design preview — exercises the ⭐ ring in every state and size and replays the
+ * Design preview - exercises the ⭐ ring in every state and size and replays the
  * day-of draw-on animation (DESIGN.md §7). A QA/reference surface for Stage 2;
  * the ring is used for real on cards in Stage 3.
  */

@@ -2,8 +2,8 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   AlertTriangle,
   CheckCircle2,
-  FileUp,
   Upload,
+  UserPlus,
   Users,
   X,
 } from 'lucide-react-native';
@@ -17,7 +17,6 @@ import {
   Icon,
   Screen,
   Text,
-  TextField,
   useToast,
 } from '@/components/ui';
 import { cn, focusRing } from '@/lib/cn';
@@ -35,18 +34,15 @@ import { monthAbbr } from '@/lib/dates';
 import { useTokens } from '@/theme/theme-provider';
 
 /**
- * Bulk import (TODO Stage 7; FR-6/7/11). Three phases:
- *   • input   — scan device contacts (native) or paste a CSV.
- *   • preview — the server's annotated rows: ready / possible duplicates (resolve
+ * Bulk import (TODO Stage 7; FR-6/11). Three phases:
+ *   • input   - scan device contacts (native only; web adds people manually).
+ *   • preview - the server's annotated rows: ready / possible duplicates (resolve
  *     each as keep both / merge / skip) / couldn't-read. Nothing is created yet.
- *   • summary — what actually happened (added / merged / skipped / unreadable).
- * A duplicate is never silently merged or skipped — the user chooses (FR-11).
+ *   • summary - what actually happened (added / merged / skipped / unreadable).
+ * A duplicate is never silently merged or skipped - the user chooses (FR-11).
  */
 
 type Phase = 'input' | 'preview' | 'summary';
-
-const CSV_PLACEHOLDER =
-  'name, relationship, date of birth, phone\nPriya Sharma, Friend, 1994-03-05, +15551234\nDad, Family, 5 June 1961,';
 
 function formatDob(dob: DateParts): string {
   const base = `${monthAbbr(dob.month)} ${dob.day}`;
@@ -60,7 +56,6 @@ export default function ImportScreen() {
   const { source } = useLocalSearchParams<{ source?: string }>();
 
   const [phase, setPhase] = useState<Phase>('input');
-  const [csvText, setCsvText] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [rows, setRows] = useState<ImportPreviewRow[]>([]);
@@ -71,16 +66,16 @@ export default function ImportScreen() {
   const [unreadable, setUnreadable] = useState(0);
 
   const runPreview = useCallback(
-    async (input: { csv?: string; candidates?: ImportCandidate[] }) => {
+    async (candidates: ImportCandidate[]) => {
       setBusy(true);
       setError(null);
       try {
-        const res = await importApi.preview(input);
+        const res = await importApi.preview({ candidates });
         if (res.rows.length === 0) {
           setError('There was nothing to import. Add at least one person with a birthday.');
           return;
         }
-        // Duplicates default to "skip" — nothing is created or merged without a choice.
+        // Duplicates default to "skip" - nothing is created or merged without a choice.
         const init: Record<string, ImportResolution> = {};
         for (const r of res.rows) if (r.status === 'duplicate') init[r.id] = 'skip';
         setRows(res.rows);
@@ -107,7 +102,7 @@ export default function ImportScreen() {
         return;
       }
       if (result.status === 'unsupported') {
-        setError("Contact import isn't available here. Paste a CSV or add people manually.");
+        setError("Contact import isn't available here. Add people manually instead.");
         return;
       }
       if (result.status === 'error') {
@@ -118,7 +113,7 @@ export default function ImportScreen() {
         setError("None of your contacts have a birthday saved, so there's nothing to import.");
         return;
       }
-      await runPreview({ candidates: result.candidates });
+      await runPreview(result.candidates);
     } finally {
       setBusy(false);
     }
@@ -132,39 +127,6 @@ export default function ImportScreen() {
       void scanContacts();
     }
   }, [source, scanContacts]);
-
-  // Web-only: load a .csv file into the paste box (a real "file upload", FR-7).
-  const pickCsvFile = () => {
-    if (Platform.OS !== 'web') return;
-    const g = globalThis as {
-      document?: {
-        createElement: (tag: string) => {
-          type: string;
-          accept: string;
-          files?: { 0?: unknown; length: number }[] | unknown;
-          onchange: (() => void) | null;
-          click: () => void;
-        };
-      };
-      FileReader?: new () => {
-        result: unknown;
-        onload: (() => void) | null;
-        readAsText: (file: unknown) => void;
-      };
-    };
-    if (!g.document || !g.FileReader) return;
-    const input = g.document.createElement('input');
-    input.type = 'file';
-    input.accept = '.csv,text/csv,text/plain';
-    input.onchange = () => {
-      const file = (input.files as { 0?: unknown }[] | undefined)?.[0];
-      if (!file || !g.FileReader) return;
-      const reader = new g.FileReader();
-      reader.onload = () => setCsvText(String(reader.result ?? ''));
-      reader.readAsText(file);
-    };
-    input.click();
-  };
 
   const setResolution = (id: string, resolution: ImportResolution) =>
     setResolutions((prev) => ({ ...prev, [id]: resolution }));
@@ -226,11 +188,8 @@ export default function ImportScreen() {
 
       {phase === 'input' ? (
         <InputPhase
-          csvText={csvText}
-          setCsvText={setCsvText}
           onScan={scanContacts}
-          onPreview={() => runPreview({ csv: csvText })}
-          onPickFile={pickCsvFile}
+          onAddManual={() => router.replace('/add-person')}
           busy={busy}
           error={error}
         />
@@ -252,7 +211,6 @@ export default function ImportScreen() {
           onMore={() => {
             setRows([]);
             setResolutions({});
-            setCsvText('');
             setSummary(null);
             setError(null);
             setPhase('input');
@@ -267,19 +225,13 @@ export default function ImportScreen() {
 // --- Input phase ------------------------------------------------------------
 
 function InputPhase({
-  csvText,
-  setCsvText,
   onScan,
-  onPreview,
-  onPickFile,
+  onAddManual,
   busy,
   error,
 }: {
-  csvText: string;
-  setCsvText: (v: string) => void;
   onScan: () => void;
-  onPreview: () => void;
-  onPickFile: () => void;
+  onAddManual: () => void;
   busy: boolean;
   error: string | null;
 }) {
@@ -309,37 +261,26 @@ function InputPhase({
             <Icon icon={Upload} size={20} />
           </Card>
         </Pressable>
-      ) : null}
-
-      <View className="gap-2">
-        <TextField
-          label="Paste a CSV"
-          value={csvText}
-          onChangeText={setCsvText}
-          placeholder={CSV_PLACEHOLDER}
-          multiline
-          numberOfLines={6}
-          style={{ minHeight: 132, textAlignVertical: 'top' }}
-          autoCapitalize="none"
-          autoCorrect={false}
-          hint="Columns: name, relationship, date of birth, phone. Dates like 1994-03-05, 05/03/1994, or 5 June work."
-        />
-        {isWeb ? (
-          <Button variant="secondary" leftIcon={FileUp} onPress={onPickFile}>
-            Choose a CSV file
+      ) : (
+        <Card className="gap-3">
+          <View>
+            <Text variant="cardName">Import only works in the mobile app</Text>
+            <Text variant="caption" className="mt-0.5 text-ink-secondary">
+              Importing from your contacts is only available in the mobile app.
+              You can add people manually here instead.
+            </Text>
+          </View>
+          <Button variant="secondary" leftIcon={UserPlus} onPress={onAddManual}>
+            Add someone manually
           </Button>
-        ) : null}
-      </View>
+        </Card>
+      )}
 
       {error ? (
         <Text variant="caption" className="text-danger-fg">
           {error}
         </Text>
       ) : null}
-
-      <Button fullWidth loading={busy} disabled={!csvText.trim()} onPress={onPreview}>
-        Preview import
-      </Button>
     </ScrollView>
   );
 }
@@ -386,7 +327,7 @@ function PreviewPhase({
         {duplicates.length > 0 ? (
           <Section label={`Possible duplicates · ${duplicates.length}`}>
             <Text variant="caption" className="mb-1 text-ink-muted">
-              We found these already saved. Choose what to do — nothing is merged without you.
+              We found these already saved. Choose what to do: nothing is merged without you.
             </Text>
             {duplicates.map((r) => (
               <DuplicateRow

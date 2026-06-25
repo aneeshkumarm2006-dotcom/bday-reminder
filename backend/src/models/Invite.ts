@@ -2,7 +2,7 @@ import { Schema, model, models, type Model, type Types } from 'mongoose';
 
 /**
  * Invite to a shared list (PRD FR-41/42). Members must explicitly accept before
- * gaining access — no silent adds. The token is the accept link's secret.
+ * gaining access - no silent adds. The token is the accept link's secret.
  */
 
 export type InviteStatus = 'pending' | 'accepted';

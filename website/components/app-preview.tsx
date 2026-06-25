@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 
 /**
  * On-brand "screenshots" of the app, rendered from the same design system
- * (DESIGN.md §8.1/§8.3/§8.13) rather than raster images — so they stay crisp,
+ * (DESIGN.md §8.1/§8.3/§8.13) rather than raster images - so they stay crisp,
  * themeable (light/dark), and always match the real UI. The ring leads each
  * row; photos never crowd the feed (§2 date-led).
  */
@@ -59,7 +59,7 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
-/** The Upcoming feed — grouped + sorted, the ring leading each row (§8.2). */
+/** The Upcoming feed - grouped + sorted, the ring leading each row (§8.2). */
 export function AppPreview({ className }: { className?: string }) {
   return (
     <div
@@ -122,7 +122,7 @@ export function ReminderPreview({ className }: { className?: string }) {
         <Ring day={12} month="Jun" size="md" state="today" />
         <div className="flex-1">
           <p className="font-display text-[15px] font-semibold leading-snug text-ink">
-            It&apos;s Ravi&apos;s birthday today — he turns 29.
+            It&apos;s Ravi&apos;s birthday today, he turns 29.
           </p>
           <p className="mt-0.5 text-xs text-ink-muted">Brother</p>
         </div>
@@ -140,7 +140,7 @@ export function ReminderPreview({ className }: { className?: string }) {
   );
 }
 
-/** The mobile home-screen widget — next 3, ring + name + "in Nd" (§8.13). */
+/** The mobile home-screen widget - next 3, ring + name + "in Nd" (§8.13). */
 export function WidgetPreview({ className }: { className?: string }) {
   const rows = [
     { day: 12, month: "Jun", name: "Ravi Patel", count: "Today", today: true },

@@ -57,7 +57,7 @@ export default function LoginScreen() {
                 Circle the date
               </Text>
               <Text variant="body" className="max-w-[300px] text-center text-ink-secondary">
-                Remember every birthday — and actually do something about it.
+                Remember every birthday - and actually do something about it.
               </Text>
             </View>
 
@@ -78,7 +78,7 @@ export default function LoginScreen() {
                 value={password}
                 onChangeText={setPassword}
                 placeholder="Your password"
-                secureTextEntry
+                secureToggle
                 autoComplete="password"
                 textContentType="password"
               />

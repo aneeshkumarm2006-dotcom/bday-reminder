@@ -12,7 +12,7 @@ import { remindersApi } from './api';
  * instead of throwing. Web has no push channel and uses `notifications.web.ts`,
  * so `expo-notifications` is never bundled there.
  *
- * Safe to call on every launch — the backend de-dups tokens (`$addToSet`).
+ * Safe to call on every launch - the backend de-dups tokens (`$addToSet`).
  */
 
 // Show reminders that arrive while the app is foregrounded.
@@ -53,7 +53,7 @@ export async function registerForPushNotifications(): Promise<string | null> {
     await remindersApi.registerPushToken(token);
     return token;
   } catch {
-    // Denied permission, missing EAS project, or offline — all non-fatal.
+    // Denied permission, missing EAS project, or offline - all non-fatal.
     return null;
   }
 }

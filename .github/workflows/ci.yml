@@ -1,6 +1,6 @@
 name: CI
 
-# Stage 13 — Testing & QA. Runs every package's test suite on push/PR so the
+# Stage 13 - Testing & QA. Runs every package's test suite on push/PR so the
 # build is verified end-to-end before deploy (Stage 14). Independent jobs mirror
 # the independent-install monorepo layout (backend / app / website / e2e).
 

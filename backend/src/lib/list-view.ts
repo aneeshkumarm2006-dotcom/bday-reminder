@@ -9,7 +9,7 @@ import { serializeInvite } from './serialize';
  * and invites routes so both render members, permissions, and pending invites
  * identically. The owner is surfaced as the first member with an `owner` badge;
  * the actual list `members[]` are accepted members only (FR-42). Pending invites
- * are returned to the owner alone — members don't see who else was invited.
+ * are returned to the owner alone - members don't see who else was invited.
  */
 
 export type ListRole = 'owner' | 'member';

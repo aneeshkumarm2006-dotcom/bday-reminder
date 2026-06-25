@@ -19,7 +19,7 @@ import { darkTokens, lightTokens, type Tokens } from '@/theme/tokens';
 /**
  * Android home-screen widget UI (TODO Stage 10; FR-48/50, DESIGN.md §8.13).
  * Built with react-native-android-widget primitives (rendered to RemoteViews),
- * so it can't share the RN/NativeWind components — it re-implements the look
+ * so it can't share the RN/NativeWind components - it re-implements the look
  * from the same tokens: `DateRing sm` + name + "in Nd", `radius-xl`, surface
  * over paper. The real §7.4 ring path renders via `SvgWidget`, tilted -4°.
  *
@@ -31,7 +31,7 @@ import { darkTokens, lightTokens, type Tokens } from '@/theme/tokens';
 
 const RING_BOX = 44;
 
-/** The wobbly ring as a standalone SVG — outline (upcoming) or filled (today). */
+/** The wobbly ring as a standalone SVG - outline (upcoming) or filled (today). */
 function ringSvg(color: string, filled: boolean): string {
   const fill = filled ? `<path d="${RING_PATH}" fill="${color}" />` : '';
   return (

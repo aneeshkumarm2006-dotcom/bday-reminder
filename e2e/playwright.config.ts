@@ -2,7 +2,7 @@ import { defineConfig, devices } from '@playwright/test';
 
 /**
  * Playwright E2E config (TODO Stage 13). Drives the exported web app against an
- * ephemeral in-memory backend — no Atlas, no external services. Two web servers
+ * ephemeral in-memory backend - no Atlas, no external services. Two web servers
  * boot automatically:
  *   1. backend  → `npm run dev:memory` (in-memory Mongo + dev reminder triggers) on :4040
  *   2. web app  → `npm run serve:dist` (the static Expo web export)            on :8081

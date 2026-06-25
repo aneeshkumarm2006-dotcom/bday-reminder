@@ -9,7 +9,7 @@ import type { UserDoc } from '../../src/models/User';
  * resolveChannels / resolveLeadDays are pure: they only read
  * user.channelPreferences / user.defaultLeadDays and event.channelOverride /
  * event.leadDaysOverride. We feed plain user-like / event-like objects cast as
- * the doc types — no DB needed.
+ * the doc types - no DB needed.
  */
 const makeUser = (over: Partial<{
   channelPreferences: { push: boolean; email: boolean; sms: boolean; inApp: boolean };

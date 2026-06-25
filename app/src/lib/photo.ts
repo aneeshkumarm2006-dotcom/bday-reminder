@@ -6,7 +6,7 @@ import { uploadsApi, type UploadResult } from './api';
  * Pick a person photo and host it (TODO Stage 6; FR-10). Opens the OS image
  * library (a file dialog on web), squares + lightly compresses the pick, then
  * sends the base64 to the backend, which hosts it on Cloudinary and returns the
- * URL to store on the person. Perfect-circle avatars are a render concern — the
+ * URL to store on the person. Perfect-circle avatars are a render concern - the
  * stored value is just a URL (DESIGN.md §1: never a ring around an avatar).
  */
 

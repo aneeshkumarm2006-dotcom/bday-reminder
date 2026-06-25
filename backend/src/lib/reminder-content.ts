@@ -1,6 +1,6 @@
 /**
  * Reminder copy (TODO Stage 4; DESIGN.md §10 Voice, PRD §11). Static templated
- * text with name / date / age variables — never AI-generated or personalized
+ * text with name / date / age variables - never AI-generated or personalized
  * beyond substitution. Every line states who, what event, how many days away
  * (or "today"), and the new age when a birth year is on file (PRD §11).
  *
@@ -36,7 +36,7 @@ function eventNoun(input: Pick<ReminderCopyInput, 'eventType' | 'customName'>): 
  * The reminder line shown in the feed and sent as the push/email body. Variants
  * cover with-year, day-of, and no-year (DESIGN.md §10):
  *   - `Ravi turns 29 in 3 days.`
- *   - `It's Ravi's birthday today — turns 29.`
+ *   - `It's Ravi's birthday today, turns 29.`
  *   - `Priya's birthday is in 3 days.`
  */
 export function reminderMessage(input: ReminderCopyInput): string {
@@ -51,7 +51,7 @@ export function reminderMessage(input: ReminderCopyInput): string {
 
   if (daysRemaining === 0) {
     if (isBirthday && ageTurning != null) {
-      return `It's ${name}'s birthday today — turns ${ageTurning}.`;
+      return `It's ${name}'s birthday today, turns ${ageTurning}.`;
     }
     return `It's ${name}'s ${noun} today.`;
   }
@@ -69,7 +69,7 @@ export function reminderHeadline(input: Pick<ReminderCopyInput, 'name' | 'eventT
   return `${input.name}'s ${eventNoun(input)}`;
 }
 
-/** Default greeting (FR-29) — editable in the user's messaging app, never auto-sent. */
+/** Default greeting (FR-29) - editable in the user's messaging app, never auto-sent. */
 export function greetingTemplate(name: string): string {
   return `Happy birthday, ${name}! 🎉`;
 }

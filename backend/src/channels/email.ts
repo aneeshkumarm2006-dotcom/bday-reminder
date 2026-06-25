@@ -4,7 +4,7 @@ import { isTransientStatus, retryAfterMs, TransientError, withRetry } from '../l
 import type { ChannelProvider, ReminderPayload, SendResult } from './types';
 
 /**
- * Email via Resend (FR-23/54, unlimited). Uses Resend's REST API directly — no
+ * Email via Resend (FR-23/54, unlimited). Uses Resend's REST API directly - no
  * SDK. When `RESEND_API_KEY` is unset the channel logs the message and reports
  * "skipped" instead of failing, so the engine runs end-to-end in dev/QA before
  * the Resend account is provisioned.
@@ -16,7 +16,7 @@ import type { ChannelProvider, ReminderPayload, SendResult } from './types';
 
 const RESEND_URL = 'https://api.resend.com/emails';
 
-/** Minimal templated HTML — static copy only, no AI (PRD §11). */
+/** Minimal templated HTML - static copy only, no AI (PRD §11). */
 function renderHtml(payload: ReminderPayload): string {
   return [
     '<div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;color:#232020">',
@@ -78,7 +78,7 @@ export const emailProvider: ChannelProvider = {
           if (isTransientStatus(res.status)) {
             throw new TransientError(`resend responded ${res.status}`, retryAfterMs(res.headers));
           }
-          // Permanent client error — don't waste retries.
+          // Permanent client error - don't waste retries.
           return {
             channel: 'email',
             outcome: 'failed',

@@ -95,7 +95,7 @@ describe('reminder dispatch (mocked providers)', () => {
     expect(dispatchMock).not.toHaveBeenCalled();
   });
 
-  it('honors the channel resolution — a user with email off is not sent email', async () => {
+  it('honors the channel resolution - a user with email off is not sent email', async () => {
     const u = await signUp(api, { timezone: 'UTC' });
     // push-only (email + sms off); in-app always implied downstream.
     await api

@@ -1,7 +1,7 @@
 import { Schema, model, models, type Model, type Types } from 'mongoose';
 
 /**
- * Gift note (PRD §8.9, FR-36). A running list of separate, timestamped entries —
+ * Gift note (PRD §8.9, FR-36). A running list of separate, timestamped entries -
  * not one overwritable field. Private to the user/list (FR-37).
  */
 export interface NoteDoc {

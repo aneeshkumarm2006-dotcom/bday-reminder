@@ -41,7 +41,7 @@ export default function Home() {
 function Hero({ today }: { today: { day: number; month: string } }) {
   return (
     <section className="relative overflow-hidden">
-      {/* A single, quiet biro-tint wash — no second accent (DESIGN.md §1). */}
+      {/* A single, quiet biro-tint wash - no second accent (DESIGN.md §1). */}
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[420px] bg-[radial-gradient(60%_60%_at_50%_0%,var(--biro-tint),transparent_70%)] opacity-70"
@@ -57,7 +57,7 @@ function Hero({ today }: { today: { day: number; month: string } }) {
         </div>
 
         <h1 className="mt-8 max-w-2xl font-display text-4xl font-semibold leading-[1.1] tracking-[-0.02em] text-ink sm:text-6xl">
-          Remember — and act.
+          Remember, and act.
         </h1>
         <p className="mt-5 max-w-xl text-balance text-lg leading-relaxed text-ink-secondary">
           The free way to never miss a birthday and actually do something about it.
@@ -80,7 +80,7 @@ function Hero({ today }: { today: { day: number; month: string } }) {
         </p>
       </div>
 
-      {/* Product shot — rendered from the real design system, light + dark. */}
+      {/* Product shot - rendered from the real design system, light + dark. */}
       <div className="mx-auto w-full max-w-5xl px-5 pb-16 pt-4">
         <Reveal className="flex flex-wrap items-end justify-center gap-6">
           <AppPreview />
@@ -103,7 +103,7 @@ function ValueProp() {
           </h2>
           <p className="mx-auto mt-5 max-w-xl text-pretty text-ink-secondary">
             A reminder that arrives at the right time, in your timezone, with the
-            person&apos;s name and age — and a one-tap way to send the message. That&apos;s
+            person&apos;s name and age, plus a one-tap way to send the message. That&apos;s
             the whole idea.
           </p>
         </Reveal>
@@ -120,7 +120,7 @@ function Features() {
           Everything you need to never forget
         </h2>
         <p className="mt-4 text-ink-secondary">
-          Built around one idea — counting down to a date for someone you care about —
+          Built around one idea, counting down to a date for someone you care about,
           and nothing that gets in the way.
         </p>
       </Reveal>
@@ -130,7 +130,7 @@ function Features() {
           icon={Bell}
           eyebrow="Reminders that reach you"
           title="On every channel, at the right local time"
-          body="Push, email, SMS/WhatsApp, and an in-app feed — pick any combination, globally or per person. Reminders fire at the time you choose in your own timezone, and re-anchor automatically when you travel. Set them days ahead, on the day, or both."
+          body="Push, email, SMS/WhatsApp, and an in-app feed: pick any combination, globally or per person. Reminders fire at the time you choose in your own timezone, and re-anchor automatically when you travel. Set them days ahead, on the day, or both."
           points={[
             "Multiple lead times per event (7 days before and on the day)",
             "WhatsApp/SMS with a fair-use cap, then it falls back to push & email",
@@ -144,9 +144,9 @@ function Features() {
           icon={MessageCircle}
           eyebrow="Act in one tap"
           title="Send a greeting before the moment passes"
-          body="On the day, if you have their number, the reminder opens your messaging app with a friendly, editable message ready to go. You always review and send it yourself — never auto-sent."
+          body="On the day, if you have their number, the reminder opens your messaging app with a friendly, editable message ready to go. You always review and send it yourself, never auto-sent."
           points={[
-            "Pre-filled, editable template — “Happy birthday, [Name]! 🎉”",
+            "Pre-filled, editable template: “Happy birthday, [Name]! 🎉”",
             "Opens your own WhatsApp or SMS, addressed to them",
             "Mark as done or snooze right from the reminder",
           ]}
@@ -160,7 +160,7 @@ function Features() {
           body="Keep the next three birthdays and events one glance away. The widget updates itself as the days pass, and tapping a name jumps straight to their profile."
           points={[
             "Name, date, and days remaining at a glance",
-            "Updates on its own — no need to open the app",
+            "Updates on its own, no need to open the app",
             "Tap a person to open their profile",
           ]}
           preview={<WidgetPreview />}
@@ -181,12 +181,12 @@ function Features() {
         <FeatureCard
           icon={Gift}
           title="Gift notes"
-          body="Keep a running list of gift ideas, sizes, and preferences for each person — private to you and your list."
+          body="Keep a running list of gift ideas, sizes, and preferences for each person, private to you and your list."
         />
         <FeatureCard
           icon={PawPrint}
           title="Pets & every event"
-          body="Birthdays, anniversaries, and custom events — for people and pets. Each one reminds you independently."
+          body="Birthdays, anniversaries, and custom events, for people and pets. Each one reminds you independently."
         />
         <FeatureCard
           icon={CalendarDays}
@@ -196,7 +196,7 @@ function Features() {
         <FeatureCard
           icon={Globe}
           title="One account, everywhere"
-          body="Web, iOS, and Android — same data, instantly synced. Log in anywhere and pick up where you left off."
+          body="Web, iOS, and Android: same data, instantly synced. Log in anywhere and pick up where you left off."
         />
       </div>
     </section>
@@ -291,7 +291,7 @@ function HowItWorks() {
     {
       day: 12,
       title: "Send a greeting",
-      body: "On the day, open your messages with a ready-to-send note — then mark it done.",
+      body: "On the day, open your messages with a ready-to-send note, then mark it done.",
     },
   ];
   return (
@@ -343,7 +343,7 @@ function GetTheApp() {
             </Link>
           </div>
 
-          {/* Store badge placeholders — listings go live with the app (Stage 15). */}
+          {/* Store badge placeholders - listings go live with the app (Stage 15). */}
           <div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <StoreBadge platform="App Store" />
             <StoreBadge platform="Google Play" />
@@ -359,7 +359,7 @@ function StoreBadge({ platform }: { platform: string }) {
   return (
     <span
       className="inline-flex h-12 cursor-default items-center gap-2.5 rounded-md border border-border-strong bg-surface px-4 text-ink-muted"
-      aria-label={`${platform} — coming soon`}
+      aria-label={`${platform} - coming soon`}
     >
       <Smartphone size={20} aria-hidden="true" />
       <span className="flex flex-col items-start leading-none">

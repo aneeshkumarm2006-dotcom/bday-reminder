@@ -5,7 +5,7 @@ import { siteConfig } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "Terms",
-  description: `The terms of using ${siteConfig.name} — a free birthday and event reminder app.`,
+  description: `The terms of using ${siteConfig.name} - a free birthday and event reminder app.`,
   alternates: { canonical: "/terms" },
 };
 
@@ -37,14 +37,14 @@ export default function TermsPage() {
 
       <h2>Acceptable use</h2>
       <p>
-        Use {siteConfig.name} for its purpose — remembering and acting on the dates that matter
+        Use {siteConfig.name} for its purpose of remembering and acting on the dates that matter
         to you and your shared lists. Don&apos;t use it to harass anyone, to send unsolicited
         bulk messages, or in any unlawful way.
       </p>
 
       <h2>Reminders &amp; messaging</h2>
       <p>
-        We make a best effort to deliver reminders on time, but can&apos;t guarantee delivery —
+        We make a best effort to deliver reminders on time, but can&apos;t guarantee delivery, because
         networks, devices, and third-party providers can fail. The &ldquo;send greeting&rdquo;
         action only ever opens your own messaging app; you choose to send.
       </p>

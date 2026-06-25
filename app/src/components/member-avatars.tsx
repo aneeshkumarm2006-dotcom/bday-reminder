@@ -4,7 +4,7 @@ import { Text } from '@/components/ui';
 import type { ListMember } from '@/lib/api';
 
 /**
- * Overlapping member avatars (DESIGN.md §8.9). Perfect circles (never a ring —
+ * Overlapping member avatars (DESIGN.md §8.9). Perfect circles (never a ring -
  * §1), initials on surface-sunken. Shows up to `max`, then a "+N" disc. Used in
  * the lists index and the list header.
  */

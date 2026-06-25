@@ -13,7 +13,7 @@ import {
 
 /**
  * App-side date logic (TODO Stage 13; FR-13/14/15). Mirrors the backend's rules
- * so the feed the client computes locally matches the server. Pure functions —
+ * so the feed the client computes locally matches the server. Pure functions -
  * no rendering. `local` builds local-midnight dates (the app reasons in local
  * time: the device clock IS the user's timezone).
  */
