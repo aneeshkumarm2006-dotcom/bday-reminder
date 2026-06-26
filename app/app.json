@@ -102,13 +102,23 @@
                       "group.com.circlethedate.app.widget"
                     ]
                   }
+                },
+                {
+                  "bundleIdentifier": "com.circlethedate.app.widget",
+                  "targetName": "Birthdays",
+                  "entitlements": {
+                    "com.apple.security.application-groups": [
+                      "group.com.circlethedate.app.widget"
+                    ]
+                  }
                 }
               ]
             }
           }
         },
-        "projectId": "267bd311-09eb-4980-b19b-6e28660983de"
+        "projectId": "48d08546-efe0-4fb0-b2b9-3beb334aec45"
       }
-    }
+    },
+    "owner": "aneeshautomations"
   }
 }
