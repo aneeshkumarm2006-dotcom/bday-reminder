@@ -1,15 +1,13 @@
 import { Schema, model, models, type Model, type Types } from 'mongoose';
 
 /**
- * Shared list (PRD §7.5, §8.11). Members see the same people/events but keep
- * their own notification settings (FR-44). Permission gates writes (FR-43/45).
+ * Shared list (PRD §7.5, §8.11). Members see the same people/events and can all
+ * edit them; everyone keeps their own notification settings (FR-44). The owner
+ * administers the list (invites, renaming, removing members, deletion).
  */
-
-export type ListPermission = 'view' | 'edit';
 
 export interface ListMember {
   user: Types.ObjectId;
-  permission: ListPermission;
 }
 
 export interface SharedListDoc {
@@ -24,7 +22,6 @@ export interface SharedListDoc {
 const memberSchema = new Schema<ListMember>(
   {
     user: { type: Schema.Types.ObjectId, ref: 'User', required: true },
-    permission: { type: String, enum: ['view', 'edit'], default: 'view' },
   },
   { _id: false },
 );

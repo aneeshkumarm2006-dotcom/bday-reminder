@@ -1,5 +1,5 @@
 import { useFocusEffect, useRouter } from 'expo-router';
-import { Cake, Plus, Upload } from 'lucide-react-native';
+import { Cake, Plus } from 'lucide-react-native';
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { ActivityIndicator, Animated, Pressable, ScrollView, View } from 'react-native';
 import { useReducedMotion } from 'react-native-reanimated';
@@ -95,13 +95,6 @@ export default function UpcomingScreen() {
           body="Add the people you don't want to forget.">
           <Button leftIcon={Plus} fullWidth onPress={() => router.push('/add-person')}>
             Add person
-          </Button>
-          <Button
-            variant="secondary"
-            leftIcon={Upload}
-            fullWidth
-            onPress={() => router.push('/import')}>
-            Import people
           </Button>
         </EmptyState>
       </Screen>

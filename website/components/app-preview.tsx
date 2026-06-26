@@ -82,7 +82,7 @@ export function AppPreview({ className }: { className?: string }) {
           month="Jun"
           state="today"
           today
-          name="Ravi Patel"
+          name="Michael Brooks"
           sub="Brother · turns 29"
           count="Today"
         />
@@ -122,7 +122,7 @@ export function ReminderPreview({ className }: { className?: string }) {
         <Ring day={12} month="Jun" size="md" state="today" />
         <div className="flex-1">
           <p className="font-display text-[15px] font-semibold leading-snug text-ink">
-            It&apos;s Ravi&apos;s birthday today, he turns 29.
+            It&apos;s Michael&apos;s birthday today, he turns 29.
           </p>
           <p className="mt-0.5 text-xs text-ink-muted">Brother</p>
         </div>
@@ -143,7 +143,7 @@ export function ReminderPreview({ className }: { className?: string }) {
 /** The mobile home-screen widget - next 3, ring + name + "in Nd" (§8.13). */
 export function WidgetPreview({ className }: { className?: string }) {
   const rows = [
-    { day: 12, month: "Jun", name: "Ravi Patel", count: "Today", today: true },
+    { day: 12, month: "Jun", name: "Michael Brooks", count: "Today", today: true },
     { day: 15, month: "Jun", name: "Mochi", count: "in 3 days", today: false, pet: true },
     { day: 28, month: "Jun", name: "Aunt Mae", count: "in 16 days", today: false },
   ];

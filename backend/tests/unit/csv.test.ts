@@ -45,12 +45,13 @@ describe('parseDob: ISO year-first', () => {
 });
 
 describe('parseDob: numeric forms', () => {
-  it('parses ambiguous "05/03/1996" as DAY-FIRST (day 5, month 3)', () => {
-    expect(parseDob('05/03/1996')).toEqual({ month: 3, day: 5, year: 1996 });
+  it('parses ambiguous "05/03/1996" as MONTH-FIRST (month 5, day 3) — US/CA default', () => {
+    expect(parseDob('05/03/1996')).toEqual({ month: 5, day: 3, year: 1996 });
   });
 
-  it('disambiguates by the >12 rule when one part exceeds 12', () => {
-    // 25 can only be the day, 3 the month.
+  it('disambiguates by the >12 rule when one part exceeds 12 (a clear DD/MM still parses)', () => {
+    // 25 can only be the day, 3 the month — so this European-format date still
+    // reads correctly even though the ambiguous default is month-first.
     expect(parseDob('25/03/1996')).toEqual({ month: 3, day: 25, year: 1996 });
   });
 });

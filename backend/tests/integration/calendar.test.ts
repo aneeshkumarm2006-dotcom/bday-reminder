@@ -47,7 +47,7 @@ describe('calendar sync (FR-38/39/40)', () => {
 
   it('enabling sync mints a tokenized feed URL + webcal URL with the same token', async () => {
     const u = await signUp(api, { timezone: 'UTC' });
-    await addPerson(api, u.auth, { fullName: 'Mum', dob: todayDob, relationshipTag: 'Family' });
+    await addPerson(api, u.auth, { fullName: 'Mom', dob: todayDob, relationshipTag: 'Family' });
 
     const res = await api.patch('/me/calendar').set('Authorization', u.auth).send({ enabled: true });
     expect(res.status).toBe(200);
@@ -64,7 +64,7 @@ describe('calendar sync (FR-38/39/40)', () => {
 
   it('serves a well-formed public ICS feed (no auth) with a yearly all-day VEVENT + stable UID', async () => {
     const u = await signUp(api, { timezone: 'UTC' });
-    await addPerson(api, u.auth, { fullName: 'Mum', dob: todayDob, relationshipTag: 'Family' });
+    await addPerson(api, u.auth, { fullName: 'Mom', dob: todayDob, relationshipTag: 'Family' });
     const enable = await api.patch('/me/calendar').set('Authorization', u.auth).send({ enabled: true });
     const token = tokenFromUrl(enable.body.feedUrl);
 
@@ -76,7 +76,7 @@ describe('calendar sync (FR-38/39/40)', () => {
     expect(feed.text).toContain('\r\n');
     expect(veventCount(feed.text)).toBe(1);
     expect(feed.text).toContain('RRULE:FREQ=YEARLY');
-    expect(feed.text).toContain("SUMMARY:Mum's birthday");
+    expect(feed.text).toContain("SUMMARY:Mom's birthday");
     expect(feed.text).toContain('@circle-the-date');
     expect(feed.text).toContain('DTSTART;VALUE=DATE:');
 
@@ -91,7 +91,7 @@ describe('calendar sync (FR-38/39/40)', () => {
 
   it('also resolves the feed without the .ics extension', async () => {
     const u = await signUp(api, { timezone: 'UTC' });
-    await addPerson(api, u.auth, { fullName: 'Mum', dob: todayDob });
+    await addPerson(api, u.auth, { fullName: 'Mom', dob: todayDob });
     const enable = await api.patch('/me/calendar').set('Authorization', u.auth).send({ enabled: true });
     const token = tokenFromUrl(enable.body.feedUrl);
 
@@ -100,7 +100,7 @@ describe('calendar sync (FR-38/39/40)', () => {
 
   it('regenerates the feed per request: adding a person shows up live (FR-39)', async () => {
     const u = await signUp(api, { timezone: 'UTC' });
-    await addPerson(api, u.auth, { fullName: 'Mum', dob: todayDob });
+    await addPerson(api, u.auth, { fullName: 'Mom', dob: todayDob });
     const enable = await api.patch('/me/calendar').set('Authorization', u.auth).send({ enabled: true });
     const token = tokenFromUrl(enable.body.feedUrl);
 
@@ -115,7 +115,7 @@ describe('calendar sync (FR-38/39/40)', () => {
 
   it('a second event on a person adds its own VEVENT', async () => {
     const u = await signUp(api, { timezone: 'UTC' });
-    const mum = await addPerson(api, u.auth, { fullName: 'Mum', dob: todayDob });
+    const mum = await addPerson(api, u.auth, { fullName: 'Mom', dob: todayDob });
     const mumId: string = mum.body.person.id;
     const enable = await api.patch('/me/calendar').set('Authorization', u.auth).send({ enabled: true });
     const token = tokenFromUrl(enable.body.feedUrl);
@@ -127,12 +127,12 @@ describe('calendar sync (FR-38/39/40)', () => {
 
     const feed = await fetchFeed(token);
     expect(veventCount(feed.text)).toBe(2);
-    expect(feed.text).toContain("SUMMARY:Mum's anniversary");
+    expect(feed.text).toContain("SUMMARY:Mom's anniversary");
   });
 
   it('turning off "my birthdays" (includePersonal) drops the personal VEVENTs', async () => {
     const u = await signUp(api, { timezone: 'UTC' });
-    await addPerson(api, u.auth, { fullName: 'Mum', dob: todayDob });
+    await addPerson(api, u.auth, { fullName: 'Mom', dob: todayDob });
     const enable = await api.patch('/me/calendar').set('Authorization', u.auth).send({ enabled: true });
     const token = tokenFromUrl(enable.body.feedUrl);
 
@@ -151,7 +151,7 @@ describe('calendar sync (FR-38/39/40)', () => {
 
   it('rotating issues a new token and revokes the old link (old → 404)', async () => {
     const u = await signUp(api, { timezone: 'UTC' });
-    await addPerson(api, u.auth, { fullName: 'Mum', dob: todayDob });
+    await addPerson(api, u.auth, { fullName: 'Mom', dob: todayDob });
     const enable = await api.patch('/me/calendar').set('Authorization', u.auth).send({ enabled: true });
     const oldToken = tokenFromUrl(enable.body.feedUrl);
 
@@ -167,7 +167,7 @@ describe('calendar sync (FR-38/39/40)', () => {
 
   it('disabling sync turns the feed off (→ 404) and reports no subscribe URL', async () => {
     const u = await signUp(api, { timezone: 'UTC' });
-    await addPerson(api, u.auth, { fullName: 'Mum', dob: todayDob });
+    await addPerson(api, u.auth, { fullName: 'Mom', dob: todayDob });
     const enable = await api.patch('/me/calendar').set('Authorization', u.auth).send({ enabled: true });
     const token = tokenFromUrl(enable.body.feedUrl);
     expect((await fetchFeed(token)).status).toBe(200);
@@ -181,7 +181,7 @@ describe('calendar sync (FR-38/39/40)', () => {
 
   it('re-enabling restores the same token (not a fresh one)', async () => {
     const u = await signUp(api, { timezone: 'UTC' });
-    await addPerson(api, u.auth, { fullName: 'Mum', dob: todayDob });
+    await addPerson(api, u.auth, { fullName: 'Mom', dob: todayDob });
     const enable = await api.patch('/me/calendar').set('Authorization', u.auth).send({ enabled: true });
     const token = tokenFromUrl(enable.body.feedUrl);
 

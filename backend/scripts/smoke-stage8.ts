@@ -2,10 +2,9 @@
 /**
  * End-to-end smoke test for Stage 8 - shared / family lists - against an
  * ephemeral MongoDB over real HTTP. Verifies the "Done when": two accounts can
- * share a list, the invitee must accept before access, edit permissions are
- * enforced, both see the same people but receive reminders per their own
- * settings, attribution shows, and leaving/removal stops reminders
- * (FR-41-47, §8.11, §10).
+ * share a list, the invitee must accept before access, every member can edit,
+ * both see the same people but receive reminders per their own settings,
+ * attribution shows, and leaving/removal stops reminders (FR-41-47, §8.11, §10).
  *
  * Run: npm run smoke:stage8
  */
@@ -86,19 +85,19 @@ async function main(): Promise<void> {
     check(res.status === 201, 'Ada creates a "Family" list → 201');
     const list = (await res.json()).list;
     const listId: string = list.id;
-    check(list.role === 'owner' && list.permission === 'owner', 'creator is the owner with owner permission');
+    check(list.role === 'owner', 'creator is the owner of the list');
     check(list.memberCount === 1 && list.members[0].isOwner, 'a new list has just the owner as a member');
 
     // --- Add a shared person (FR-44) ----------------------------------------
-    res = await post('/people', { fullName: 'Mum', dob: todayDob, lists: [listId] }, tokenA);
-    check(res.status === 201, 'Ada adds Mum to the shared list → 201');
+    res = await post('/people', { fullName: 'Mom', dob: todayDob, lists: [listId] }, tokenA);
+    check(res.status === 201, 'Ada adds Mom to the shared list → 201');
     const mumId: string = (await res.json()).person.id;
 
-    check((await reminderCount(adaId)) === 1, 'Ada gets her own day-of reminder for Mum');
+    check((await reminderCount(adaId)) === 1, 'Ada gets her own day-of reminder for Mom');
     check((await reminderCount(boId)) === 0, 'Bo has no reminders yet (not a member)');
 
     let people = (await (await get('/people', tokenB)).json()).people as { id: string }[];
-    check(!people.some((p) => p.id === mumId), 'Bo cannot see Mum before accepting (no silent access, FR-42)');
+    check(!people.some((p) => p.id === mumId), 'Bo cannot see Mom before accepting (no silent access, FR-42)');
 
     // --- Invite must be accepted (FR-41/42) ---------------------------------
     res = await post(`/lists/${listId}/invite`, { invitedEmailOrPhone: 'bo@example.com' }, tokenB);
@@ -121,22 +120,21 @@ async function main(): Promise<void> {
     res = await get(`/invites/${token1}`, tokenB);
     const preview = (await res.json()).invite;
     check(
-      preview.listName === 'Family' && preview.inviterName === 'Ada' && preview.permission === 'view' && preview.alreadyMember === false,
-      'Bo can preview the invite (list name, inviter, permission, not-yet-member)',
+      preview.listName === 'Family' && preview.inviterName === 'Ada' && preview.alreadyMember === false,
+      'Bo can preview the invite (list name, inviter, not-yet-member)',
     );
 
     res = await post(`/invites/${token1}/accept`, undefined, tokenB);
     check(res.status === 200, 'Bo accepts the invite → 200');
     const afterAccept = (await res.json()).list;
-    check(afterAccept.members.some((m: { id: string; permission: string }) => m.id === boId && m.permission === 'view'), 'Bo is now a view member of the list');
+    check(afterAccept.members.some((m: { id: string }) => m.id === boId), 'Bo is now a member of the list');
 
     // --- Shared data, personal reminders (FR-44) ----------------------------
-    people = (await (await get('/people', tokenB)).json()).people as { id: string; access?: string }[];
+    people = (await (await get('/people', tokenB)).json()).people as { id: string }[];
     const mumForBo = people.find((p) => p.id === mumId);
-    check(!!mumForBo, 'Bo now sees the shared person Mum');
-    check(mumForBo?.access === 'view', "Bo's access to Mum reads as view");
+    check(!!mumForBo, 'Bo now sees the shared person Mom');
 
-    check((await reminderCount(boId)) === 1, 'accepting generated Bo his OWN day-of reminder for Mum (FR-44)');
+    check((await reminderCount(boId)) === 1, 'accepting generated Bo his OWN day-of reminder for Mom (FR-44)');
     check((await reminderCount(adaId)) === 1, "Ada's reminders are unchanged by Bo joining");
     const boReminder = await Reminder.findOne({ user: boId });
     check(boReminder !== null && boReminder.user.toString() === boId, "Bo's reminder is a distinct per-recipient instance");
@@ -144,33 +142,22 @@ async function main(): Promise<void> {
     const refreshedOwnerView = (await (await get(`/lists/${listId}`, tokenA)).json()).list;
     check(refreshedOwnerView.pendingInvites.length === 0, 'the invite is no longer pending after acceptance');
 
-    // --- Permission enforcement: view-only is read-only (FR-43/45, §14) -----
-    check((await patch(`/people/${mumId}`, { phone: '+100' }, tokenB)).status === 403, 'a view-only member cannot edit a shared person → 403');
-    check((await post(`/people/${mumId}/notes`, { text: 'socks' }, tokenB)).status === 403, 'a view-only member cannot add notes → 403 (§14 default)');
-    check((await post('/events', { person: mumId, type: 'anniversary', date: todayDob }, tokenB)).status === 403, 'a view-only member cannot add an event → 403');
-    check((await del(`/people/${mumId}`, tokenB)).status === 403, 'a view-only member cannot delete a shared person → 403');
-    check((await get(`/people/${mumId}`, tokenB)).status === 200, 'a view-only member CAN read the shared person → 200');
-
-    // --- Owner promotes to edit (FR-43) -------------------------------------
-    res = await patch(`/lists/${listId}/members/${boId}`, { permission: 'edit' }, tokenB);
-    check(res.status === 403, 'a member cannot change permissions → 403');
-    res = await patch(`/lists/${listId}/members/${boId}`, { permission: 'edit' }, tokenA);
-    check(res.status === 200, 'the owner promotes Bo to edit → 200');
-    check((await (await get(`/people/${mumId}`, tokenB)).json()).person.access === 'edit', "Bo's access to Mum is now edit");
+    // --- Every member can edit (FR-43/45) -----------------------------------
+    check((await get(`/people/${mumId}`, tokenB)).status === 200, 'a member can read the shared person → 200');
 
     // --- Edit + attribution (FR-45) -----------------------------------------
     res = await patch(`/people/${mumId}`, { phone: '+15551234' }, tokenB);
-    check(res.status === 200, 'an edit member can now edit the shared person → 200');
+    check(res.status === 200, 'a member can edit the shared person → 200');
     const mumAfterEdit = (await (await get(`/people/${mumId}`, tokenA)).json()).person;
     check(mumAfterEdit.phone === '+15551234', "Bo's edit is visible to Ada (shared data)");
     check(mumAfterEdit.lastEditedBy?.name === 'Bo', 'attribution shows "last edited by Bo" to everyone (FR-45)');
 
     res = await post('/events', { person: mumId, type: 'anniversary', date: todayDob }, tokenB);
-    check(res.status === 201, 'an edit member can add an event to the shared person → 201');
+    check(res.status === 201, 'a member can add an event to the shared person → 201');
     check((await reminderCount(adaId)) === 2 && (await reminderCount(boId)) === 2, 'the new event reminds BOTH members, each their own instance');
 
     res = await post(`/people/${mumId}/notes`, { text: 'Likes gardening' }, tokenB);
-    check(res.status === 201, 'an edit member can add a gift note → 201');
+    check(res.status === 201, 'a member can add a gift note → 201');
     const notes = (await (await get(`/people/${mumId}/notes`, tokenA)).json()).notes as { text: string; author: string }[];
     check(notes.some((n) => n.text === 'Likes gardening' && n.author === boId), 'the note is shared within the list and attributed to Bo (FR-37)');
 
@@ -196,7 +183,7 @@ async function main(): Promise<void> {
     check((await reminderCount(adaId)) === 2, "Ada's reminders are untouched when Bo leaves");
 
     // --- Re-invite, then member-not-owner guards + owner removal (FR-46) -----
-    res = await post(`/lists/${listId}/invite`, { invitedEmailOrPhone: 'bo@example.com', permission: 'edit' }, tokenA);
+    res = await post(`/lists/${listId}/invite`, { invitedEmailOrPhone: 'bo@example.com' }, tokenA);
     const token2: string = (await res.json()).invite.token;
     await post(`/invites/${token2}/accept`, undefined, tokenB);
     check((await reminderCount(boId)) === 2, 'rejoining restores Bo\'s reminders for the shared people');

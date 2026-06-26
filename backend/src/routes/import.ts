@@ -12,6 +12,7 @@ import {
   type ParsedDob,
   type RawCandidate,
 } from '../lib/import';
+import { normalizePhone } from '../lib/phone';
 import { requireAuth } from '../middleware/require-auth';
 import { validateBody } from '../middleware/validate';
 import { Event } from '../models/Event';
@@ -233,8 +234,9 @@ importRouter.post(
         }
         // Fill only empty fields - never overwrite populated data without asking (§10).
         let changed = false;
-        if (!target.phone && item.phone) {
-          target.phone = item.phone;
+        const phone = normalizePhone(item.phone);
+        if (!target.phone && phone) {
+          target.phone = phone;
           changed = true;
         }
         if (!target.relationshipTag && item.relationshipTag) {
@@ -262,7 +264,7 @@ importRouter.post(
         photoUrl: item.photoUrl ?? undefined,
         dob: { month: item.dob.month, day: item.dob.day, year: item.dob.year ?? undefined },
         feb29Rule: 'feb28',
-        phone: item.phone ?? undefined,
+        phone: normalizePhone(item.phone) ?? undefined,
         createdBy: userId,
         updatedBy: userId,
       });

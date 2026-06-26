@@ -7,11 +7,9 @@ import { initials, MemberAvatars } from '@/components/member-avatars';
 import {
   Button,
   Card,
-  Chip,
   Icon,
   Pill,
   Screen,
-  Select,
   Sheet,
   Text,
   TextField,
@@ -25,7 +23,6 @@ import {
   peopleApi,
   type CreatedInvite,
   type ListMember,
-  type ListPermission,
   type PendingInvite,
   type PersonListItem,
   type SharedListView,
@@ -35,9 +32,9 @@ import { useTokens } from '@/theme/theme-provider';
 
 /**
  * Shared list detail (DESIGN.md §8.9). Header with member avatars + Invite;
- * member rows with permission badges (the owner can change a member's permission
- * and remove them); pending invites until accepted; the people shared in the
- * list; and destructive leave/delete confirms with plain consequence copy (§10).
+ * member rows (the owner can remove members - everyone in a list can edit its
+ * people); pending invites until accepted; the people shared in the list; and
+ * destructive leave/delete confirms with plain consequence copy (§10).
  */
 export default function ListDetailScreen() {
   const router = useRouter();
@@ -173,14 +170,6 @@ export default function ListDetailScreen() {
                 member={member}
                 isOwnerViewing={!!isOwner}
                 divider={i > 0}
-                onChangePermission={async (permission) => {
-                  try {
-                    const { list: updated } = await listsApi.setPermission(list.id, member.id, permission);
-                    setList(updated);
-                  } catch (e) {
-                    toast.show(e instanceof ApiError ? e.message : "Couldn't update access. Try again.");
-                  }
-                }}
                 onRemove={async () => {
                   const ok = await confirm({
                     title: `Remove ${member.name}?`,
@@ -292,23 +281,15 @@ export default function ListDetailScreen() {
   );
 }
 
-const PERMISSION_LABEL: Record<string, string> = {
-  owner: 'Owner',
-  edit: 'Can edit',
-  view: 'View only',
-};
-
 function MemberRow({
   member,
   isOwnerViewing,
   divider,
-  onChangePermission,
   onRemove,
 }: {
   member: ListMember;
   isOwnerViewing: boolean;
   divider: boolean;
-  onChangePermission: (permission: ListPermission) => void;
   onRemove: () => void;
 }) {
   const t = useTokens();
@@ -331,29 +312,15 @@ function MemberRow({
         {member.isOwner ? (
           <Pill label="Owner" />
         ) : canManage ? (
-          <View className="flex-row items-center gap-2">
-            <View className="w-[132px]">
-              <Select
-                value={member.permission}
-                options={[
-                  { label: 'View only', value: 'view' },
-                  { label: 'Can edit', value: 'edit' },
-                ]}
-                onChange={(v) => onChangePermission(v as ListPermission)}
-              />
-            </View>
-            <Pressable
-              onPress={onRemove}
-              hitSlop={8}
-              accessibilityRole="button"
-              accessibilityLabel={`Remove ${member.name}`}
-              className={cn('rounded-full active:scale-90', focusRing)}>
-              <Icon icon={Trash2} size={18} color={t.inkMuted} />
-            </Pressable>
-          </View>
-        ) : (
-          <Pill label={PERMISSION_LABEL[member.permission] ?? 'Member'} />
-        )}
+          <Pressable
+            onPress={onRemove}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel={`Remove ${member.name}`}
+            className={cn('rounded-full active:scale-90', focusRing)}>
+            <Icon icon={Trash2} size={18} color={t.inkMuted} />
+          </Pressable>
+        ) : null}
       </View>
     </View>
   );
@@ -377,7 +344,7 @@ function InviteRow({
             {invite.invitedEmailOrPhone}
           </Text>
           <Text variant="caption" className="mt-0.5 text-ink-muted">
-            {PERMISSION_LABEL[invite.permission]} · pending
+            Pending
           </Text>
         </View>
         <Pressable
@@ -406,13 +373,11 @@ function InviteSheet({
 }) {
   const toast = useToast();
   const [target, setTarget] = useState('');
-  const [permission, setPermission] = useState<ListPermission>('view');
   const [saving, setSaving] = useState(false);
   const [created, setCreated] = useState<CreatedInvite | null>(null);
 
   const reset = () => {
     setTarget('');
-    setPermission('view');
     setCreated(null);
   };
 
@@ -422,7 +387,6 @@ function InviteSheet({
     try {
       const { invite, emailOutcome } = await listsApi.invite(listId, {
         invitedEmailOrPhone: target.trim() || undefined,
-        permission,
       });
       setCreated(invite);
       onInvited();
@@ -486,17 +450,9 @@ function InviteSheet({
             keyboardType="email-address"
             hint="Leave blank to just create a shareable link."
           />
-          <Text variant="label" className="mb-2 mt-4">
-            They can
+          <Text variant="caption" className="mt-3 text-ink-muted">
+            Everyone in a list can add and edit its people.
           </Text>
-          <View className="flex-row gap-2">
-            <View className="flex-1">
-              <Chip label="View only" selected={permission === 'view'} onPress={() => setPermission('view')} />
-            </View>
-            <View className="flex-1">
-              <Chip label="Can edit" selected={permission === 'edit'} onPress={() => setPermission('edit')} />
-            </View>
-          </View>
           <View className="mt-5">
             <Button fullWidth loading={saving} onPress={create}>
               Create invite

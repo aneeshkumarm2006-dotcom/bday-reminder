@@ -105,7 +105,7 @@ async function main(): Promise<void> {
     const csv = [
       'name,relationship,date of birth,phone',
       'Alice Adams,Friend,1990-03-05,+15551111', // ISO
-      'Bob Brown,Family,15/08/1985,+15552222', // DD/MM/YYYY (15>12 ⇒ day-first)
+      'Bob Brown,Family,15/08/1985,+15552222', // DD/MM (15>12 ⇒ day forced; still parses)
       'Carol King,Colleague,March 5,+15553333', // month name, no year
       '"Dave, Jr",Friend,5 Jun 92,', // quoted comma + 2-digit year
       ',Friend,1990-01-01,', // no name → invalid
@@ -113,7 +113,7 @@ async function main(): Promise<void> {
       'Frank Foster,Family,1980-12-25,+15558888', // duplicate of an existing person
       'Grace Green,Friend,2000-07-04,', // first Grace
       'Grace Green,Friend,2000-07-04,+15559999', // duplicate within the batch
-      'Henry Hill,Friend,03/04/1991,', // ambiguous numeric ⇒ day-first (3 Apr)
+      'Henry Hill,Friend,03/04/1991,', // ambiguous numeric ⇒ month-first (Mar 4), US/CA
     ].join('\n');
 
     res = await post('/import/preview', { csv }, tokenA);
@@ -131,13 +131,13 @@ async function main(): Promise<void> {
     const alice = byName('Alice Adams')[0];
     check(alice.status === 'ready' && alice.dob?.month === 3 && alice.dob?.day === 5 && alice.dob?.year === 1990, 'ISO date 1990-03-05 → {3,5,1990}');
     const bob = byName('Bob Brown')[0];
-    check(bob.dob?.month === 8 && bob.dob?.day === 15 && bob.dob?.year === 1985, '15/08/1985 → day-first {8,15,1985} (15>12 disambiguates)');
+    check(bob.dob?.month === 8 && bob.dob?.day === 15 && bob.dob?.year === 1985, '15/08/1985 → {8,15,1985} (15>12 forces day; a clear DD/MM still parses)');
     const carol = byName('Carol King')[0];
     check(carol.dob?.month === 3 && carol.dob?.day === 5 && carol.dob?.year === null, '"March 5" → {3,5,null} (year omitted, FR-14)');
     const dave = byName('Dave, Jr')[0];
     check(!!dave && dave.dob?.month === 6 && dave.dob?.day === 5 && dave.dob?.year === 1992, 'quoted "Dave, Jr" keeps its comma; "5 Jun 92" → {6,5,1992} (2-digit year expanded)');
     const henry = byName('Henry Hill')[0];
-    check(henry.dob?.month === 4 && henry.dob?.day === 3, 'ambiguous 03/04/1991 → day-first {4,3} (3 April)');
+    check(henry.dob?.month === 3 && henry.dob?.day === 4, 'ambiguous 03/04/1991 → month-first {3,4} (March 4), US/CA');
 
     const noName = rows.find((r) => r.name === '')!;
     check(noName.status === 'invalid' && /name/i.test(noName.error ?? ''), 'a row with no name is invalid + says the fix');

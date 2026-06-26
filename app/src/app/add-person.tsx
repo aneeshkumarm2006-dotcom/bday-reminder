@@ -36,6 +36,7 @@ import {
   type PersonType,
   type SharedListView,
 } from '@/lib/api';
+import { formatNanp } from '@/lib/phone';
 import { pickAndUploadPhoto } from '@/lib/photo';
 import { useAuth } from '@/providers/auth-provider';
 import { useTokens } from '@/theme/theme-provider';
@@ -78,11 +79,9 @@ const CURRENT_YEAR = new Date().getFullYear();
 
 type Errors = { name?: string; dob?: string; year?: string };
 
-/** Lists the caller may add people to - those they own or can edit (FR-43/45). */
+/** Lists the caller may add people to - every list they own or belong to (FR-43/45). */
 function writableLists(lists: SharedListView[]): { id: string; name: string }[] {
-  return lists
-    .filter((l) => l.permission === 'owner' || l.permission === 'edit')
-    .map((l) => ({ id: l.id, name: l.name }));
+  return lists.map((l) => ({ id: l.id, name: l.name }));
 }
 
 /** Merge a (possibly partial) stored channel override onto the full default set. */
@@ -190,7 +189,8 @@ export default function AddPersonScreen() {
         setRelationship(tag);
         // A stored tag that isn't a preset is a custom one - show the text field.
         setCustomTag(!!tag && !PRESET_TAGS.has(tag));
-        setPhone(person.phone ?? '');
+        // Stored as E.164 (+1…); show it in the familiar (XXX) XXX-XXXX shape.
+        setPhone(formatNanp(person.phone));
         setPhotoUrl(person.photoUrl ?? null);
         setFeb29Rule(person.feb29Rule);
 
@@ -374,19 +374,11 @@ export default function AddPersonScreen() {
               label="Name"
               value={name}
               onChangeText={setName}
-              placeholder="Priya Sharma"
+              placeholder="Emma Carter"
               error={errors.name}
               autoCapitalize="words"
               returnKeyType="next"
             />
-
-            <View>
-              <Label>Type</Label>
-              <View className="flex-row gap-2">
-                <Chip label="Person" selected={type === 'human'} onPress={() => setType('human')} />
-                <Chip label="Pet" selected={type === 'pet'} onPress={() => setType('pet')} />
-              </View>
-            </View>
 
             <View>
               <Label>Date of birth</Label>
@@ -459,7 +451,7 @@ export default function AddPersonScreen() {
                   <TextField
                     value={relationship}
                     onChangeText={setRelationship}
-                    placeholder="e.g. Neighbour, Mentor"
+                    placeholder="e.g. Neighbor, Mentor"
                     autoCapitalize="words"
                     maxLength={40}
                     hint="Your own label, it joins the filter chips on the feed."
@@ -505,9 +497,9 @@ export default function AddPersonScreen() {
               optional
               value={phone}
               onChangeText={setPhone}
-              placeholder="For the day-of greeting"
+              placeholder="(555) 123-4567"
               keyboardType="phone-pad"
-              hint="Used only to open your own SMS with a prefilled greeting."
+              hint="Used only to open your own SMS with a prefilled greeting. Add a country code for numbers outside the US and Canada."
             />
 
             {/* Shared with - add to shared lists the user can edit (Stage 8). */}

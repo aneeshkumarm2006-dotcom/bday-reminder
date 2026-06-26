@@ -78,10 +78,10 @@ async function main(): Promise<void> {
     console.log(`Demo user already has ${existingCount} people - skipping people seed.`);
   } else {
     const people = [
-      { fullName: 'Aisha Khan', dob: { ...offsetDay(0), year: 1990 }, relationshipTag: 'Friend', phone: '+15555550100' },
-      { fullName: 'Ravi Patel', dob: { ...offsetDay(3), year: 1996 }, relationshipTag: 'Family' },
+      { fullName: 'Sarah Bennett', dob: { ...offsetDay(0), year: 1990 }, relationshipTag: 'Friend', phone: '+15555550100' },
+      { fullName: 'Michael Brooks', dob: { ...offsetDay(3), year: 1996 }, relationshipTag: 'Family' },
       { fullName: 'Mochi', dob: offsetDay(0), type: 'pet', relationshipTag: 'Pet' },
-      { fullName: 'Priya Sharma', dob: offsetDay(12), relationshipTag: 'Colleague' },
+      { fullName: 'Emma Carter', dob: offsetDay(12), relationshipTag: 'Colleague' },
       { fullName: 'Grandma Hopper', dob: { ...offsetDay(40), year: 1948 }, relationshipTag: 'Family' },
     ];
     for (const p of people) {
@@ -92,14 +92,14 @@ async function main(): Promise<void> {
 
     // Add an anniversary to one person so non-birthday events are represented.
     const list = await req('/people', 'GET', undefined, token);
-    const ravi = list.body?.people?.find((x: any) => x.fullName === 'Ravi Patel');
-    if (ravi) {
+    const michael = list.body?.people?.find((x: any) => x.fullName === 'Michael Brooks');
+    if (michael) {
       await req('/events', 'POST', {
-        person: ravi.id,
+        person: michael.id,
         type: 'anniversary',
         date: offsetDay(5),
       }, token);
-      console.log('  + Anniversary for Ravi Patel');
+      console.log('  + Anniversary for Michael Brooks');
     }
   }
 

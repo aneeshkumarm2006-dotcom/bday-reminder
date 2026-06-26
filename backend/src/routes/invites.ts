@@ -12,9 +12,9 @@ import { User } from '../models/User';
 /**
  * Invite acceptance (TODO Stage 8; FR-42). Membership is never automatic - an
  * invited user must be logged in and explicitly accept before gaining access.
- * On accept the user joins the list's `members[]` with the invite's permission,
- * the invite is marked accepted, and their reminders are generated so the shared
- * people appear in their feed immediately.
+ * On accept the user joins the list's `members[]`, the invite is marked
+ * accepted, and their reminders are generated so the shared people appear in
+ * their feed immediately.
  */
 
 export const invitesRouter = Router();
@@ -40,7 +40,6 @@ invitesRouter.get(
         id: invite._id.toString(),
         listName: list.name,
         inviterName: inviter?.name ?? 'Someone',
-        permission: invite.permission,
         status: invite.status,
         alreadyMember: alreadyIn,
       },
@@ -68,7 +67,7 @@ invitesRouter.post(
       invite.status = 'accepted';
       await invite.save();
     } else {
-      list.members.push({ user: req.user!._id, permission: invite.permission });
+      list.members.push({ user: req.user!._id });
       await list.save();
       invite.status = 'accepted';
       await invite.save();

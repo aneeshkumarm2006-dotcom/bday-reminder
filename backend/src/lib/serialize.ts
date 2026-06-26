@@ -5,7 +5,6 @@ import type { PersonDoc } from '../models/Person';
 import type { ReminderDoc, ReminderStatus } from '../models/Reminder';
 import type { SharedListDoc } from '../models/SharedList';
 import type { UserDoc } from '../models/User';
-import type { PersonAccessLevel } from './access';
 import { ageTurning, daysUntil } from './dates';
 import { loadEnv } from './env';
 import { reminderMessage } from './reminder-content';
@@ -57,10 +56,8 @@ export function serializeCalendarSync(user: UserDoc, accessibleLists: SharedList
   };
 }
 
-/** Attribution + the caller's permission, attached to a Person on read (Stage 8). */
+/** Attribution attached to a Person on read (Stage 8). */
 export interface PersonExtras {
-  /** The caller's permission on this person (FR-43). */
-  access?: PersonAccessLevel;
   /** Who last edited this entry, for the "Last edited by …" line (FR-45). */
   lastEditedBy?: { id: string; name: string } | null;
 }
@@ -77,8 +74,7 @@ export function serializePerson(person: PersonDoc, extras: PersonExtras = {}) {
     feb29Rule: person.feb29Rule,
     phone: person.phone ?? null,
     lists: person.lists.map((id) => id.toString()),
-    // Shared-list extras (Stage 8); omitted on personal-only contexts that don't pass them.
-    ...(extras.access ? { access: extras.access } : {}),
+    // Shared-list attribution (Stage 8); omitted on personal-only contexts that don't pass it.
     ...(extras.lastEditedBy !== undefined ? { lastEditedBy: extras.lastEditedBy } : {}),
     createdAt: person.createdAt.toISOString(),
     updatedAt: person.updatedAt.toISOString(),
@@ -95,7 +91,6 @@ export function serializeInvite(invite: InviteDoc) {
     id: invite._id.toString(),
     list: invite.list.toString(),
     invitedEmailOrPhone: invite.invitedEmailOrPhone,
-    permission: invite.permission,
     status: invite.status,
     createdAt: invite.createdAt.toISOString(),
   };

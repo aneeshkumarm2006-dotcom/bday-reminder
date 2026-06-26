@@ -3,10 +3,9 @@ import { describe, expect, it } from 'vitest';
 
 import {
   accessiblePeopleFilterFor,
-  assertCanEdit,
   assertListDeltaWritable,
   assertWritableLists,
-  personAccessLevel,
+  canAccessPerson,
   type UserListAccess,
 } from '../../src/lib/access';
 import type { PersonDoc } from '../../src/models/Person';
@@ -14,51 +13,41 @@ import type { PersonDoc } from '../../src/models/Person';
 /** Mint a fresh Mongo id string - no DB connection required for these pure fns. */
 const id = () => new Types.ObjectId().toString();
 
-/** Build a UserListAccess with sane derived (writable/accessible) aggregates. */
+/** Build a UserListAccess with a sane derived (accessible) aggregate. */
 const makeAccess = (parts: Partial<UserListAccess> = {}): UserListAccess => {
   const ownedListIds = parts.ownedListIds ?? [];
-  const editListIds = parts.editListIds ?? [];
-  const viewListIds = parts.viewListIds ?? [];
-  const writableListIds = parts.writableListIds ?? [...ownedListIds, ...editListIds];
-  const accessibleListIds = parts.accessibleListIds ?? [...writableListIds, ...viewListIds];
-  return { ownedListIds, editListIds, viewListIds, accessibleListIds, writableListIds };
+  const memberListIds = parts.memberListIds ?? [];
+  const accessibleListIds = parts.accessibleListIds ?? [...ownedListIds, ...memberListIds];
+  return { ownedListIds, memberListIds, accessibleListIds };
 };
 
-/** Minimal Person stand-in: personAccessLevel only reads `owner` and `lists`. */
+/** Minimal Person stand-in: canAccessPerson only reads `owner` and `lists`. */
 const makePerson = (owner: string, lists: string[] = []): PersonDoc =>
   ({
     owner: new Types.ObjectId(owner),
     lists: lists.map((l) => new Types.ObjectId(l)),
   }) as unknown as PersonDoc;
 
-describe('access: personAccessLevel', () => {
-  it('returns "owner" when the caller owns the person', () => {
+describe('access: canAccessPerson', () => {
+  it('is true when the caller owns the person', () => {
     const uid = id();
     const person = makePerson(uid, [id()]);
-    expect(personAccessLevel(person, uid, makeAccess())).toBe('owner');
+    expect(canAccessPerson(person, uid, makeAccess())).toBe(true);
   });
 
-  it('returns "edit" when the person is in a writable (owned/edit) list', () => {
+  it('is true when the person is in a list the caller belongs to', () => {
     const uid = id();
     const listId = id();
     const person = makePerson(id(), [listId]);
-    const access = makeAccess({ editListIds: [listId] });
-    expect(personAccessLevel(person, uid, access)).toBe('edit');
+    const access = makeAccess({ memberListIds: [listId] });
+    expect(canAccessPerson(person, uid, access)).toBe(true);
   });
 
-  it('returns "view" when the person is only in a view-only list', () => {
-    const uid = id();
-    const listId = id();
-    const person = makePerson(id(), [listId]);
-    const access = makeAccess({ viewListIds: [listId] });
-    expect(personAccessLevel(person, uid, access)).toBe('view');
-  });
-
-  it('returns null when there is no ownership or list overlap', () => {
+  it('is false when there is no ownership or list overlap', () => {
     const uid = id();
     const person = makePerson(id(), [id()]);
-    const access = makeAccess({ viewListIds: [id()], editListIds: [id()] });
-    expect(personAccessLevel(person, uid, access)).toBeNull();
+    const access = makeAccess({ memberListIds: [id()], ownedListIds: [id()] });
+    expect(canAccessPerson(person, uid, access)).toBe(false);
   });
 });
 
@@ -73,27 +62,11 @@ describe('access: accessiblePeopleFilterFor', () => {
   });
 });
 
-describe('access: assertCanEdit', () => {
-  it('throws 403 forbidden for view-only access', () => {
-    try {
-      assertCanEdit('view');
-      throw new Error('expected assertCanEdit to throw');
-    } catch (err) {
-      expect((err as { status: number }).status).toBe(403);
-    }
-  });
-
-  it('does not throw for owner or edit access', () => {
-    expect(() => assertCanEdit('owner')).not.toThrow();
-    expect(() => assertCanEdit('edit')).not.toThrow();
-  });
-});
-
 describe('access: assertWritableLists', () => {
-  it('returns the de-duped ids when all are writable', () => {
+  it('returns the de-duped ids when all are accessible', () => {
     const a = id();
     const b = id();
-    const access = makeAccess({ ownedListIds: [a], editListIds: [b] });
+    const access = makeAccess({ ownedListIds: [a], memberListIds: [b] });
     expect(assertWritableLists([a, b, a], access)).toEqual([a, b]);
   });
 

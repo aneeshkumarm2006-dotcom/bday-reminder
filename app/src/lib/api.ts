@@ -205,9 +205,6 @@ export type ChannelOverride = {
   inApp?: boolean;
 };
 
-/** The caller's permission on a shared person (Stage 8; FR-43). */
-export type PersonAccess = 'owner' | 'edit' | 'view';
-
 export type Person = {
   id: string;
   fullName: string;
@@ -218,8 +215,6 @@ export type Person = {
   feb29Rule: Feb29Rule;
   phone: string | null;
   lists: string[];
-  /** Present on shared-list reads: what the caller may do with this person. */
-  access?: PersonAccess;
   /** Who last edited this entry, for the "Last edited by …" line (FR-45). */
   lastEditedBy?: { id: string; name: string } | null;
   createdAt: string;
@@ -275,7 +270,7 @@ export type CreatePersonInput = {
   phone?: string | null;
   photoUrl?: string | null;
   feb29Rule?: Feb29Rule;
-  /** Shared lists to add this person to (Stage 8; caller must own/can-edit them). */
+  /** Shared lists to add this person to (Stage 8; caller must own or belong to them). */
   lists?: string[];
 };
 export type UpdatePersonInput = Partial<CreatePersonInput>;
@@ -494,15 +489,10 @@ export const remindersApi = {
 
 // --- Shared / family lists (Stage 8 contract; FR-41-47) ---------------------
 
-/** A member's permission within a list. The owner reads as `owner` (FR-43). */
-export type ListPermission = 'view' | 'edit';
-export type ViewerPermission = 'owner' | ListPermission;
-
 export type ListMember = {
   id: string;
   name: string;
   email: string;
-  permission: ViewerPermission;
   isOwner: boolean;
 };
 
@@ -511,7 +501,6 @@ export type PendingInvite = {
   id: string;
   list: string;
   invitedEmailOrPhone: string;
-  permission: ListPermission;
   status: 'pending' | 'accepted';
   createdAt: string;
 };
@@ -521,8 +510,6 @@ export type SharedListView = {
   name: string;
   /** Whether the viewer owns or is a member of the list. */
   role: 'owner' | 'member';
-  /** The viewer's own permission (owner / edit / view). */
-  permission: ViewerPermission;
   owner: { id: string; name: string } | null;
   /** Owner first (badged), then accepted members. */
   members: ListMember[];
@@ -540,7 +527,6 @@ export type InvitePreview = {
   id: string;
   listName: string;
   inviterName: string;
-  permission: ListPermission;
   status: 'pending' | 'accepted';
   alreadyMember: boolean;
 };
@@ -563,7 +549,7 @@ export const listsApi = {
   remove: (id: string) => apiFetch<void>(`/lists/${id}`, { method: 'DELETE' }),
 
   /** Invite by email / phone / link; the invitee must accept (FR-41/42). */
-  invite: (id: string, input: { invitedEmailOrPhone?: string; permission?: ListPermission }) =>
+  invite: (id: string, input: { invitedEmailOrPhone?: string }) =>
     apiFetch<{ invite: CreatedInvite; emailOutcome: InviteEmailOutcome }>(`/lists/${id}/invite`, {
       method: 'POST',
       body: input,
@@ -571,13 +557,6 @@ export const listsApi = {
 
   revokeInvite: (id: string, inviteId: string) =>
     apiFetch<void>(`/lists/${id}/invites/${inviteId}`, { method: 'DELETE' }),
-
-  /** Owner sets a member to View only / Can edit (FR-43). */
-  setPermission: (id: string, memberId: string, permission: ListPermission) =>
-    apiFetch<{ list: SharedListView }>(`/lists/${id}/members/${memberId}`, {
-      method: 'PATCH',
-      body: { permission },
-    }),
 
   /** Owner removes a member; their reminders for the list stop (FR-46). */
   removeMember: (id: string, memberId: string) =>
@@ -588,7 +567,7 @@ export const listsApi = {
 };
 
 export const invitesApi = {
-  /** Preview an invite before accepting (list + inviter + permission). */
+  /** Preview an invite before accepting (list + inviter). */
   preview: (token: string) => apiFetch<{ invite: InvitePreview }>(`/invites/${token}`),
 
   /** Explicitly accept an invite and join the list (FR-42). */

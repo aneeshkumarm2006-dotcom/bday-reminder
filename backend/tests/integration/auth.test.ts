@@ -19,9 +19,9 @@ describe('auth flow (FR-1/4)', () => {
   it('signs up, lowercases email, stores timezone, never leaks the hash', async () => {
     const res = await api
       .post('/auth/signup')
-      .send({ name: 'Ravi', email: 'Ravi@Example.com', password: 'supersecret', timezone: 'Asia/Kolkata' });
+      .send({ name: 'Michael', email: 'Michael@Example.com', password: 'supersecret', timezone: 'Asia/Kolkata' });
     expect(res.status).toBe(201);
-    expect(res.body.user.email).toBe('ravi@example.com');
+    expect(res.body.user.email).toBe('michael@example.com');
     expect(res.body.user.timezone).toBe('Asia/Kolkata');
     expect(res.body.user.passwordHash).toBeUndefined();
     expect(typeof res.body.accessToken).toBe('string');

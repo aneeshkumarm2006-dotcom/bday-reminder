@@ -46,9 +46,9 @@ describe('DateRing', () => {
 
   it('honors an explicit accessibilityLabel override', () => {
     renderWithTheme(
-      <DateRing day={22} month="Jun" state="today" accessibilityLabel="Aisha Khan, 22 Jun" />,
+      <DateRing day={22} month="Jun" state="today" accessibilityLabel="Sarah Bennett, 22 Jun" />,
     );
-    expect(screen.getByLabelText('Aisha Khan, 22 Jun')).toBeTruthy();
+    expect(screen.getByLabelText('Sarah Bennett, 22 Jun')).toBeTruthy();
   });
 
   it('renders at every size without throwing', () => {

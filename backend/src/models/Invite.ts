@@ -13,8 +13,6 @@ export interface InviteDoc {
   invitedEmailOrPhone: string;
   token: string;
   status: InviteStatus;
-  /** Permission the invitee joins with on accept; the owner can change it later (FR-43). */
-  permission: 'view' | 'edit';
   invitedBy: Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
@@ -26,7 +24,6 @@ const inviteSchema = new Schema<InviteDoc>(
     invitedEmailOrPhone: { type: String, required: true, trim: true },
     token: { type: String, required: true, unique: true },
     status: { type: String, enum: ['pending', 'accepted'], default: 'pending' },
-    permission: { type: String, enum: ['view', 'edit'], default: 'view' },
     invitedBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
   },
   { timestamps: true },

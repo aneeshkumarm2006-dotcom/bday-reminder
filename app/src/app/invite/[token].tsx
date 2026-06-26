@@ -3,7 +3,7 @@ import { Users } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 
-import { Button, Pill, Screen, Text } from '@/components/ui';
+import { Button, Screen, Text } from '@/components/ui';
 import { ApiError, invitesApi, type InvitePreview } from '@/lib/api';
 import { useTokens } from '@/theme/theme-provider';
 
@@ -56,8 +56,6 @@ export default function InviteScreen() {
     }
   };
 
-  const permissionLabel = preview?.permission === 'edit' ? 'Can edit' : 'View only';
-
   return (
     <Screen edges={['top', 'bottom']}>
       <Stack.Screen options={{ headerShown: false, presentation: 'modal' }} />
@@ -82,12 +80,9 @@ export default function InviteScreen() {
               {preview.inviterName} invited you to “{preview.listName}”
             </Text>
             <Text variant="body" className="mt-2 text-center text-ink-secondary">
-              You’ll see everyone in this list and get your own reminders for them, with your own
+              You’ll see everyone in this list and can add and edit them, with your own reminder
               settings.
             </Text>
-            <View className="mt-3">
-              <Pill label={`You can ${permissionLabel === 'Can edit' ? 'add and edit' : 'view'}`} />
-            </View>
 
             <View className="mt-6 w-full gap-2">
               {preview.alreadyMember ? (

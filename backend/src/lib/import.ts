@@ -72,10 +72,11 @@ export function validateDob(parts: { month: number; day: number; year?: number |
  * Parse a free-form date of birth into month/day(/year). Handles:
  *   • ISO `1990-03-05` (also `/` or `.` separators)
  *   • month names `5 March 1990`, `March 5, 1990`, `Mar 5`, `5 Mar 90`
- *   • numeric `05/03/1990`, `5-3`, `03.05.90`
- * Numeric forms disambiguate by the >12 rule; when still ambiguous they default
- * to **day-first** (DD/MM) - the preview echoes the parsed date so the user can
- * catch a misread before committing. Returns null when it can't be read.
+ *   • numeric `03/05/1990`, `5-3`, `03.05.90`
+ * Numeric forms disambiguate by the >12 rule (a part over 12 must be the day);
+ * when still ambiguous they default to **month-first** (MM/DD), the US/CA
+ * convention - the preview echoes the parsed date so the user can catch a
+ * misread before committing. Returns null when it can't be read.
  */
 export function parseDob(raw: string | null | undefined): ParsedDob | null {
   if (!raw) return null;
@@ -113,9 +114,9 @@ export function parseDob(raw: string | null | undefined): ParsedDob | null {
       month = a;
       day = b;
     } else {
-      // Ambiguous → day-first (documented default).
-      day = a;
-      month = b;
+      // Ambiguous → month-first (MM/DD), the US/CA convention.
+      month = a;
+      day = b;
     }
     return validate(month, day, m[3] != null ? expandYear(Number(m[3])) : null);
   }

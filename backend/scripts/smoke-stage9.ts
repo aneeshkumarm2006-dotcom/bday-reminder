@@ -95,7 +95,7 @@ async function main(): Promise<void> {
     check(Array.isArray(settings.availableLists) && settings.availableLists.length === 0, 'no lists to sync yet');
 
     // --- Ada adds a personal person -----------------------------------------
-    res = await post('/people', { fullName: 'Mum', dob: todayDob, relationshipTag: 'Family' }, tokenA);
+    res = await post('/people', { fullName: 'Mom', dob: todayDob, relationshipTag: 'Family' }, tokenA);
     const mumId: string = (await res.json()).person.id;
 
     // --- Enable sync mints a feed (FR-38) -----------------------------------
@@ -113,9 +113,9 @@ async function main(): Promise<void> {
     check(feed.contentType.includes('text/calendar'), 'the feed is served as text/calendar');
     check(feed.body.startsWith('BEGIN:VCALENDAR') && feed.body.trimEnd().endsWith('END:VCALENDAR'), 'the body is a well-formed VCALENDAR');
     check(feed.body.includes('\r\n'), 'lines are CRLF-terminated (RFC 5545)');
-    check(veventCount(feed.body) === 1, 'the feed has one VEVENT (Mum’s birthday)');
+    check(veventCount(feed.body) === 1, 'the feed has one VEVENT (Mom’s birthday)');
     check(feed.body.includes('RRULE:FREQ=YEARLY'), 'the VEVENT recurs yearly (RRULE:FREQ=YEARLY)');
-    check(feed.body.includes("SUMMARY:Mum's birthday"), 'the VEVENT summary names the person + event');
+    check(feed.body.includes("SUMMARY:Mom's birthday"), 'the VEVENT summary names the person + event');
     check(feed.body.includes('@circle-the-date'), 'the VEVENT carries a stable UID');
     check(feed.body.includes('DTSTART;VALUE=DATE:'), 'the birthday is an all-day event');
 
@@ -131,7 +131,7 @@ async function main(): Promise<void> {
     const anniId: string = (await res.json()).event.id;
     feed = await fetchFeed(tokenAFeed);
     check(veventCount(feed.body) === 3, 'a second event on a person adds its own VEVENT');
-    check(feed.body.includes("SUMMARY:Mum's anniversary"), 'the anniversary event renders independently');
+    check(feed.body.includes("SUMMARY:Mom's anniversary"), 'the anniversary event renders independently');
 
     // --- Live delete reflects immediately (FR-39) ---------------------------
     await del(`/events/${anniId}`, tokenA);
@@ -151,12 +151,12 @@ async function main(): Promise<void> {
     // --- Per-list opt-in for a shared-list member (FR-40) -------------------
     res = await post('/lists', { name: 'Family' }, tokenA);
     const familyId: string = (await res.json()).list.id;
-    // Gran is owned by Ada AND shared into Family.
-    await post('/people', { fullName: 'Gran', dob: { month: 9, day: 9 }, lists: [familyId] }, tokenA);
+    // Grandma is owned by Ada AND shared into Family.
+    await post('/people', { fullName: 'Grandma', dob: { month: 9, day: 9 }, lists: [familyId] }, tokenA);
 
     feed = await fetchFeed(tokenAFeed);
     check(
-      veventCount(feed.body) === 2 && feed.body.includes("SUMMARY:Gran's birthday"),
+      veventCount(feed.body) === 2 && feed.body.includes("SUMMARY:Grandma's birthday"),
       '"my birthdays" includes people I own even when they’re also in a list',
     );
 
@@ -187,13 +187,13 @@ async function main(): Promise<void> {
     // Refuse a list Bo doesn't belong to.
     check((await patch('/me/calendar', { lists: [workId] }, tokenB)).status === 403, 'syncing a list you don’t belong to → 403');
 
-    // Opt the shared list in → Gran appears.
+    // Opt the shared list in → Grandma appears.
     res = await patch('/me/calendar', { lists: [familyId] }, tokenB);
     settings = await res.json();
     check(settings.lists.length === 1 && settings.lists[0] === familyId, 'Bo’s synced-list selection persists');
     feed = await fetchFeed(tokenBFeed);
     check(
-      veventCount(feed.body) === 1 && feed.body.includes("SUMMARY:Gran's birthday"),
+      veventCount(feed.body) === 1 && feed.body.includes("SUMMARY:Grandma's birthday"),
       'opting a shared list in adds its people to the member’s feed (FR-40)',
     );
 

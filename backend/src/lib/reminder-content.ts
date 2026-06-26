@@ -25,7 +25,7 @@ function inDays(days: number): string {
   return days === 1 ? 'in 1 day' : `in ${days} days`;
 }
 
-/** Lower-cased noun for the event, used mid-sentence ("Ravi's anniversary"). */
+/** Lower-cased noun for the event, used mid-sentence ("Michael's anniversary"). */
 function eventNoun(input: Pick<ReminderCopyInput, 'eventType' | 'customName'>): string {
   if (input.eventType === 'birthday') return 'birthday';
   if (input.eventType === 'anniversary') return 'anniversary';
@@ -35,9 +35,9 @@ function eventNoun(input: Pick<ReminderCopyInput, 'eventType' | 'customName'>): 
 /**
  * The reminder line shown in the feed and sent as the push/email body. Variants
  * cover with-year, day-of, and no-year (DESIGN.md §10):
- *   - `Ravi turns 29 in 3 days.`
- *   - `It's Ravi's birthday today, turns 29.`
- *   - `Priya's birthday is in 3 days.`
+ *   - `Michael turns 29 in 3 days.`
+ *   - `It's Michael's birthday today, turns 29.`
+ *   - `Emma's birthday is in 3 days.`
  */
 export function reminderMessage(input: ReminderCopyInput): string {
   const { name, daysRemaining, ageTurning } = input;
@@ -63,7 +63,7 @@ export function reminderMessage(input: ReminderCopyInput): string {
   return `${name}'s ${noun} is ${inDays(daysRemaining)}.`;
 }
 
-/** Short headline for a push title / email subject ("Ravi's birthday"). */
+/** Short headline for a push title / email subject ("Michael's birthday"). */
 export function reminderHeadline(input: Pick<ReminderCopyInput, 'name' | 'eventType' | 'customName'>): string {
   if (input.eventType === 'custom') return `${input.name}: ${input.customName?.trim() || 'Event'}`;
   return `${input.name}'s ${eventNoun(input)}`;

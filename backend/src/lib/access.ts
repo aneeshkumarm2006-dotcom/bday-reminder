@@ -10,61 +10,46 @@ import { User, type UserDoc } from '../models/User';
 type PersonFilter = Record<string, unknown>;
 
 /**
- * Shared-list access resolution (TODO Stage 8; FR-43/44/45, §10). A Person is
- * scoped to an `owner` and, optionally, one or more SharedLists. Who can see or
- * edit a person follows from that:
+ * Shared-list access resolution (Stage 8; FR-43/44/45, §10). A Person is scoped
+ * to an `owner` and, optionally, one or more SharedLists. Who can see and edit a
+ * person follows from that:
  *
- *   - the person's `owner` has full access (`owner`);
- *   - the owner of a list the person is in, or a list member with `edit`
- *     permission, can edit (`edit`);
- *   - a list member with `view` permission can only read (`view`).
+ *   - the person's `owner` has access;
+ *   - the owner or any accepted member of a list the person is in has access.
  *
- * Membership means *accepted* membership - pending invites grant nothing
- * (FR-42). Every people/event/note route resolves access through here so the
- * same rules are enforced everywhere; writes additionally call `assertCanEdit`.
+ * Everyone with access can edit - there is no view-only tier. Membership means
+ * *accepted* membership; pending invites grant nothing (FR-42). Every
+ * people/event/note route resolves access through here so the same rules are
+ * enforced everywhere.
  */
-
-export type PersonAccessLevel = 'owner' | 'edit' | 'view';
 
 export interface UserListAccess {
   /** Lists the user owns. */
   ownedListIds: string[];
-  /** Lists the user is an accepted member of with `edit` permission. */
-  editListIds: string[];
-  /** Lists the user is an accepted member of with `view` permission. */
-  viewListIds: string[];
-  /** owned + edit + view - everything the user can at least see. */
+  /** Lists the user is an accepted member of. */
+  memberListIds: string[];
+  /** owned + member - every list the user can access (and edit). */
   accessibleListIds: string[];
-  /** owned + edit - lists whose people the user may modify. */
-  writableListIds: string[];
 }
 
-/** Resolve every list the user owns or has accepted membership in, by tier. */
+/** Resolve every list the user owns or has accepted membership in. */
 export async function getUserListAccess(userId: string | Types.ObjectId): Promise<UserListAccess> {
   const uid = String(userId);
   const lists = await SharedList.find({ $or: [{ owner: uid }, { 'members.user': uid }] });
 
   const ownedListIds: string[] = [];
-  const editListIds: string[] = [];
-  const viewListIds: string[] = [];
+  const memberListIds: string[] = [];
   for (const list of lists) {
     const id = list._id.toString();
-    if (String(list.owner) === uid) {
-      ownedListIds.push(id);
-      continue;
-    }
-    const member = list.members.find((m) => String(m.user) === uid);
-    if (!member) continue;
-    if (member.permission === 'edit') editListIds.push(id);
-    else viewListIds.push(id);
+    if (String(list.owner) === uid) ownedListIds.push(id);
+    else if (list.members.some((m) => String(m.user) === uid)) memberListIds.push(id);
   }
 
-  const writableListIds = [...ownedListIds, ...editListIds];
-  const accessibleListIds = [...writableListIds, ...viewListIds];
-  return { ownedListIds, editListIds, viewListIds, accessibleListIds, writableListIds };
+  const accessibleListIds = [...ownedListIds, ...memberListIds];
+  return { ownedListIds, memberListIds, accessibleListIds };
 }
 
-/** Mongo filter for every Person the user can at least see (owned + shared). */
+/** Mongo filter for every Person the user can access (owned + shared). */
 export function accessiblePeopleFilterFor(userId: string, access: UserListAccess): PersonFilter {
   return { $or: [{ owner: userId }, { lists: { $in: access.accessibleListIds } }] };
 }
@@ -77,58 +62,48 @@ export async function accessiblePeopleFilter(
   return accessiblePeopleFilterFor(String(userId), access);
 }
 
-/** The caller's permission on one person, or null when they have no access. */
-export function personAccessLevel(
+/** Whether the caller can access (and therefore edit) a person. */
+export function canAccessPerson(
   person: PersonDoc,
   userId: string,
   access: UserListAccess,
-): PersonAccessLevel | null {
-  if (String(person.owner) === userId) return 'owner';
+): boolean {
+  if (String(person.owner) === userId) return true;
   const personListIds = person.lists.map((l) => l.toString());
-  if (personListIds.some((id) => access.writableListIds.includes(id))) return 'edit';
-  if (personListIds.some((id) => access.viewListIds.includes(id))) return 'view';
-  return null;
+  return personListIds.some((id) => access.accessibleListIds.includes(id));
 }
 
 /**
- * Load a person the caller can access, with their permission level. Throws 404
- * when the person doesn't exist and 403 when it exists but the caller has no
- * access to it (matching the ownership-check convention used since Stage 3).
+ * Load a person the caller can access. Throws 404 when the person doesn't exist
+ * and 403 when it exists but the caller has no access to it (matching the
+ * ownership-check convention used since Stage 3).
  */
 export async function resolvePersonAccess(personId: string, userId: string) {
   const person = await Person.findById(personId);
   if (!person) throw notFound("We couldn't find that person.");
   const access = await getUserListAccess(userId);
-  const level = personAccessLevel(person, userId, access);
-  if (!level) throw forbidden();
-  return { person, level, access };
+  if (!canAccessPerson(person, userId, access)) throw forbidden();
+  return { person, access };
 }
 
-/** Load an event whose person the caller can access, with their permission. */
+/** Load an event whose person the caller can access. */
 export async function resolveEventAccess(eventId: string, userId: string) {
   const event = await Event.findById(eventId);
   if (!event) throw notFound("We couldn't find that event.");
-  const { person, level } = await resolvePersonAccess(event.person.toString(), userId);
-  return { event, person, level };
-}
-
-/** Throw 403 when the caller only has view access (writes need owner/edit). */
-export function assertCanEdit(level: PersonAccessLevel): void {
-  if (level === 'view') {
-    throw forbidden('You have view-only access to this list. Ask the list owner for edit access.');
-  }
+  const { person } = await resolvePersonAccess(event.person.toString(), userId);
+  return { event, person };
 }
 
 /**
  * Validate that the caller may place people into each of `listIds` - they must
- * own the list or be an `edit` member. Returns the de-duped, validated ids.
- * Throws 403 on any list the caller can't write to (or that doesn't exist).
+ * own the list or be a member of it. Returns the de-duped, validated ids.
+ * Throws 403 on any list the caller can't access (or that doesn't exist).
  */
 export function assertWritableLists(listIds: string[], access: UserListAccess): string[] {
   const unique = [...new Set(listIds.map(String))];
   for (const id of unique) {
-    if (!access.writableListIds.includes(id)) {
-      throw forbidden("You can only add people to a list you own or can edit.");
+    if (!access.accessibleListIds.includes(id)) {
+      throw forbidden('You can only add people to a list you own or belong to.');
     }
   }
   return unique;
@@ -136,8 +111,8 @@ export function assertWritableLists(listIds: string[], access: UserListAccess): 
 
 /**
  * Validate an edit to a person's list memberships: only lists being *added* or
- * *removed* need to be writable by the caller, so a member can re-save a shared
- * person without losing memberships in lists they don't manage. Returns the
+ * *removed* need to be accessible to the caller, so a member can re-save a
+ * shared person without losing memberships in lists they aren't in. Returns the
  * de-duped next set.
  */
 export function assertListDeltaWritable(
@@ -153,8 +128,8 @@ export function assertListDeltaWritable(
     ...[...prev].filter((id) => !nextSet.has(id)),
   ];
   for (const id of changed) {
-    if (!access.writableListIds.includes(id)) {
-      throw forbidden('You can only add or remove a list you own or can edit.');
+    if (!access.accessibleListIds.includes(id)) {
+      throw forbidden('You can only add or remove a list you own or belong to.');
     }
   }
   return next;

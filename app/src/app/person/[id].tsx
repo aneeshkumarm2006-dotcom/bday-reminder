@@ -183,8 +183,6 @@ function ProfileBody({
   const { person } = data;
   const resolved = resolveEvents(person, data.events);
   const next = resolved[0];
-  // View-only members can read but not change a shared person (FR-43/45).
-  const canEdit = person.access !== 'view';
 
   const [addOpen, setAddOpen] = useState(false);
   const [removingId, setRemovingId] = useState<string | null>(null);
@@ -274,9 +272,8 @@ function ProfileBody({
                   {countdownLabel(r.days)}
                 </Text>
               </View>
-              {/* The birthday can't be removed on its own (delete the person).
-                  View-only members can't remove events either (FR-45). */}
-              {r.event.type !== 'birthday' && canEdit ? (
+              {/* The birthday can't be removed on its own (delete the person). */}
+              {r.event.type !== 'birthday' ? (
                 removingId === r.event.id ? (
                   <ActivityIndicator color={t.inkMuted} />
                 ) : (
@@ -295,26 +292,23 @@ function ProfileBody({
         ))}
       </Card>
 
-      {/* Dashed "Add event" row (§8.6) - anniversaries / custom events.
-          Hidden for view-only members (FR-45). */}
-      {canEdit ? (
-        <Pressable
-          onPress={() => setAddOpen(true)}
-          accessibilityRole="button"
-          accessibilityLabel="Add event"
-          className={cn(
-            'mt-2 flex-row items-center justify-center gap-2 rounded-lg border border-dashed border-border-strong py-3 active:scale-[0.99]',
-            focusRing,
-          )}>
-          <Icon icon={CalendarPlus} size={18} color={t.biro} />
-          <Text variant="button" className="text-biro">
-            Add event
-          </Text>
-        </Pressable>
-      ) : null}
+      {/* Dashed "Add event" row (§8.6) - anniversaries / custom events. */}
+      <Pressable
+        onPress={() => setAddOpen(true)}
+        accessibilityRole="button"
+        accessibilityLabel="Add event"
+        className={cn(
+          'mt-2 flex-row items-center justify-center gap-2 rounded-lg border border-dashed border-border-strong py-3 active:scale-[0.99]',
+          focusRing,
+        )}>
+        <Icon icon={CalendarPlus} size={18} color={t.biro} />
+        <Text variant="button" className="text-biro">
+          Add event
+        </Text>
+      </Pressable>
 
       {/* Gift notes (§8.6) - running, timestamped list. */}
-      <NotesSection personId={person.id} canEdit={canEdit} />
+      <NotesSection personId={person.id} />
 
       {/* Attribution - who last touched this entry (FR-45). */}
       {person.lastEditedBy ? (
@@ -324,20 +318,12 @@ function ProfileBody({
       ) : null}
 
       <View className="mt-3 gap-2">
-        {canEdit ? (
-          <>
-            <Button variant="secondary" leftIcon={Pencil} fullWidth onPress={onEdit}>
-              Edit
-            </Button>
-            <Button variant="destructive" leftIcon={Trash2} fullWidth loading={deleting} onPress={onDelete}>
-              Delete
-            </Button>
-          </>
-        ) : (
-          <Text variant="caption" className="text-center text-ink-muted">
-            You have view-only access to this shared person.
-          </Text>
-        )}
+        <Button variant="secondary" leftIcon={Pencil} fullWidth onPress={onEdit}>
+          Edit
+        </Button>
+        <Button variant="destructive" leftIcon={Trash2} fullWidth loading={deleting} onPress={onDelete}>
+          Delete
+        </Button>
       </View>
 
       <AddEventSheet

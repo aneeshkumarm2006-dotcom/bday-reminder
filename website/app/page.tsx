@@ -171,7 +171,7 @@ function Features() {
         <FeatureCard
           icon={Users}
           title="Shared family lists"
-          body="Track the same birthdays together. Invite family, set view or edit access, and everyone keeps their own reminder settings."
+          body="Track the same birthdays together. Invite family, everyone can add and edit, and each person keeps their own reminder settings."
         />
         <FeatureCard
           icon={CalendarDays}

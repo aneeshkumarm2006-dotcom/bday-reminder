@@ -82,8 +82,8 @@ async function main(): Promise<void> {
     // --- Account A (timezone UTC, reminder time moved to 00:00 so "today"
     //     reminders are immediately due) ------------------------------------
     let res = await post('/auth/signup', {
-      name: 'Ravi',
-      email: 'ravi@example.com',
+      name: 'Michael',
+      email: 'michael@example.com',
       password: 'supersecret',
       timezone: 'UTC',
     });
@@ -100,8 +100,8 @@ async function main(): Promise<void> {
 
     // --- People (reminders auto-generate on create) ------------------------
     // P1: birthday today, year known, has phone → day-of due, can greet.
-    res = await post('/people', { fullName: 'Aisha Khan', dob: { ...md(todayUTC), year: 1990 }, phone: '+15551234567', relationshipTag: 'Friend' }, tokenA);
-    check(res.status === 201, 'create Aisha (today, year, phone) → 201');
+    res = await post('/people', { fullName: 'Sarah Bennett', dob: { ...md(todayUTC), year: 1990 }, phone: '+15551234567', relationshipTag: 'Friend' }, tokenA);
+    check(res.status === 201, 'create Sarah (today, year, phone) → 201');
 
     // P2: birthday today, no year, no phone → day-of due, cannot greet.
     res = await post('/people', { fullName: 'Noah', dob: { ...md(todayUTC) } }, tokenA);
@@ -133,13 +133,13 @@ async function main(): Promise<void> {
 
     // --- In-app feed before dispatch: only due occurrences appear (FR-27) ---
     let items = await feed(tokenA);
-    check(items.length === 3, `feed shows 3 due occurrences (Aisha, Noah, Week); future-only hidden (got ${items.length})`);
+    check(items.length === 3, `feed shows 3 due occurrences (Sarah, Noah, Week); future-only hidden (got ${items.length})`);
     check(!items.some((i) => i.person.fullName === 'Soon Friend'), 'a fully-future occurrence is not in the feed yet');
 
-    const aisha = items.find((i) => i.person.fullName === 'Aisha Khan')!;
-    check(aisha.daysRemaining === 0 && /^It's Aisha Khan's birthday today - turns \d+\.$/.test(aisha.message), 'day-of + year copy: "It\'s … today - turns N."');
-    check(typeof aisha.ageTurning === 'number' && aisha.ageTurning! > 0, 'age shown when birth year known');
-    check(aisha.canGreet === true, 'Send-greeting eligible day-of when a phone exists (FR-28)');
+    const sarah = items.find((i) => i.person.fullName === 'Sarah Bennett')!;
+    check(sarah.daysRemaining === 0 && /^It's Sarah Bennett's birthday today - turns \d+\.$/.test(sarah.message), 'day-of + year copy: "It\'s … today - turns N."');
+    check(typeof sarah.ageTurning === 'number' && sarah.ageTurning! > 0, 'age shown when birth year known');
+    check(sarah.canGreet === true, 'Send-greeting eligible day-of when a phone exists (FR-28)');
 
     const noah = items.find((i) => i.person.fullName === 'Noah')!;
     check(noah.message === "It's Noah's birthday today.", 'day-of + no-year copy omits age (FR-14)');
@@ -159,12 +159,12 @@ async function main(): Promise<void> {
     check(summary.sent === 0, 'dispatch is idempotent - no double-send on the second pass');
 
     // --- Mark as done (FR-31/32) -------------------------------------------
-    res = await post(`/reminders/${aisha.id}/done`, undefined, tokenA);
+    res = await post(`/reminders/${sarah.id}/done`, undefined, tokenA);
     let body = await res.json();
     check(res.status === 200 && body.reminder.status === 'done', 'POST /reminders/:id/done → done');
     items = await feed(tokenA);
     check(items.length === 3, 'done reminder stays in the feed (persists, de-emphasized)');
-    check(items.find((i) => i.person.fullName === 'Aisha Khan')!.status === 'done', 'done status reflected in the feed');
+    check(items.find((i) => i.person.fullName === 'Sarah Bennett')!.status === 'done', 'done status reflected in the feed');
 
     // --- Snooze (FR-33) -----------------------------------------------------
     res = await post(`/reminders/${noah.id}/snooze`, { preset: 'tomorrow' }, tokenA);

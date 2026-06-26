@@ -90,7 +90,7 @@ async function main(): Promise<void> {
     // --- Pet + photo + custom relationship tag (FR-9/10/17) -----------------
     res = await post(
       '/people',
-      { fullName: 'Rex', type: 'pet', relationshipTag: 'Neighbour', photoUrl, dob: { ...md(todayUTC), year: 2018 } },
+      { fullName: 'Rex', type: 'pet', relationshipTag: 'Neighbor', photoUrl, dob: { ...md(todayUTC), year: 2018 } },
       tokenA,
     );
     check(res.status === 201, 'create a pet with a photo + custom tag → 201');
@@ -98,7 +98,7 @@ async function main(): Promise<void> {
     const personId: string = body.person.id;
     check(body.person.type === 'pet', 'person stored as type "pet" (the paw indicator, FR-17)');
     check(body.person.photoUrl === photoUrl, 'photo URL stored on the person (FR-10)');
-    check(body.person.relationshipTag === 'Neighbour', 'custom relationship tag stored (FR-9)');
+    check(body.person.relationshipTag === 'Neighbor', 'custom relationship tag stored (FR-9)');
 
     res = await get(`/people/${personId}`, tokenA);
     body = await res.json();
@@ -190,11 +190,11 @@ async function main(): Promise<void> {
     check((await res.json()).notes.length === 1, 'only the deleted entry is removed (the list keeps the rest)');
 
     // --- Custom-tag feed filter (FR-9) --------------------------------------
-    res = await get('/people?tag=Neighbour', tokenA);
+    res = await get('/people?tag=Neighbor', tokenA);
     check(res.status === 200 && (await res.json()).people.length === 1, 'GET /people?tag=<custom> filters by the custom tag');
     res = await get('/upcoming', tokenA);
     body = await res.json();
-    check(body.tags.includes('Neighbour'), 'the custom tag appears in the feed filter chips');
+    check(body.tags.includes('Neighbor'), 'the custom tag appears in the feed filter chips');
     check(body.items.some((i: { type: string }) => i.type === 'pet'), 'the pet surfaces in the upcoming feed as type "pet"');
 
     // --- Cross-user ownership (every Stage-6 surface) -----------------------

@@ -21,13 +21,13 @@ describe('people & birthdays (FR-5/8/9/12/13/14/15)', () => {
   it('POST /people with a year → 201, auto birthday event, returns the person id', async () => {
     const u = await signUp(api);
     const { status, body } = await addPerson(api, u.auth, {
-      fullName: 'Priya Sharma',
+      fullName: 'Emma Carter',
       dob: { month: 6, day: 22, year: 1996 },
       relationshipTag: 'Family',
     });
     expect(status).toBe(201);
     expect(body.person.id).toBeTruthy();
-    expect(body.person.fullName).toBe('Priya Sharma');
+    expect(body.person.fullName).toBe('Emma Carter');
     expect(body.person.dob.year).toBe(1996);
     expect(Array.isArray(body.events)).toBe(true);
     expect(body.events[0].type).toBe('birthday');
@@ -38,7 +38,7 @@ describe('people & birthdays (FR-5/8/9/12/13/14/15)', () => {
   it('POST /people without a year → 201 (year optional, serialized null)', async () => {
     const u = await signUp(api);
     const { status, body } = await addPerson(api, u.auth, {
-      fullName: 'Arjun',
+      fullName: 'Daniel',
       dob: { month: 12, day: 5 },
       relationshipTag: 'Friend',
     });
@@ -86,13 +86,13 @@ describe('people & birthdays (FR-5/8/9/12/13/14/15)', () => {
 
   it('GET /people?tag= filters by relationship tag', async () => {
     const u = await signUp(api);
-    await addPerson(api, u.auth, { fullName: 'Priya Sharma', dob: { month: 6, day: 22 }, relationshipTag: 'Family' });
-    await addPerson(api, u.auth, { fullName: 'Arjun', dob: { month: 12, day: 5 }, relationshipTag: 'Friend' });
+    await addPerson(api, u.auth, { fullName: 'Emma Carter', dob: { month: 6, day: 22 }, relationshipTag: 'Family' });
+    await addPerson(api, u.auth, { fullName: 'Daniel', dob: { month: 12, day: 5 }, relationshipTag: 'Friend' });
 
     const res = await api.get('/people?tag=Family').set('Authorization', u.auth);
     expect(res.status).toBe(200);
     expect(res.body.people).toHaveLength(1);
-    expect(res.body.people[0].fullName).toBe('Priya Sharma');
+    expect(res.body.people[0].fullName).toBe('Emma Carter');
   });
 
   it('GET /people?sort=next orders ascending by soonest occurrence (default)', async () => {
@@ -124,7 +124,7 @@ describe('people & birthdays (FR-5/8/9/12/13/14/15)', () => {
 
   it('GET /people/:id → 200 for the owner with the person + events', async () => {
     const u = await signUp(api);
-    const created = await addPerson(api, u.auth, { fullName: 'Priya Sharma', dob: { month: 6, day: 22, year: 1996 } });
+    const created = await addPerson(api, u.auth, { fullName: 'Emma Carter', dob: { month: 6, day: 22, year: 1996 } });
     const id = created.body.person.id;
 
     const res = await api.get(`/people/${id}`).set('Authorization', u.auth);
@@ -137,7 +137,7 @@ describe('people & birthdays (FR-5/8/9/12/13/14/15)', () => {
   it('GET /people/:id → 403 for a different user', async () => {
     const owner = await signUp(api);
     const other = await signUp(api);
-    const created = await addPerson(api, owner.auth, { fullName: 'Priya Sharma', dob: { month: 6, day: 22 } });
+    const created = await addPerson(api, owner.auth, { fullName: 'Emma Carter', dob: { month: 6, day: 22 } });
     const id = created.body.person.id;
 
     const res = await api.get(`/people/${id}`).set('Authorization', other.auth);
@@ -152,15 +152,15 @@ describe('people & birthdays (FR-5/8/9/12/13/14/15)', () => {
 
   it('PATCH /people/:id updates fields and syncs the birthday event date', async () => {
     const u = await signUp(api);
-    const created = await addPerson(api, u.auth, { fullName: 'Priya Sharma', dob: { month: 6, day: 22, year: 1996 } });
+    const created = await addPerson(api, u.auth, { fullName: 'Emma Carter', dob: { month: 6, day: 22, year: 1996 } });
     const id = created.body.person.id;
 
     const res = await api
       .patch(`/people/${id}`)
       .set('Authorization', u.auth)
-      .send({ fullName: 'Priya S', dob: { month: 7, day: 1, year: 1996 } });
+      .send({ fullName: 'Emma C', dob: { month: 7, day: 1, year: 1996 } });
     expect(res.status).toBe(200);
-    expect(res.body.person.fullName).toBe('Priya S');
+    expect(res.body.person.fullName).toBe('Emma C');
     expect(res.body.person.dob.month).toBe(7);
     expect(res.body.person.dob.day).toBe(1);
     // The birthday event mirrors the new DOB.
@@ -171,7 +171,7 @@ describe('people & birthdays (FR-5/8/9/12/13/14/15)', () => {
 
   it('PATCH /people/:id rejects an unknown field with 400 (strict body)', async () => {
     const u = await signUp(api);
-    const created = await addPerson(api, u.auth, { fullName: 'Priya', dob: { month: 6, day: 22 } });
+    const created = await addPerson(api, u.auth, { fullName: 'Emma', dob: { month: 6, day: 22 } });
     const res = await api
       .patch(`/people/${created.body.person.id}`)
       .set('Authorization', u.auth)
@@ -181,7 +181,7 @@ describe('people & birthdays (FR-5/8/9/12/13/14/15)', () => {
 
   it('DELETE /people/:id → 204 and cascades its events, reminders, and notes', async () => {
     const u = await signUp(api);
-    const created = await addPerson(api, u.auth, { fullName: 'Priya Sharma', dob: { month: 6, day: 22, year: 1996 } });
+    const created = await addPerson(api, u.auth, { fullName: 'Emma Carter', dob: { month: 6, day: 22, year: 1996 } });
     const id = created.body.person.id;
     const eventIds: string[] = created.body.events.map((e: { id: string }) => e.id);
 
@@ -218,7 +218,7 @@ describe('people & birthdays (FR-5/8/9/12/13/14/15)', () => {
   it('DELETE /people/:id → 403 for a different user', async () => {
     const owner = await signUp(api);
     const other = await signUp(api);
-    const created = await addPerson(api, owner.auth, { fullName: 'Priya', dob: { month: 6, day: 22 } });
+    const created = await addPerson(api, owner.auth, { fullName: 'Emma', dob: { month: 6, day: 22 } });
     const res = await api.delete(`/people/${created.body.person.id}`).set('Authorization', other.auth);
     expect(res.status).toBe(403);
   });

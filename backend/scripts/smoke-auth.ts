@@ -62,14 +62,14 @@ async function main(): Promise<void> {
 
     // Signup
     res = await post('/auth/signup', {
-      name: 'Ravi',
-      email: 'Ravi@Example.com',
+      name: 'Michael',
+      email: 'Michael@Example.com',
       password: 'supersecret',
       timezone: 'Asia/Kolkata',
     });
     body = await res.json();
     check(res.status === 201, 'signup → 201');
-    check(body.user?.email === 'ravi@example.com', 'signup lowercases email');
+    check(body.user?.email === 'michael@example.com', 'signup lowercases email');
     check(body.user?.timezone === 'Asia/Kolkata', 'signup stores client timezone');
     check(body.user?.passwordHash === undefined, 'signup never leaks passwordHash');
     check(
@@ -78,7 +78,7 @@ async function main(): Promise<void> {
     );
 
     // Duplicate signup
-    res = await post('/auth/signup', { name: 'Ravi2', email: 'ravi@example.com', password: 'supersecret' });
+    res = await post('/auth/signup', { name: 'Michael2', email: 'michael@example.com', password: 'supersecret' });
     check(res.status === 409, 'duplicate email → 409');
 
     // Validation
@@ -86,11 +86,11 @@ async function main(): Promise<void> {
     check(res.status === 400, 'invalid signup → 400');
 
     // Wrong password
-    res = await post('/auth/login', { email: 'ravi@example.com', password: 'wrongpass' });
+    res = await post('/auth/login', { email: 'michael@example.com', password: 'wrongpass' });
     check(res.status === 401, 'wrong password → 401');
 
     // Login
-    res = await post('/auth/login', { email: 'ravi@example.com', password: 'supersecret' });
+    res = await post('/auth/login', { email: 'michael@example.com', password: 'supersecret' });
     body = await res.json();
     check(res.status === 200 && !!body.accessToken && !!body.refreshToken, 'login → 200 + tokens');
     const access: string = body.accessToken;
@@ -105,13 +105,13 @@ async function main(): Promise<void> {
     // /me authed
     res = await get('/me', access);
     body = await res.json();
-    check(res.status === 200 && body.email === 'ravi@example.com', 'GET /me with token → profile');
+    check(res.status === 200 && body.email === 'michael@example.com', 'GET /me with token → profile');
 
     // PATCH /me
-    res = await patch('/me', { name: 'Ravi Patel', defaultReminderTime: '08:30' }, access);
+    res = await patch('/me', { name: 'Michael Brooks', defaultReminderTime: '08:30' }, access);
     body = await res.json();
     check(
-      res.status === 200 && body.name === 'Ravi Patel' && body.defaultReminderTime === '08:30',
+      res.status === 200 && body.name === 'Michael Brooks' && body.defaultReminderTime === '08:30',
       'PATCH /me updates profile',
     );
 

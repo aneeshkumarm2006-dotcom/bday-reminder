@@ -19,7 +19,7 @@ type PreviewRow = {
 const SAMPLE_CSV = [
   'name,relationship,date of birth,phone',
   'Alice Adams,Friend,1990-03-05,+15551111', // ISO
-  'Bob Brown,Family,15/08/1985,+15552222', // DD/MM/YYYY (15>12 ⇒ day-first)
+  'Bob Brown,Family,15/08/1985,+15552222', // DD/MM (15>12 ⇒ day forced; still parses)
   'Carol King,Colleague,March 5,+15553333', // month name, no year
   '"Dave, Jr",Friend,5 Jun 92,', // quoted comma + 2-digit year
   ',Friend,1990-01-01,', // no name → invalid
@@ -27,7 +27,7 @@ const SAMPLE_CSV = [
   'Frank Foster,Family,1980-12-25,+15558888', // duplicate of an existing person
   'Grace Green,Friend,2000-07-04,', // first Grace
   'Grace Green,Friend,2000-07-04,+15559999', // duplicate within the batch
-  'Henry Hill,Friend,03/04/1991,', // ambiguous numeric ⇒ day-first (3 Apr)
+  'Henry Hill,Friend,03/04/1991,', // ambiguous numeric ⇒ month-first (Mar 4), US/CA
 ].join('\n');
 
 describe('bulk import - preview + commit (Stage 7, FR-6/7/11, §10)', () => {
@@ -87,7 +87,7 @@ describe('bulk import - preview + commit (Stage 7, FR-6/7/11, §10)', () => {
     expect(alice.status).toBe('ready');
     expect(alice.dob).toEqual({ month: 3, day: 5, year: 1990 });
 
-    // 15/08/1985 → day-first {8,15,1985} (15>12 disambiguates)
+    // 15/08/1985 → {8,15,1985} (15>12 forces day, so a clear DD/MM still parses)
     const bob = byName('Bob Brown')[0];
     expect(bob.dob).toEqual({ month: 8, day: 15, year: 1985 });
 
@@ -100,10 +100,10 @@ describe('bulk import - preview + commit (Stage 7, FR-6/7/11, §10)', () => {
     expect(dave).toBeDefined();
     expect(dave.dob).toEqual({ month: 6, day: 5, year: 1992 });
 
-    // ambiguous 03/04/1991 → day-first (3 April)
+    // ambiguous 03/04/1991 → month-first (March 4), the US/CA default
     const henry = byName('Henry Hill')[0];
-    expect(henry.dob?.month).toBe(4);
-    expect(henry.dob?.day).toBe(3);
+    expect(henry.dob?.month).toBe(3);
+    expect(henry.dob?.day).toBe(4);
 
     // a row with no name is invalid and the error mentions the name fix
     const noName = rows.find((r) => r.name === '')!;

@@ -6,17 +6,16 @@ import {
   syncUsersReminders,
 } from '../jobs/reminder-engine';
 import {
-  assertCanEdit,
   assertListDeltaWritable,
   assertWritableLists,
   accessiblePeopleFilterFor,
   getUserListAccess,
-  personAccessLevel,
   resolvePersonAccess,
   usersOfLists,
 } from '../lib/access';
 import { asyncHandler } from '../lib/async-handler';
 import { maxDayInMonth, resolveOccurrence, todayInTimeZone } from '../lib/dates';
+import { normalizePhone } from '../lib/phone';
 import { serializeEvent, serializePerson, type PersonExtras } from '../lib/serialize';
 import { requireAuth } from '../middleware/require-auth';
 import { validateBody } from '../middleware/validate';
@@ -32,7 +31,7 @@ import { User } from '../models/User';
  * a Person auto-creates their Birthday Event; deleting one cascades its events,
  * pending reminders, and notes (PRD §10). Reads are scoped to everything the
  * caller can see - their own people plus anyone in a shared list they belong to
- * (Stage 8) - and writes require owner/edit access (FR-43/45). Every write
+ * (Stage 8) - and anyone with access can edit (FR-43/45). Every write
  * stamps `updatedBy` for the "Last edited by" attribution (FR-45) and fans
  * reminder changes out to every member who receives reminders for the person.
  */
@@ -71,9 +70,11 @@ const baseFields = {
   relationshipTag: z.string().trim().min(1).max(40).nullable().optional(),
   photoUrl: photoUrlSchema,
   feb29Rule: z.enum(['feb28', 'feb29only', 'mar1']).optional(),
+  // Stored loosely (any region works); a bare 10-digit number is normalized to
+  // NANP E.164 (+1) on save - see lib/phone.ts. No pattern, so we never reject.
   phone: z.string().trim().min(1).max(40).nullable().optional(),
   // Shared-list ids this person belongs to (Stage 8). The caller must own or
-  // have edit access to every list they assign (FR-43/45).
+  // belong to every list they assign (FR-43/45).
   lists: z.array(z.string().trim().min(1)).optional(),
 };
 
@@ -167,7 +168,7 @@ peopleRouter.post(
       photoUrl: body.photoUrl ?? undefined,
       dob: { month: body.dob.month, day: body.dob.day, year: body.dob.year ?? undefined },
       feb29Rule: body.feb29Rule ?? 'feb28',
-      phone: body.phone ?? undefined,
+      phone: normalizePhone(body.phone) ?? undefined,
       createdBy: userId,
       updatedBy: userId,
     });
@@ -183,7 +184,7 @@ peopleRouter.post(
     await generateForPersonViewers(person);
 
     res.status(201).json({
-      person: serializePerson(person, { access: 'owner', lastEditedBy: await lastEditedBy(person) }),
+      person: serializePerson(person, { lastEditedBy: await lastEditedBy(person) }),
       events: [serializeEvent(event)],
     });
   }),
@@ -219,7 +220,6 @@ peopleRouter.get(
       const editor = editorById.get(person.updatedBy.toString());
       return {
         ...serializePerson(person, {
-          access: personAccessLevel(person, user._id.toString(), access) ?? 'view',
           lastEditedBy: editor ? { id: editor._id.toString(), name: editor.name } : null,
         }),
         next: nextAcrossEvents(eventsByPerson.get(person._id.toString()) ?? [], person.feb29Rule, today),
@@ -241,17 +241,17 @@ peopleRouter.get(
 peopleRouter.get(
   '/:id',
   asyncHandler(async (req, res) => {
-    const { person, level } = await resolvePersonAccess(req.params.id, req.userId!);
+    const { person } = await resolvePersonAccess(req.params.id, req.userId!);
     const events = await Event.find({ person: person._id });
     res.json({
-      person: serializePerson(person, { access: level, lastEditedBy: await lastEditedBy(person) }),
+      person: serializePerson(person, { lastEditedBy: await lastEditedBy(person) }),
       events: events.map(serializeEvent),
     });
   }),
 );
 
 /**
- * PATCH /people/:id - edit a person (FR-8/45). Requires owner/edit access.
+ * PATCH /people/:id - edit a person (FR-8/45). Requires list access.
  * Changing the DOB syncs the birthday event and clears its future
  * pending/snoozed reminders so they regenerate (sent history untouched, §10);
  * the change fans out to every member who receives reminders for the person.
@@ -263,8 +263,7 @@ peopleRouter.patch(
   asyncHandler(async (req, res) => {
     const user = req.user!;
     const userId = user._id.toString();
-    const { person, level, access } = await resolvePersonAccess(req.params.id, userId);
-    assertCanEdit(level);
+    const { person, access } = await resolvePersonAccess(req.params.id, userId);
     const patch = req.body as z.infer<typeof updateSchema>;
 
     const prevListIds = person.lists.map((l) => l.toString());
@@ -273,7 +272,7 @@ peopleRouter.patch(
     if (patch.type !== undefined) person.type = patch.type;
     if (patch.relationshipTag !== undefined) person.relationshipTag = patch.relationshipTag ?? undefined;
     if (patch.photoUrl !== undefined) person.photoUrl = patch.photoUrl ?? undefined;
-    if (patch.phone !== undefined) person.phone = patch.phone ?? undefined;
+    if (patch.phone !== undefined) person.phone = normalizePhone(patch.phone) ?? undefined;
     if (patch.feb29Rule !== undefined) person.feb29Rule = patch.feb29Rule;
     if (patch.dob !== undefined) {
       person.dob = { month: patch.dob.month, day: patch.dob.day, year: patch.dob.year ?? undefined };
@@ -322,7 +321,7 @@ peopleRouter.patch(
 
     const events = await Event.find({ person: person._id });
     res.json({
-      person: serializePerson(person, { access: level, lastEditedBy: await lastEditedBy(person) }),
+      person: serializePerson(person, { lastEditedBy: await lastEditedBy(person) }),
       events: events.map(serializeEvent),
     });
   }),
@@ -330,15 +329,14 @@ peopleRouter.patch(
 
 /**
  * DELETE /people/:id - remove a person and cascade their events, reminders, and
- * notes (PRD §10). Requires owner/edit access (FR-8/45). Reminders are deleted
+ * notes (PRD §10). Requires list access (FR-8/45). Reminders are deleted
  * across every recipient (no user filter), so the person disappears for all
  * members. Idempotent at the data layer.
  */
 peopleRouter.delete(
   '/:id',
   asyncHandler(async (req, res) => {
-    const { person, level } = await resolvePersonAccess(req.params.id, req.userId!);
-    assertCanEdit(level);
+    const { person } = await resolvePersonAccess(req.params.id, req.userId!);
 
     const events = await Event.find({ person: person._id });
     const eventIds = events.map((e) => e._id);

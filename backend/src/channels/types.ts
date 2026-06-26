@@ -9,7 +9,7 @@ import type { ChannelKey } from '../models/common';
 
 /** Everything a channel needs to render and route one reminder. */
 export interface ReminderPayload {
-  /** Short headline - push title / email subject ("Ravi's birthday"). */
+  /** Short headline - push title / email subject ("Michael's birthday"). */
   headline: string;
   /** The reminder line - push/email body and the in-app feed copy (PRD §11). */
   message: string;

@@ -44,7 +44,7 @@ describe('reminder dispatch (mocked providers)', () => {
   async function seedDayOfPerson() {
     const u = await signUp(api, { timezone: 'UTC' });
     const res = await addPerson(api, u.auth, {
-      fullName: 'Aisha Khan',
+      fullName: 'Sarah Bennett',
       dob: { ...todayParts(), year: 1990 },
       phone: '+15555550100',
     });
@@ -80,8 +80,8 @@ describe('reminder dispatch (mocked providers)', () => {
     const [channels, payload] = dispatchMock.mock.calls[0];
     expect(channels).toEqual(expect.arrayContaining(['push', 'email']));
     expect(channels).not.toContain('sms');
-    expect(payload.headline).toContain('Aisha Khan');
-    expect(payload.message).toContain("Aisha Khan's birthday today");
+    expect(payload.headline).toContain('Sarah Bennett');
+    expect(payload.message).toContain("Sarah Bennett's birthday today");
 
     // Per-channel delivery outcomes are persisted on the reminder.
     const persisted = await Reminder.findOne({ status: 'sent' });
@@ -102,7 +102,7 @@ describe('reminder dispatch (mocked providers)', () => {
       .patch('/me')
       .set('Authorization', u.auth)
       .send({ channelPreferences: { push: true, email: false, sms: false, inApp: true } });
-    await addPerson(api, u.auth, { fullName: 'Aisha Khan', dob: { ...todayParts(), year: 1990 } });
+    await addPerson(api, u.auth, { fullName: 'Sarah Bennett', dob: { ...todayParts(), year: 1990 } });
     await forceDue();
     await dispatchDue(new Date());
 
@@ -132,9 +132,9 @@ describe('reminder dispatch (mocked providers)', () => {
 
     const feed = await api.get('/reminders').set('Authorization', u.auth);
     expect(feed.status).toBe(200);
-    const item = feed.body.items.find((i: any) => i.person.fullName === 'Aisha Khan');
+    const item = feed.body.items.find((i: any) => i.person.fullName === 'Sarah Bennett');
     expect(item).toBeTruthy();
-    expect(item.message).toContain("Aisha Khan's birthday today");
+    expect(item.message).toContain("Sarah Bennett's birthday today");
     expect(item.canGreet).toBe(true); // day-of + phone on file (FR-28/30)
   });
 
@@ -155,7 +155,7 @@ describe('reminder dispatch (mocked providers)', () => {
     await dispatchDue(new Date());
 
     let feed = await api.get('/reminders').set('Authorization', u.auth);
-    const item = feed.body.items.find((i: any) => i.person.fullName === 'Aisha Khan');
+    const item = feed.body.items.find((i: any) => i.person.fullName === 'Sarah Bennett');
     expect(item).toBeTruthy();
     const id = item.id;
     const done = await api.post(`/reminders/${id}/done`).set('Authorization', u.auth);
@@ -172,7 +172,7 @@ describe('reminder dispatch (mocked providers)', () => {
     await dispatchDue(new Date());
 
     let feed = await api.get('/reminders').set('Authorization', u.auth);
-    const item = feed.body.items.find((i: any) => i.person.fullName === 'Aisha Khan');
+    const item = feed.body.items.find((i: any) => i.person.fullName === 'Sarah Bennett');
     expect(item).toBeTruthy();
     const id = item.id;
     const snoozed = await api.post(`/reminders/${id}/snooze`).set('Authorization', u.auth).send({ preset: 'in1h' });

@@ -12,11 +12,10 @@ import { useTokens } from '@/theme/theme-provider';
  * Gift notes (DESIGN.md §8.6, PRD §8.9; FR-35/36/37). A running list of
  * separate, timestamped entries - never one overwritable box - so old ideas
  * aren't lost. Each entry shows its text + relative date + a delete; the add
- * input is pinned at the bottom of the section. Shared within a list, but adding
- * and deleting follow Can-edit permission (PRD §14) - `canEdit` hides those for
- * view-only members.
+ * input is pinned at the bottom of the section. Shared within a list - everyone
+ * in the list can add and delete entries.
  */
-export function NotesSection({ personId, canEdit = true }: { personId: string; canEdit?: boolean }) {
+export function NotesSection({ personId }: { personId: string }) {
   const t = useTokens();
   const toast = useToast();
   const confirm = useConfirm();
@@ -116,16 +115,14 @@ export function NotesSection({ personId, canEdit = true }: { personId: string; c
                     {relativeDate(note.createdAt)}
                   </Text>
                 </View>
-                {canEdit ? (
-                  <Pressable
-                    onPress={() => void remove(note)}
-                    hitSlop={8}
-                    accessibilityRole="button"
-                    accessibilityLabel="Delete note"
-                    className={cn('rounded-full active:scale-90', focusRing)}>
-                    <Icon icon={Trash2} size={18} color={t.inkMuted} />
-                  </Pressable>
-                ) : null}
+                <Pressable
+                  onPress={() => void remove(note)}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel="Delete note"
+                  className={cn('rounded-full active:scale-90', focusRing)}>
+                  <Icon icon={Trash2} size={18} color={t.inkMuted} />
+                </Pressable>
               </View>
             </View>
           ))}
@@ -145,24 +142,21 @@ export function NotesSection({ personId, canEdit = true }: { personId: string; c
         </Text>
       ) : null}
 
-      {/* Add-entry input pinned at the bottom of the notes section (§8.6).
-          Hidden for view-only members - adding follows Can-edit (PRD §14). */}
-      {canEdit ? (
-        <View className="mt-3 flex-row items-end gap-2">
-          <View className="flex-1">
-            <Input
-              value={text}
-              onChangeText={setText}
-              placeholder="Add a gift idea or note…"
-              multiline
-              accessibilityLabel="New note"
-            />
-          </View>
-          <Button onPress={add} loading={saving} disabled={!text.trim()}>
-            Add
-          </Button>
+      {/* Add-entry input pinned at the bottom of the notes section (§8.6). */}
+      <View className="mt-3 flex-row items-end gap-2">
+        <View className="flex-1">
+          <Input
+            value={text}
+            onChangeText={setText}
+            placeholder="Add a gift idea or note…"
+            multiline
+            accessibilityLabel="New note"
+          />
         </View>
-      ) : null}
+        <Button onPress={add} loading={saving} disabled={!text.trim()}>
+          Add
+        </Button>
+      </View>
     </View>
   );
 }

@@ -13,7 +13,7 @@ function item(overrides: Partial<UpcomingItem> = {}): UpcomingItem {
   return {
     personId: 'p1',
     eventId: 'e1',
-    fullName: 'Aisha Khan',
+    fullName: 'Sarah Bennett',
     type: 'human',
     relationshipTag: 'Friend',
     photoUrl: null,
@@ -31,11 +31,11 @@ function item(overrides: Partial<UpcomingItem> = {}): UpcomingItem {
 describe('PersonCard', () => {
   it('shows the name, the age (turns N) when a year is known, and the countdown', () => {
     renderWithTheme(<PersonCard item={item()} />);
-    expect(screen.getByText('Aisha Khan')).toBeTruthy();
+    expect(screen.getByText('Sarah Bennett')).toBeTruthy();
     expect(screen.getByText(/turns 36/)).toBeTruthy();
     expect(screen.getByText('in 3 days')).toBeTruthy();
     // The ring (the date) leads, labelled with the person's name + date.
-    expect(screen.getByLabelText(/Aisha Khan, 25 Jun/)).toBeTruthy();
+    expect(screen.getByLabelText(/Sarah Bennett, 25 Jun/)).toBeTruthy();
   });
 
   it('omits the age entirely when no birth year is known (FR-14)', () => {
@@ -65,7 +65,7 @@ describe('PersonCard', () => {
   it('calls onPress when tapped (FR-50 profile deep-link target)', () => {
     const onPress = jest.fn();
     renderWithTheme(<PersonCard item={item()} onPress={onPress} />);
-    fireEvent.press(screen.getByText('Aisha Khan'));
+    fireEvent.press(screen.getByText('Sarah Bennett'));
     expect(onPress).toHaveBeenCalledTimes(1);
   });
 });

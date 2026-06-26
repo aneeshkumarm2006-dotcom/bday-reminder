@@ -7,10 +7,9 @@ import { Reminder } from '../../src/models/Reminder';
 /**
  * Shared / family lists (Stage 8, FR-41-47, §8.11, §10). Mirrors
  * scripts/smoke-stage8.ts: two accounts share a list, the invitee must accept
- * before access, view-only is read-only, the owner promotes to edit, both see
- * the same people but get reminders per their own settings (with attribution),
- * and leaving / removal / deletion stops the affected user's reminders for the
- * list's people.
+ * before access, every member can edit, both see the same people but get
+ * reminders per their own settings (with attribution), and leaving / removal /
+ * deletion stops the affected user's reminders for the list's people.
  *
  * "Today" in UTC so a person born now is day-of and yields exactly one reminder
  * per recipient (each account uses a single day-of lead `[0]`).
@@ -55,7 +54,6 @@ describe('shared lists (FR-41/47)', () => {
     expect(res.status).toBe(201);
     const list = res.body.list;
     expect(list.role).toBe('owner');
-    expect(list.permission).toBe('owner');
     expect(list.memberCount).toBe(1);
     expect(list.members[0].isOwner).toBe(true);
   });
@@ -101,10 +99,10 @@ describe('shared lists (FR-41/47)', () => {
       await api
         .post('/people')
         .set('Authorization', ada.auth)
-        .send({ fullName: 'Mum', dob: utcTodayDob(), lists: [list.id] })
+        .send({ fullName: 'Mom', dob: utcTodayDob(), lists: [list.id] })
     ).body.person;
 
-    // Bo can't see Mum and has no reminders before accepting (FR-42).
+    // Bo can't see Mom and has no reminders before accepting (FR-42).
     let people = (await api.get('/people').set('Authorization', bo.auth)).body.people as {
       id: string;
     }[];
@@ -123,7 +121,6 @@ describe('shared lists (FR-41/47)', () => {
       .invite;
     expect(preview.listName).toBe('Family');
     expect(preview.inviterName).toBe('Ada');
-    expect(preview.permission).toBe('view');
     expect(preview.alreadyMember).toBe(false);
 
     const accept = await api
@@ -131,19 +128,15 @@ describe('shared lists (FR-41/47)', () => {
       .set('Authorization', bo.auth);
     expect(accept.status).toBe(200);
     expect(
-      accept.body.list.members.some(
-        (m: { id: string; permission: string }) => m.id === bo.id && m.permission === 'view',
-      ),
+      accept.body.list.members.some((m: { id: string }) => m.id === bo.id),
     ).toBe(true);
 
-    // Now Bo sees Mum (view access) and got his OWN day-of reminder.
+    // Now Bo sees Mom and got his OWN day-of reminder.
     people = (await api.get('/people').set('Authorization', bo.auth)).body.people as {
       id: string;
-      access?: string;
     }[];
     const mumForBo = people.find((p) => p.id === mum.id);
     expect(mumForBo).toBeTruthy();
-    expect(mumForBo?.access).toBe('view');
     expect(await reminderCount(bo.id)).toBe(1);
     expect(await reminderCount(ada.id)).toBe(1);
 
@@ -152,16 +145,15 @@ describe('shared lists (FR-41/47)', () => {
     expect(ownerView.pendingInvites.length).toBe(0);
   });
 
-  it('blocks a view-only member from writing but allows reading (403 vs 200)', async () => {
+  it('lets any member edit a shared person, with the change attributed to the editor', async () => {
     const { ada, bo } = await twoUsers();
     const list = (await api.post('/lists').set('Authorization', ada.auth).send({ name: 'Family' }))
       .body.list;
-    const dob = utcTodayDob();
     const mum = (
       await api
         .post('/people')
         .set('Authorization', ada.auth)
-        .send({ fullName: 'Mum', dob, lists: [list.id] })
+        .send({ fullName: 'Mom', dob: utcTodayDob(), lists: [list.id] })
     ).body.person;
     const invite = (
       await api
@@ -171,72 +163,10 @@ describe('shared lists (FR-41/47)', () => {
     ).body.invite;
     await api.post(`/invites/${invite.token}/accept`).set('Authorization', bo.auth);
 
-    expect(
-      (await api.patch(`/people/${mum.id}`).set('Authorization', bo.auth).send({ phone: '+100' }))
-        .status,
-    ).toBe(403);
-    expect(
-      (await api.post(`/people/${mum.id}/notes`).set('Authorization', bo.auth).send({ text: 'socks' }))
-        .status,
-    ).toBe(403);
-    expect(
-      (
-        await api
-          .post('/events')
-          .set('Authorization', bo.auth)
-          .send({ person: mum.id, type: 'anniversary', date: dob })
-      ).status,
-    ).toBe(403);
-    expect((await api.delete(`/people/${mum.id}`).set('Authorization', bo.auth)).status).toBe(403);
-    // But a view member CAN read the shared person.
+    // A plain member can read AND edit straight away - there is no view-only tier.
     expect((await api.get(`/people/${mum.id}`).set('Authorization', bo.auth)).status).toBe(200);
 
-    // The blocked writes had NO EFFECT - re-read as the owner and confirm.
-    const asOwner = (await api.get(`/people/${mum.id}`).set('Authorization', ada.auth)).body;
-    expect(asOwner.person.phone == null || asOwner.person.phone !== '+100').toBe(true);
-    expect(asOwner.events.length).toBe(1); // only the birthday - Bo's anniversary was rejected
-    const notes = (await api.get(`/people/${mum.id}/notes`).set('Authorization', ada.auth)).body
-      .notes as { text: string }[];
-    expect(notes.some((n) => n.text === 'socks')).toBe(false);
-  });
-
-  it('promotes a member to edit, who can then edit with attribution showing the editor', async () => {
-    const { ada, bo } = await twoUsers();
-    const list = (await api.post('/lists').set('Authorization', ada.auth).send({ name: 'Family' }))
-      .body.list;
-    const mum = (
-      await api
-        .post('/people')
-        .set('Authorization', ada.auth)
-        .send({ fullName: 'Mum', dob: utcTodayDob(), lists: [list.id] })
-    ).body.person;
-    const invite = (
-      await api
-        .post(`/lists/${list.id}/invite`)
-        .set('Authorization', ada.auth)
-        .send({ invitedEmailOrPhone: 'bo@example.com' })
-    ).body.invite;
-    await api.post(`/invites/${invite.token}/accept`).set('Authorization', bo.auth);
-
-    // A member can't change permissions; the owner can.
-    expect(
-      (
-        await api
-          .patch(`/lists/${list.id}/members/${bo.id}`)
-          .set('Authorization', bo.auth)
-          .send({ permission: 'edit' })
-      ).status,
-    ).toBe(403);
-    const promote = await api
-      .patch(`/lists/${list.id}/members/${bo.id}`)
-      .set('Authorization', ada.auth)
-      .send({ permission: 'edit' });
-    expect(promote.status).toBe(200);
-    expect((await api.get(`/people/${mum.id}`).set('Authorization', bo.auth)).body.person.access).toBe(
-      'edit',
-    );
-
-    // Bo can now edit; the change is visible to Ada and attributed to Bo (FR-45).
+    // Bo edits; the change is visible to Ada and attributed to Bo (FR-45).
     const edit = await api
       .patch(`/people/${mum.id}`)
       .set('Authorization', bo.auth)
@@ -246,7 +176,7 @@ describe('shared lists (FR-41/47)', () => {
     expect(mumForAda.phone).toBe('+15551234');
     expect(mumForAda.lastEditedBy?.name).toBe('Bo');
 
-    // An edit member can add an event + a note, attributed to Bo.
+    // A member can add an event + a note, attributed to Bo.
     const ev = await api
       .post('/events')
       .set('Authorization', bo.auth)
@@ -270,17 +200,17 @@ describe('shared lists (FR-41/47)', () => {
       await api
         .post('/people')
         .set('Authorization', ada.auth)
-        .send({ fullName: 'Mum', dob: utcTodayDob(), lists: [list.id] })
+        .send({ fullName: 'Mom', dob: utcTodayDob(), lists: [list.id] })
     ).body.person;
     const invite = (
       await api
         .post(`/lists/${list.id}/invite`)
         .set('Authorization', ada.auth)
-        .send({ invitedEmailOrPhone: 'bo@example.com', permission: 'edit' })
+        .send({ invitedEmailOrPhone: 'bo@example.com' })
     ).body.invite;
     await api.post(`/invites/${invite.token}/accept`).set('Authorization', bo.auth);
 
-    // Bo (edit) adds an event; both members get an instance for it.
+    // Bo (a member) adds an event; both members get an instance for it.
     await api
       .post('/events')
       .set('Authorization', bo.auth)
@@ -310,7 +240,7 @@ describe('shared lists (FR-41/47)', () => {
       await api
         .post('/people')
         .set('Authorization', ada.auth)
-        .send({ fullName: 'Mum', dob: utcTodayDob(), lists: [list.id] })
+        .send({ fullName: 'Mom', dob: utcTodayDob(), lists: [list.id] })
     ).body.person;
     const invite = (
       await api
@@ -346,7 +276,7 @@ describe('shared lists (FR-41/47)', () => {
       await api
         .post('/people')
         .set('Authorization', ada.auth)
-        .send({ fullName: 'Mum', dob: utcTodayDob(), lists: [list.id] })
+        .send({ fullName: 'Mom', dob: utcTodayDob(), lists: [list.id] })
     ).body.person;
     const invite = (
       await api
@@ -401,7 +331,7 @@ describe('shared lists (FR-41/47)', () => {
       await api
         .post('/people')
         .set('Authorization', ada.auth)
-        .send({ fullName: 'Mum', dob: utcTodayDob(), lists: [list.id] })
+        .send({ fullName: 'Mom', dob: utcTodayDob(), lists: [list.id] })
     ).body.person;
     const invite = (
       await api

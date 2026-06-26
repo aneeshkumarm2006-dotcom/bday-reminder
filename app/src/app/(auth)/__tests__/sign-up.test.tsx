@@ -31,7 +31,7 @@ describe('SignUpScreen validation', () => {
 
   it('requires a password of at least 8 characters', () => {
     renderWithTheme(<SignUpScreen />);
-    fireEvent.changeText(screen.getByPlaceholderText('Your name'), 'Ravi');
+    fireEvent.changeText(screen.getByPlaceholderText('Your name'), 'Michael');
     fireEvent.changeText(screen.getByPlaceholderText('At least 8 characters'), 'short');
     fireEvent.press(screen.getByRole('button', { name: 'Create account' }));
     expect(screen.getByText('Use a password of at least 8 characters.')).toBeTruthy();
@@ -40,13 +40,13 @@ describe('SignUpScreen validation', () => {
 
   it('calls signUp with trimmed values when the form is valid', () => {
     renderWithTheme(<SignUpScreen />);
-    fireEvent.changeText(screen.getByPlaceholderText('Your name'), '  Ravi Patel  ');
-    fireEvent.changeText(screen.getByPlaceholderText('you@example.com'), '  ravi@example.com  ');
+    fireEvent.changeText(screen.getByPlaceholderText('Your name'), '  Michael Brooks  ');
+    fireEvent.changeText(screen.getByPlaceholderText('you@example.com'), '  michael@example.com  ');
     fireEvent.changeText(screen.getByPlaceholderText('At least 8 characters'), 'supersecret');
     fireEvent.press(screen.getByRole('button', { name: 'Create account' }));
     expect(mockSignUp).toHaveBeenCalledWith({
-      name: 'Ravi Patel',
-      email: 'ravi@example.com',
+      name: 'Michael Brooks',
+      email: 'michael@example.com',
       password: 'supersecret',
     });
   });

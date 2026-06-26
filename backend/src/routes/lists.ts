@@ -19,11 +19,11 @@ import { User } from '../models/User';
 
 /**
  * Shared / family lists (TODO Stage 8; FR-41-47, §8.11). A list has an owner and
- * accepted members, each with `view` or `edit` permission. The owner manages
- * membership and invites; everyone in the list sees the same people/events
+ * accepted members; everyone in the list can see and edit the same people/events
  * (scoped via `Person.lists`), but each keeps their own notification settings
- * and reminder instances (FR-44). Leaving or being removed stops that user's
- * reminders for the list immediately (FR-46/47).
+ * and reminder instances (FR-44). The owner manages membership and invites.
+ * Leaving or being removed stops that user's reminders for the list immediately
+ * (FR-46/47).
  */
 
 export const listsRouter = Router();
@@ -123,7 +123,6 @@ listsRouter.delete(
 const inviteSchema = z
   .object({
     invitedEmailOrPhone: z.string().trim().min(1, 'Enter an email, phone, or leave blank for a link.').max(120).optional(),
-    permission: z.enum(['view', 'edit']).optional(),
   })
   .strict();
 
@@ -146,7 +145,6 @@ listsRouter.post(
       list: list._id,
       invitedEmailOrPhone: target,
       token,
-      permission: body.permission ?? 'view',
       invitedBy: req.userId,
     });
 
@@ -174,24 +172,6 @@ listsRouter.delete(
     if (!invite) throw notFound("We couldn't find that invite.");
     await invite.deleteOne();
     res.status(204).end();
-  }),
-);
-
-const permissionSchema = z.object({ permission: z.enum(['view', 'edit']) }).strict();
-
-/** PATCH /lists/:id/members/:memberId - set a member's permission (owner, FR-43). */
-listsRouter.patch(
-  '/:id/members/:memberId',
-  validateBody(permissionSchema),
-  asyncHandler(async (req, res) => {
-    const list = await loadOwnedList(req.params.id, req.userId!);
-    const member = list.members.find((m) => m.user.toString() === req.params.memberId);
-    if (!member) throw notFound("That person isn't a member of this list.");
-    member.permission = (req.body as z.infer<typeof permissionSchema>).permission;
-    await list.save();
-    // View↔edit doesn't change *which* people the member sees, so their reminder
-    // set is unaffected - only their write access changes.
-    res.json({ list: await buildListView(list, req.userId!) });
   }),
 );
 

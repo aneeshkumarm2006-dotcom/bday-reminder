@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 
 import { generateForPersonViewers } from '../jobs/reminder-engine';
-import { assertCanEdit, resolveEventAccess, resolvePersonAccess } from '../lib/access';
+import { resolveEventAccess, resolvePersonAccess } from '../lib/access';
 import { asyncHandler } from '../lib/async-handler';
 import { maxDayInMonth } from '../lib/dates';
 import { badRequest } from '../lib/http-error';
@@ -24,8 +24,8 @@ import { Reminder } from '../models/Reminder';
  * everyone who can see the person, so the change takes effect immediately;
  * sent/done history is preserved (PRD §10). The birthday's date is owned by the
  * person's DOB (PATCH /people), so it can't be edited or deleted here - it lives
- * and dies with the person. Access follows the person: owner/edit members can
- * add/edit/remove events, view-only members can't (FR-43/45).
+ * and dies with the person. Access follows the person: anyone who can see a
+ * shared person can add/edit/remove their events (FR-43/45).
  */
 
 export const eventsRouter = Router();
@@ -101,8 +101,7 @@ eventsRouter.post(
   asyncHandler(async (req, res) => {
     const body = req.body as z.infer<typeof createSchema>;
 
-    const { person, level } = await resolvePersonAccess(body.person, req.userId!);
-    assertCanEdit(level);
+    const { person } = await resolvePersonAccess(body.person, req.userId!);
 
     const event = await Event.create({
       person: person._id,
@@ -141,8 +140,7 @@ eventsRouter.patch(
   validateBody(patchSchema),
   asyncHandler(async (req, res) => {
     const patch = req.body as z.infer<typeof patchSchema>;
-    const { event, person, level } = await resolveEventAccess(req.params.id, req.userId!);
-    assertCanEdit(level);
+    const { event, person } = await resolveEventAccess(req.params.id, req.userId!);
 
     if (patch.date !== undefined && event.type === 'birthday') {
       throw badRequest("Edit a birthday from the person's date of birth.");
@@ -188,8 +186,7 @@ eventsRouter.patch(
 eventsRouter.delete(
   '/:id',
   asyncHandler(async (req, res) => {
-    const { event, level } = await resolveEventAccess(req.params.id, req.userId!);
-    assertCanEdit(level);
+    const { event } = await resolveEventAccess(req.params.id, req.userId!);
 
     if (event.type === 'birthday') {
       throw badRequest("A birthday can't be removed on its own - delete the person instead.");

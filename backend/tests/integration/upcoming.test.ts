@@ -34,8 +34,8 @@ describe('upcoming feed (FR-9/13/14)', () => {
 
   it('returns the { today, tags, items } shape with one item per event', async () => {
     const u = await signUp(api, { timezone: 'UTC' });
-    await addPerson(api, u.auth, { fullName: 'Priya Sharma', dob: { month: 6, day: 22, year: 1996 }, relationshipTag: 'Family' });
-    await addPerson(api, u.auth, { fullName: 'Arjun', dob: { month: 12, day: 5 }, relationshipTag: 'Friend' });
+    await addPerson(api, u.auth, { fullName: 'Emma Carter', dob: { month: 6, day: 22, year: 1996 }, relationshipTag: 'Family' });
+    await addPerson(api, u.auth, { fullName: 'Daniel', dob: { month: 12, day: 5 }, relationshipTag: 'Friend' });
 
     const res = await api.get('/upcoming').set('Authorization', u.auth);
     expect(res.status).toBe(200);

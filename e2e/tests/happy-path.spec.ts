@@ -45,9 +45,9 @@ test('sign up, add a person, receive and complete a reminder', async ({ page, re
   await page.getByRole('button', { name: 'Add person' }).first().click();
   // The add-person form is the unique signal we've arrived (the modal renders
   // over the feed, so "Add person" text alone is ambiguous).
-  await expect(page.getByPlaceholder('Priya Sharma')).toBeVisible();
+  await expect(page.getByPlaceholder('Emma Carter')).toBeVisible();
 
-  await page.getByPlaceholder('Priya Sharma').fill('Aisha Khan');
+  await page.getByPlaceholder('Emma Carter').fill('Sarah Bennett');
   // Month is a Select: open it, choose this month.
   await page.getByRole('button', { name: 'Month' }).click();
   await page.getByRole('button', { name: todayMonthName, exact: true }).click();
@@ -56,7 +56,7 @@ test('sign up, add a person, receive and complete a reminder', async ({ page, re
   await page.getByRole('button', { name: 'Save person' }).click();
 
   // --- Person appears in the Upcoming feed ---------------------------------
-  await expect(page.getByText('Aisha Khan')).toBeVisible();
+  await expect(page.getByText('Sarah Bennett')).toBeVisible();
 
   // --- Trigger the day-of reminder on demand (the QA test trigger) ---------
   const res = await request.post(`${API_URL}/dev/reminders/run`, { data: { email } });
@@ -68,7 +68,7 @@ test('sign up, add a person, receive and complete a reminder', async ({ page, re
 
   // --- Reminder shows in the in-app feed with day-of copy ------------------
   await page.goto('/reminders');
-  const reminderLine = page.getByText(/It's Aisha Khan's birthday today/);
+  const reminderLine = page.getByText(/It's Sarah Bennett's birthday today/);
   await expect(reminderLine).toBeVisible();
 
   // --- Mark it done; the Done pill appears and actions disappear -----------

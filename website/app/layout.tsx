@@ -38,6 +38,9 @@ export const metadata: Metadata = {
     "reminder app",
     "anniversary reminder",
     "shared family calendar",
+    "family birthday calendar",
+    "SMS birthday reminders",
+    "group birthday tracker",
     "never miss a birthday",
   ],
   authors: [{ name: siteConfig.name }],
@@ -48,7 +51,9 @@ export const metadata: Metadata = {
     title: `${siteConfig.name} - ${siteConfig.tagline}`,
     description: siteConfig.description,
     url: siteConfig.url,
+    // US-first, with Canada signalled as an alternate (both share +1 / English).
     locale: "en_US",
+    alternateLocale: ["en_CA"],
   },
   twitter: {
     card: "summary_large_image",
@@ -75,7 +80,7 @@ export default function RootLayout({
 }>) {
   return (
     <html
-      lang="en"
+      lang="en-US"
       suppressHydrationWarning
       className={`${hanken.variable} ${inter.variable} h-full`}
     >

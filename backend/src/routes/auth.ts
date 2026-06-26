@@ -5,6 +5,7 @@ import { asyncHandler } from '../lib/async-handler';
 import { startSession, rotateRefreshToken, revokeRefreshToken } from '../lib/auth-tokens';
 import { conflict, unauthorized } from '../lib/http-error';
 import { hashPassword, verifyPassword } from '../lib/password';
+import { DEFAULT_TIMEZONE } from '../lib/region';
 import { serializeUser } from '../lib/serialize';
 import { validateBody } from '../middleware/validate';
 import { User } from '../models/User';
@@ -19,7 +20,7 @@ const signupSchema = z.object({
   name: z.string().trim().min(1, 'Add your name so reminders can greet you.'),
   email: z.string().trim().toLowerCase().email('Enter a valid email address.'),
   password: z.string().min(8, 'Use a password of at least 8 characters.'),
-  // Auto-detected on the client; defaults to UTC if absent.
+  // Auto-detected on the client; falls back to the US/CA-first default if absent.
   timezone: z.string().trim().min(1).optional(),
 });
 
@@ -44,7 +45,7 @@ authRouter.post(
     }
 
     const passwordHash = await hashPassword(password);
-    const user = await User.create({ name, email, passwordHash, timezone: timezone || 'UTC' });
+    const user = await User.create({ name, email, passwordHash, timezone: timezone || DEFAULT_TIMEZONE });
 
     const tokens = await startSession(user._id.toString());
     res.status(201).json({ user: serializeUser(user), ...tokens });

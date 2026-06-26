@@ -1,5 +1,7 @@
 import { Schema, model, models, type Model, type Types } from 'mongoose';
 
+import { DEFAULT_TIMEZONE } from '../lib/region';
+
 /**
  * User (PRD §7.1). Email + password is the primary login. `phone` is stored now
  * but phone OTP login is DEFERRED until SMS go-live. Notification prefs and
@@ -79,7 +81,9 @@ const userSchema = new Schema<UserDoc>(
     // Never returned by default - login re-selects it explicitly.
     passwordHash: { type: String, required: true, select: false },
     phone: { type: String, trim: true },
-    timezone: { type: String, default: 'UTC' },
+    // US/CA-first soft default; the app overwrites it with the detected device
+    // zone on signup and whenever it drifts (FR-52).
+    timezone: { type: String, default: DEFAULT_TIMEZONE },
     channelPreferences: { type: channelPreferencesSchema, default: () => ({}) },
     defaultLeadDays: { type: [Number], default: () => [0, 7] },
     defaultReminderTime: { type: String, default: '09:00' },

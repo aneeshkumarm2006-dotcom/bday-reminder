@@ -6,20 +6,18 @@ import { serializeInvite } from './serialize';
 
 /**
  * Detailed shared-list view (TODO Stage 8; DESIGN.md §8.9). Shared by the lists
- * and invites routes so both render members, permissions, and pending invites
- * identically. The owner is surfaced as the first member with an `owner` badge;
- * the actual list `members[]` are accepted members only (FR-42). Pending invites
- * are returned to the owner alone - members don't see who else was invited.
+ * and invites routes so both render members and pending invites identically. The
+ * owner is surfaced as the first member with an `owner` badge; the actual list
+ * `members[]` are accepted members only (FR-42). Pending invites are returned to
+ * the owner alone - members don't see who else was invited.
  */
 
 export type ListRole = 'owner' | 'member';
-export type ViewerPermission = 'owner' | 'edit' | 'view';
 
 export interface ListMemberView {
   id: string;
   name: string;
   email: string;
-  permission: ViewerPermission;
   isOwner: boolean;
 }
 
@@ -35,7 +33,6 @@ export async function buildListView(list: SharedListDoc, viewerId: string) {
       id: owner._id.toString(),
       name: owner.name,
       email: owner.email,
-      permission: 'owner',
       isOwner: true,
     });
   }
@@ -46,14 +43,11 @@ export async function buildListView(list: SharedListDoc, viewerId: string) {
       id: u._id.toString(),
       name: u.name,
       email: u.email,
-      permission: member.permission,
       isOwner: false,
     });
   }
 
   const isOwner = list.owner.toString() === viewerId;
-  const viewerMember = list.members.find((m) => m.user.toString() === viewerId);
-  const permission: ViewerPermission = isOwner ? 'owner' : (viewerMember?.permission ?? 'view');
 
   const peopleCount = await Person.countDocuments({ lists: list._id });
 
@@ -68,7 +62,6 @@ export async function buildListView(list: SharedListDoc, viewerId: string) {
     id: list._id.toString(),
     name: list.name,
     role: (isOwner ? 'owner' : 'member') as ListRole,
-    permission,
     owner: owner ? { id: owner._id.toString(), name: owner.name } : null,
     members,
     memberCount: members.length,

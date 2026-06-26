@@ -3,6 +3,7 @@ import { z } from 'zod';
 
 import { regenerateForUser } from '../jobs/reminder-engine';
 import { asyncHandler } from '../lib/async-handler';
+import { normalizePhone } from '../lib/phone';
 import { serializeUser } from '../lib/serialize';
 import { requireAuth } from '../middleware/require-auth';
 import { validateBody } from '../middleware/validate';
@@ -59,7 +60,7 @@ meRouter.patch(
     const patch = req.body as z.infer<typeof patchSchema>;
 
     if (patch.name !== undefined) user.name = patch.name;
-    if (patch.phone !== undefined) user.phone = patch.phone ?? undefined;
+    if (patch.phone !== undefined) user.phone = normalizePhone(patch.phone) ?? undefined;
     if (patch.timezone !== undefined) user.timezone = patch.timezone;
     if (patch.channelPreferences) {
       const cp = patch.channelPreferences;
