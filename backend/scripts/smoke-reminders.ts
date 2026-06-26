@@ -137,7 +137,7 @@ async function main(): Promise<void> {
     check(!items.some((i) => i.person.fullName === 'Soon Friend'), 'a fully-future occurrence is not in the feed yet');
 
     const sarah = items.find((i) => i.person.fullName === 'Sarah Bennett')!;
-    check(sarah.daysRemaining === 0 && /^It's Sarah Bennett's birthday today - turns \d+\.$/.test(sarah.message), 'day-of + year copy: "It\'s … today - turns N."');
+    check(sarah.daysRemaining === 0 && /^It's Sarah Bennett's birthday today, turns \d+\.$/.test(sarah.message), 'day-of + year copy: "It\'s … today, turns N."');
     check(typeof sarah.ageTurning === 'number' && sarah.ageTurning! > 0, 'age shown when birth year known');
     check(sarah.canGreet === true, 'Send-greeting eligible day-of when a phone exists (FR-28)');
 
