@@ -1,4 +1,5 @@
 import * as React from "react";
+import { Eye, EyeOff } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
@@ -40,19 +41,51 @@ export function TextField({
   id,
   className,
   children,
+  showPasswordToggle,
   ...props
 }: {
   label: string;
   helper?: string;
   error?: string | null;
+  showPasswordToggle?: boolean;
 } & React.InputHTMLAttributes<HTMLInputElement> & { children?: React.ReactNode }) {
   const generatedId = React.useId();
   const fieldId = id ?? generatedId;
+  const [visible, setVisible] = React.useState(false);
+
+  const inputType =
+    showPasswordToggle && props.type === "password"
+      ? visible
+        ? "text"
+        : "password"
+      : props.type;
+
   return (
     <div className={cn("w-full", className)}>
       <Label htmlFor={fieldId}>{label}</Label>
       {children ?? (
-        <Input id={fieldId} aria-invalid={!!error} aria-describedby={`${fieldId}-msg`} {...props} />
+        showPasswordToggle && props.type === "password" ? (
+          <div className="relative">
+            <Input
+              id={fieldId}
+              aria-invalid={!!error}
+              aria-describedby={`${fieldId}-msg`}
+              {...props}
+              type={inputType}
+              className="pr-10"
+            />
+            <button
+              type="button"
+              onClick={() => setVisible((v) => !v)}
+              aria-label={visible ? "Hide password" : "Show password"}
+              className="absolute inset-y-0 right-3 flex items-center text-ink-muted hover:text-ink transition-colors"
+            >
+              {visible ? <EyeOff size={18} /> : <Eye size={18} />}
+            </button>
+          </div>
+        ) : (
+          <Input id={fieldId} aria-invalid={!!error} aria-describedby={`${fieldId}-msg`} {...props} />
+        )
       )}
       {(error || helper) && (
         <p

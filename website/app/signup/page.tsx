@@ -80,6 +80,7 @@ export default function SignupPage() {
           autoComplete="new-password"
           required
           helper="At least 8 characters."
+          showPasswordToggle
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           error={error}

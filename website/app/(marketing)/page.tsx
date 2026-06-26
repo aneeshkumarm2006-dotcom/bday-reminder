@@ -46,8 +46,12 @@ function Hero({ today }: { today: { day: number; month: string } }) {
         className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[420px] bg-[radial-gradient(60%_60%_at_50%_0%,var(--biro-tint),transparent_70%)] opacity-70"
       />
       <div className="mx-auto flex w-full max-w-5xl flex-col items-center px-5 pb-8 pt-16 text-center sm:pt-24">
-        <span className="inline-flex items-center gap-1.5 rounded-full border border-border-subtle bg-surface px-3 py-1 text-xs font-medium text-ink-secondary">
-          <Sparkles size={13} className="text-biro" aria-hidden="true" />
+        <span className="group inline-flex items-center gap-1.5 rounded-full border border-border-subtle bg-surface px-3 py-1 text-xs font-medium text-ink-secondary transition-colors duration-300 hover:border-biro/40">
+          <Sparkles
+            size={13}
+            className="text-biro transition-transform duration-500 ease-out group-hover:rotate-90 group-hover:scale-110"
+            aria-hidden="true"
+          />
           Free birthday &amp; event reminders
         </span>
 
@@ -64,10 +68,16 @@ function Hero({ today }: { today: { day: number; month: string } }) {
         </p>
 
         <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row">
-          <Link href="/signup" className={buttonVariants({ size: "lg" })}>
+          <Link
+            href="/signup"
+            className={`${buttonVariants({ size: "lg" })} hover:-translate-y-0.5 hover:shadow-[0_12px_28px_-12px_rgba(44,75,216,0.6)]`}
+          >
             Start for free
           </Link>
-          <Link href="/login" className={buttonVariants({ variant: "secondary", size: "lg" })}>
+          <Link
+            href="/login"
+            className={`${buttonVariants({ variant: "secondary", size: "lg" })} hover:-translate-y-0.5`}
+          >
             Log in
           </Link>
         </div>
@@ -218,8 +228,8 @@ function FeatureRow({
 }) {
   return (
     <div className="grid items-center gap-10 lg:grid-cols-2">
-      <Reveal className={reverse ? "lg:order-2" : undefined}>
-        <span className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-biro-tint text-biro">
+      <Reveal className={`group ${reverse ? "lg:order-2" : ""}`}>
+        <span className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-biro-tint text-biro transition-transform duration-300 ease-out group-hover:-rotate-6 group-hover:scale-110">
           <Icon size={20} aria-hidden="true" />
         </span>
         <p className="mt-4 text-sm font-medium text-biro">{eyebrow}</p>
@@ -229,10 +239,13 @@ function FeatureRow({
         <p className="mt-3 text-pretty leading-relaxed text-ink-secondary">{body}</p>
         <ul className="mt-5 flex flex-col gap-2.5">
           {points.map((point) => (
-            <li key={point} className="flex items-start gap-2.5 text-sm text-ink-secondary">
+            <li
+              key={point}
+              className="flex items-start gap-2.5 text-sm text-ink-secondary transition-colors duration-200 hover:text-ink [&:hover_span]:scale-150"
+            >
               <span
                 aria-hidden="true"
-                className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-biro"
+                className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-biro transition-transform duration-200 ease-out"
               />
               {point}
             </li>
@@ -244,7 +257,9 @@ function FeatureRow({
         delay={0.05}
         className={`flex justify-center ${reverse ? "lg:order-1" : ""}`}
       >
-        {preview}
+        <div className="transition-transform duration-500 ease-out hover:scale-[1.02]">
+          {preview}
+        </div>
       </Reveal>
     </div>
   );
@@ -261,11 +276,13 @@ function FeatureCard({
 }) {
   return (
     <Reveal>
-      <div className="h-full rounded-lg border border-border-subtle bg-surface p-5">
-        <span className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-biro-tint text-biro">
+      <div className="group h-full rounded-lg border border-border-subtle bg-surface p-5 transition-[transform,border-color,box-shadow] duration-300 ease-out hover:-translate-y-1 hover:border-biro/40 hover:shadow-[0_14px_34px_-18px_rgba(44,75,216,0.45)]">
+        <span className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-biro-tint text-biro transition-transform duration-300 ease-out group-hover:-rotate-6 group-hover:scale-110">
           <Icon size={20} aria-hidden="true" />
         </span>
-        <h3 className="mt-4 font-display text-lg font-semibold text-ink">{title}</h3>
+        <h3 className="mt-4 font-display text-lg font-semibold text-ink transition-colors duration-300 group-hover:text-biro">
+          {title}
+        </h3>
         <p className="mt-2 text-sm leading-relaxed text-ink-secondary">{body}</p>
       </div>
     </Reveal>
@@ -301,9 +318,11 @@ function HowItWorks() {
         <div className="mt-14 grid gap-8 sm:grid-cols-3">
           {steps.map((step, i) => (
             <Reveal key={step.title} delay={i * 0.05}>
-              <div className="flex flex-col items-center text-center sm:items-start sm:text-left">
-                <Ring day={step.day} month="Jun" size="lg" state={i === 2 ? "today" : "upcoming"} />
-                <h3 className="mt-5 font-display text-lg font-semibold text-ink">
+              <div className="group flex flex-col items-center text-center sm:items-start sm:text-left">
+                <div className="transition-transform duration-300 ease-out group-hover:-translate-y-1 group-hover:rotate-3">
+                  <Ring day={step.day} month="Jun" size="lg" state={i === 2 ? "today" : "upcoming"} />
+                </div>
+                <h3 className="mt-5 font-display text-lg font-semibold text-ink transition-colors duration-300 group-hover:text-biro">
                   {step.title}
                 </h3>
                 <p className="mt-2 text-sm leading-relaxed text-ink-secondary">{step.body}</p>
@@ -334,7 +353,10 @@ function GetTheApp() {
           </p>
 
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <Link href="/signup" className={buttonVariants({ size: "lg" })}>
+            <Link
+              href="/signup"
+              className={`${buttonVariants({ size: "lg" })} hover:-translate-y-0.5 hover:shadow-[0_12px_28px_-12px_rgba(44,75,216,0.6)]`}
+            >
               Start for free
             </Link>
           </div>

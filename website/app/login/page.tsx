@@ -68,6 +68,7 @@ export default function LoginPage() {
           type="password"
           autoComplete="current-password"
           required
+          showPasswordToggle
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           error={error}
