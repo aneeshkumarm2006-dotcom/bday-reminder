@@ -16,7 +16,6 @@ import { AppPreview, ReminderPreview, WidgetPreview } from "@/components/app-pre
 import { Reveal } from "@/components/reveal";
 import { Ring } from "@/components/ring";
 import { buttonVariants } from "@/components/ui/button";
-import { siteConfig } from "@/lib/site";
 
 const MONTHS = [
   "Jan", "Feb", "Mar", "Apr", "May", "Jun",
@@ -65,14 +64,11 @@ function Hero({ today }: { today: { day: number; month: string } }) {
         </p>
 
         <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row">
-          <Link href={siteConfig.appUrl} className={buttonVariants({ size: "lg" })}>
-            Open the web app
+          <Link href="/signup" className={buttonVariants({ size: "lg" })}>
+            Start for free
           </Link>
-          <Link
-            href="#get-the-app"
-            className={buttonVariants({ variant: "secondary", size: "lg" })}
-          >
-            Get the app
+          <Link href="/login" className={buttonVariants({ variant: "secondary", size: "lg" })}>
+            Log in
           </Link>
         </div>
         <p className="mt-4 text-sm text-ink-muted">
@@ -338,8 +334,8 @@ function GetTheApp() {
           </p>
 
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <Link href={siteConfig.appUrl} className={buttonVariants({ size: "lg" })}>
-              Open the web app
+            <Link href="/signup" className={buttonVariants({ size: "lg" })}>
+              Start for free
             </Link>
           </div>
 

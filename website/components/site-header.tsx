@@ -4,7 +4,7 @@ import { Brand } from "@/components/brand";
 import { MobileNav } from "@/components/mobile-nav";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { buttonVariants } from "@/components/ui/button";
-import { navLinks, siteConfig } from "@/lib/site";
+import { navLinks } from "@/lib/site";
 
 /**
  * Sticky site header (DESIGN.md §5 layout): brand, in-page nav, theme toggle,
@@ -33,10 +33,10 @@ export function SiteHeader() {
 
         <div className="flex items-center gap-1.5">
           <ThemeToggle />
-          <Link
-            href={siteConfig.appUrl}
-            className={buttonVariants({ size: "sm" })}
-          >
+          <Link href="/login" className={buttonVariants({ variant: "ghost", size: "sm" })}>
+            Log in
+          </Link>
+          <Link href="/dashboard" className={buttonVariants({ size: "sm" })}>
             Open the app
           </Link>
           <MobileNav />

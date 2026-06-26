@@ -1,9 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { Hanken_Grotesk, Inter } from "next/font/google";
 
-import { SiteFooter } from "@/components/site-footer";
-import { SiteHeader } from "@/components/site-header";
 import { ThemeProvider } from "@/components/theme-provider";
+import { AppProviders } from "@/providers/app-providers";
 import { siteConfig } from "@/lib/site";
 
 import "./globals.css";
@@ -86,19 +85,7 @@ export default function RootLayout({
     >
       <body className="flex min-h-full flex-col bg-paper font-body text-ink antialiased">
         <ThemeProvider>
-          {/* Skip-to-content for keyboard/SR users (WCAG 2.4.1) - hidden until
-              focused, then revealed by the global :focus-visible ring. */}
-          <a
-            href="#main"
-            className="sr-only rounded-md bg-surface px-4 py-2 font-display text-ink focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50"
-          >
-            Skip to content
-          </a>
-          <SiteHeader />
-          <main id="main" className="flex-1">
-            {children}
-          </main>
-          <SiteFooter />
+          <AppProviders>{children}</AppProviders>
         </ThemeProvider>
       </body>
     </html>
