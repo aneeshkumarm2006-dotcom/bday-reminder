@@ -24,6 +24,7 @@
     "test:coverage": "vitest run --coverage",
     "smoke": "tsx scripts/smoke-auth.ts",
     "smoke:people": "tsx scripts/smoke-people.ts",
+    "smoke:calendar": "tsx scripts/smoke-calendar-events.ts",
     "smoke:reminders": "tsx scripts/smoke-reminders.ts",
     "smoke:settings": "tsx scripts/smoke-settings.ts",
     "smoke:stage6": "tsx scripts/smoke-stage6.ts",

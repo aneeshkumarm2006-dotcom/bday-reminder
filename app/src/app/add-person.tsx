@@ -79,6 +79,13 @@ const CURRENT_YEAR = new Date().getFullYear();
 
 type Errors = { name?: string; dob?: string; year?: string };
 
+/** A prefilled month/day param → the field's string value, or '' if out of range. */
+function seedDatePart(raw: string | undefined, min: number, max: number): string {
+  if (!raw) return '';
+  const n = Number(raw);
+  return Number.isInteger(n) && n >= min && n <= max ? String(n) : '';
+}
+
 /** Lists the caller may add people to - every list they own or belong to (FR-43/45). */
 function writableLists(lists: SharedListView[]): { id: string; name: string }[] {
   return lists.map((l) => ({ id: l.id, name: l.name }));
@@ -102,7 +109,11 @@ export default function AddPersonScreen() {
   const toast = useToast();
   const t = useTokens();
   const { user } = useAuth();
-  const { id } = useLocalSearchParams<{ id?: string }>();
+  const { id, month: monthParam, day: dayParam } = useLocalSearchParams<{
+    id?: string;
+    month?: string;
+    day?: string;
+  }>();
   const isEdit = !!id;
 
   const defaultChannels = user?.channelPreferences ?? DEFAULT_CHANNELS;
@@ -110,8 +121,10 @@ export default function AddPersonScreen() {
 
   const [name, setName] = useState('');
   const [type, setType] = useState<PersonType>('human');
-  const [month, setMonth] = useState('');
-  const [day, setDay] = useState('');
+  // Prefill the date when added from the Calendar (tap a day → add a birthday on
+  // it). Only when not editing - the edit hydrate below owns the fields for ?id=.
+  const [month, setMonth] = useState(() => (!id ? seedDatePart(monthParam, 1, 12) : ''));
+  const [day, setDay] = useState(() => (!id ? seedDatePart(dayParam, 1, 31) : ''));
   const [year, setYear] = useState('');
   const [relationship, setRelationship] = useState('');
   const [customTag, setCustomTag] = useState(false);

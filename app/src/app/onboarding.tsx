@@ -66,7 +66,7 @@ export default function OnboardingScreen() {
       setBusy(null);
       return;
     }
-    router.replace('/');
+    router.replace('/(tabs)/reminders');
     if (dest === 'contacts') router.push({ pathname: '/import', params: { source: 'contacts' } });
     else if (dest === 'manual') router.push('/add-person');
   };

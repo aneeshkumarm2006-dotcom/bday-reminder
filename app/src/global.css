@@ -35,6 +35,11 @@
     --danger-bg: #fbe9e7;
     --danger-fg: #a33126;
 
+    /* Calendar event-type accents (dots / icons only - never page chrome). */
+    --cal-birthday: #c44e8e;
+    --cal-anniversary: #7a57d1;
+    --cal-custom: #2e8b82;
+
     /* Font stacks (web fallback). Native uses the literal family names that
        @expo-google-fonts registers; tailwind.config.js references those. */
     --font-display: 'HankenGrotesk_600SemiBold', 'Hanken Grotesk', system-ui, sans-serif;
@@ -64,5 +69,10 @@
     --warn-fg: #e0a94b;
     --danger-bg: #3a1f1c;
     --danger-fg: #e8857b;
+
+    /* Calendar event-type accents (lifted for contrast on the dark canvas). */
+    --cal-birthday: #e590bc;
+    --cal-anniversary: #b49bf0;
+    --cal-custom: #67beb3;
   }
 }

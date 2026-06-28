@@ -9,6 +9,7 @@ import { errorHandler, notFoundHandler } from './middleware/error-handler';
 import { rateLimit } from './middleware/rate-limit';
 import { authRouter } from './routes/auth';
 import { calendarFeedRouter, calendarRouter } from './routes/calendar';
+import { calendarEventsRouter } from './routes/calendar-events';
 import { configRouter } from './routes/config';
 import { devRouter } from './routes/dev';
 import { eventsRouter } from './routes/events';
@@ -116,6 +117,10 @@ export function createApp(): Express {
   app.use('/reminders', remindersRouter);
   app.use('/upcoming', upcomingRouter);
   app.use('/uploads', uploadsRouter);
+  // Authed JSON feed for the in-app month calendar (raw month/day per event).
+  // Mounted at the literal `/calendar/events` BEFORE the public token feed so
+  // its requireAuth guard never runs for `/calendar/:token` requests.
+  app.use('/calendar/events', calendarEventsRouter);
   // Public, tokenized ICS feed - no auth (the URL token is the credential).
   app.use('/calendar', calendarFeedRouter);
 

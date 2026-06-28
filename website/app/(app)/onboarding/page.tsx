@@ -33,7 +33,7 @@ export default function OnboardingPage() {
         defaultLeadDays: leadDays,
         channelPreferences: channels,
       });
-      router.replace(next === "add" ? "/people/new" : "/dashboard");
+      router.replace(next === "add" ? "/people/new" : "/reminders");
     } catch {
       toast({ message: "Couldn't save your settings. Try again.", tone: "error" });
       setBusy(false);

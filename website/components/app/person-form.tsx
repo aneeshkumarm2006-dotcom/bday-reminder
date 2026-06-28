@@ -36,7 +36,14 @@ const FEB29_OPTIONS: { value: Feb29Rule; label: string }[] = [
   { value: "feb29only", label: "Only in leap years" },
 ];
 
-export function PersonForm({ existing }: { existing?: PersonWithEvents }) {
+export function PersonForm({
+  existing,
+  initialDate,
+}: {
+  existing?: PersonWithEvents;
+  /** Prefilled month/day when adding from the Calendar (tap a day → add). */
+  initialDate?: { month: number; day: number };
+}) {
   const router = useRouter();
   const { toast } = useToast();
   const person = existing?.person;
@@ -48,7 +55,9 @@ export function PersonForm({ existing }: { existing?: PersonWithEvents }) {
   const [date, setDate] = useState<DatePartsValue>(
     birthday
       ? { month: birthday.date.month, day: birthday.date.day, year: birthday.date.year }
-      : { month: 1, day: 1, year: null },
+      : initialDate
+        ? { month: initialDate.month, day: initialDate.day, year: null }
+        : { month: 1, day: 1, year: null },
   );
   const [feb29Rule, setFeb29Rule] = useState<Feb29Rule>(person?.feb29Rule ?? "feb28");
   const presetTag = person?.relationshipTag && RELATIONSHIP_PRESETS.includes(person.relationshipTag);

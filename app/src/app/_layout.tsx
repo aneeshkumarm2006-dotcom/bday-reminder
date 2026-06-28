@@ -71,7 +71,7 @@ function RootNavigator() {
       if (user?.hasOnboarded === false && !inOnboarding) {
         router.replace('/onboarding');
       } else if (user?.hasOnboarded !== false && inAuthGroup) {
-        router.replace('/');
+        router.replace('/(tabs)/reminders');
       }
     }
   }, [status, user?.hasOnboarded, segments, router]);

@@ -28,6 +28,9 @@ export type Tokens = {
   warnFg: string;
   dangerBg: string;
   dangerFg: string;
+  calBirthday: string;
+  calAnniversary: string;
+  calCustom: string;
 };
 
 export const lightTokens: Tokens = {
@@ -53,6 +56,9 @@ export const lightTokens: Tokens = {
   warnFg: '#8A5A12',
   dangerBg: '#FBE9E7',
   dangerFg: '#A33126',
+  calBirthday: '#C44E8E',
+  calAnniversary: '#7A57D1',
+  calCustom: '#2E8B82',
 };
 
 export const darkTokens: Tokens = {
@@ -77,6 +83,9 @@ export const darkTokens: Tokens = {
   warnFg: '#E0A94B',
   dangerBg: '#3A1F1C',
   dangerFg: '#E8857B',
+  calBirthday: '#E590BC',
+  calAnniversary: '#B49BF0',
+  calCustom: '#67BEB3',
 };
 
 /** 4px spacing scale (DESIGN.md §5). */

@@ -29,6 +29,11 @@
   --warn-fg: #8a5a12;
   --danger-bg: #fbe9e7;
   --danger-fg: #a33126;
+
+  /* Calendar event-type accents (dots / icons only - never page chrome). */
+  --cal-birthday: #c44e8e;
+  --cal-anniversary: #7a57d1;
+  --cal-custom: #2e8b82;
 }
 
 .dark {
@@ -54,6 +59,11 @@
   --warn-fg: #e0a94b;
   --danger-bg: #3a1f1c;
   --danger-fg: #e8857b;
+
+  /* Calendar event-type accents (lifted for contrast on the dark canvas). */
+  --cal-birthday: #e590bc;
+  --cal-anniversary: #b49bf0;
+  --cal-custom: #67beb3;
 }
 
 /* Map tokens to Tailwind utilities (DESIGN.md §12.2). `inline` keeps the
@@ -81,6 +91,10 @@
   --color-warn-fg: var(--warn-fg);
   --color-danger-bg: var(--danger-bg);
   --color-danger-fg: var(--danger-fg);
+
+  --color-cal-birthday: var(--cal-birthday);
+  --color-cal-anniversary: var(--cal-anniversary);
+  --color-cal-custom: var(--cal-custom);
 
   --radius-sm: 8px;
   --radius-md: 10px;

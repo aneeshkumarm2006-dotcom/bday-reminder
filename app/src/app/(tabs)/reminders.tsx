@@ -1,20 +1,35 @@
-import { useFocusEffect } from 'expo-router';
-import { Bell } from 'lucide-react-native';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { Bell, Plus } from 'lucide-react-native';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Linking, Platform, ScrollView, View } from 'react-native';
+import { ActivityIndicator, Linking, Platform, Pressable, ScrollView, View } from 'react-native';
 
+import { PersonCard } from '@/components/person-card';
 import { ReminderCard } from '@/components/reminder-card';
-import { Button, EmptyState, Screen, Sheet, Text, useToast } from '@/components/ui';
-import { ApiError, remindersApi, type ReminderItem, type SnoozePreset } from '@/lib/api';
+import { Button, Chip, EmptyState, Icon, Screen, Sheet, Text, useToast } from '@/components/ui';
+import {
+  ApiError,
+  peopleApi,
+  remindersApi,
+  type ReminderItem,
+  type SnoozePreset,
+  type UpcomingGroup,
+  type UpcomingResponse,
+} from '@/lib/api';
+import { cn, focusRing } from '@/lib/cn';
+import { syncWidget } from '@/lib/widget';
 import { useTokens } from '@/theme/theme-provider';
 
 /**
- * In-app reminder feed (DESIGN.md §8.3; FR-27/28/31/33). Lists the persistent
- * reminders from `GET /reminders` - they never vanish on view. Each row supports
- * the day-of "Send greeting" quick action (opens the messaging app with an
- * editable template, never auto-sent - FR-29), "Mark as done", and "Snooze".
- * Toasts confirm each action with the spec's verb-consistent copy (§8.11).
+ * Reminders - the home tab and now the single "what's happening" surface
+ * (DESIGN.md §8.3). Two sections: "Needs your attention" (the persistent in-app
+ * reminders from `GET /reminders`, with the day-of greeting + done + snooze
+ * actions), then "Upcoming" (the computed feed from `GET /upcoming`, grouped This
+ * week / This month / Later). An occurrence already shown as an active reminder
+ * is dropped from Upcoming so it never appears twice. A relationship-tag chip row
+ * filters both sections.
  */
+
+const GROUP_ORDER: UpcomingGroup[] = ['This week', 'This month', 'Later'];
 
 const SNOOZE_TOAST: Record<SnoozePreset, string> = {
   in1h: 'Snoozed for 1 hour.',
@@ -22,20 +37,33 @@ const SNOOZE_TOAST: Record<SnoozePreset, string> = {
   tomorrow: 'Snoozed until tomorrow.',
 };
 
+/** Dedup key shared by reminders + upcoming: event + the calendar date (UTC). */
+function occKey(eventId: string, occurrenceDate: string): string {
+  return `${eventId}|${occurrenceDate.slice(0, 10)}`;
+}
+
 export default function RemindersScreen() {
+  const router = useRouter();
   const t = useTokens();
   const toast = useToast();
 
   const [items, setItems] = useState<ReminderItem[] | null>(null);
+  const [upcoming, setUpcoming] = useState<UpcomingResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [snoozeTarget, setSnoozeTarget] = useState<ReminderItem | null>(null);
+  const [activeTag, setActiveTag] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setError(null);
     try {
-      setItems((await remindersApi.list()).items);
+      const [rem, up] = await Promise.all([remindersApi.list(), peopleApi.upcoming()]);
+      setItems(rem.items);
+      setUpcoming(up);
+      // Keep the home-screen widget cache fed (Stage 10; FR-48) - this is now the
+      // screen that loads the Upcoming feed. Native-only + best-effort.
+      void syncWidget(up.items);
     } catch (e) {
       setError(
         e instanceof ApiError
@@ -54,8 +82,8 @@ export default function RemindersScreen() {
     }, [load]),
   );
 
-  // Replace one occurrence's row in place after an action (matched by event +
-  // occurrence, since a collapsed row's representative id can change).
+  // Replace one occurrence's reminder row in place after an action (matched by
+  // event + occurrence, since a collapsed row's representative id can change).
   const replaceItem = useCallback((previous: ReminderItem, updated: ReminderItem) => {
     setItems((prev) =>
       (prev ?? []).map((it) =>
@@ -118,17 +146,21 @@ export default function RemindersScreen() {
     [snoozeTarget, replaceItem, toast],
   );
 
-  return (
-    <Screen>
-      <View className="pb-2 pt-3">
-        <Text variant="title">Reminders</Text>
-      </View>
-
-      {loading && !items ? (
+  if (loading && !items && !upcoming) {
+    return (
+      <Screen>
+        <RemindersHeader onAdd={() => router.push('/add-person')} />
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator color={t.biro} />
         </View>
-      ) : error && !items ? (
+      </Screen>
+    );
+  }
+
+  if (error && !items && !upcoming) {
+    return (
+      <Screen>
+        <RemindersHeader onAdd={() => router.push('/add-person')} />
         <View className="flex-1 items-center justify-center gap-4 px-6">
           <Text variant="body" className="text-center text-ink-secondary">
             {error}
@@ -137,26 +169,123 @@ export default function RemindersScreen() {
             Try again
           </Button>
         </View>
-      ) : !items || items.length === 0 ? (
+      </Screen>
+    );
+  }
+
+  const reminders = items ?? [];
+  // An occurrence with an active reminder shows only in the attention section.
+  const activeKeys = new Set(reminders.map((r) => occKey(r.event.id, r.occurrenceDate)));
+  const upcomingItems = (upcoming?.items ?? []).filter(
+    (i) => !activeKeys.has(occKey(i.eventId, i.occurrenceDate)),
+  );
+
+  if (reminders.length === 0 && upcomingItems.length === 0) {
+    return (
+      <Screen>
+        <RemindersHeader onAdd={() => router.push('/add-person')} />
         <EmptyState
           icon={Bell}
-          title="No reminders yet."
-          body="When a birthday is coming up, your reminders show up here."
-        />
+          title="You're all caught up."
+          body="Add the people you don't want to forget - their birthdays and reminders show up here.">
+          <Button leftIcon={Plus} fullWidth onPress={() => router.push('/add-person')}>
+            Add person
+          </Button>
+        </EmptyState>
+      </Screen>
+    );
+  }
+
+  // Tag chips: the union of the Upcoming feed's tags and any tags on reminder
+  // people, so filtering applies across both sections.
+  const tags = [
+    ...new Set(
+      [
+        ...(upcoming?.tags ?? []),
+        ...reminders.map((r) => r.person.relationshipTag).filter((x): x is string => !!x),
+      ].filter(Boolean),
+    ),
+  ].sort((a, b) => a.localeCompare(b));
+  const effectiveTag = activeTag && tags.includes(activeTag) ? activeTag : null;
+
+  const visibleReminders = effectiveTag
+    ? reminders.filter((r) => r.person.relationshipTag === effectiveTag)
+    : reminders;
+  const visibleUpcoming = effectiveTag
+    ? upcomingItems.filter((i) => i.relationshipTag === effectiveTag)
+    : upcomingItems;
+
+  const nothingForTag = visibleReminders.length === 0 && visibleUpcoming.length === 0;
+
+  return (
+    <Screen>
+      <RemindersHeader onAdd={() => router.push('/add-person')} />
+
+      {tags.length > 0 ? (
+        <View className="pb-1">
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ gap: 8, paddingVertical: 4 }}>
+            <Chip label="All" selected={effectiveTag === null} onPress={() => setActiveTag(null)} />
+            {tags.map((tag) => (
+              <Chip
+                key={tag}
+                label={tag}
+                selected={effectiveTag === tag}
+                onPress={() => setActiveTag(tag)}
+              />
+            ))}
+          </ScrollView>
+        </View>
+      ) : null}
+
+      {nothingForTag ? (
+        <View className="flex-1 items-center justify-center px-6">
+          <Text variant="body" className="text-center text-ink-secondary">
+            Nothing tagged “{effectiveTag}” right now.
+          </Text>
+        </View>
       ) : (
         <ScrollView
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: 24, gap: 8 }}>
-          {items.map((item) => (
-            <ReminderCard
-              key={`${item.event.id}|${item.occurrenceDate}`}
-              item={item}
-              busy={busyId === item.id}
-              onGreet={() => void onGreet(item)}
-              onDone={() => void onDone(item)}
-              onSnooze={() => setSnoozeTarget(item)}
-            />
-          ))}
+          contentContainerStyle={{ paddingBottom: 24 }}>
+          {visibleReminders.length > 0 ? (
+            <>
+              <SectionHeader label="Needs your attention" />
+              <View className="gap-2">
+                {visibleReminders.map((item) => (
+                  <ReminderCard
+                    key={`${item.event.id}|${item.occurrenceDate}`}
+                    item={item}
+                    busy={busyId === item.id}
+                    onGreet={() => void onGreet(item)}
+                    onDone={() => void onDone(item)}
+                    onSnooze={() => setSnoozeTarget(item)}
+                  />
+                ))}
+              </View>
+            </>
+          ) : null}
+
+          {GROUP_ORDER.map((group) => {
+            const groupItems = visibleUpcoming.filter((i) => i.group === group);
+            if (groupItems.length === 0) return null;
+            return (
+              <View key={group}>
+                <SectionHeader label={group} />
+                <View className="gap-2">
+                  {groupItems.map((item) => (
+                    <PersonCard
+                      key={item.eventId}
+                      item={item}
+                      onPress={() => router.push(`/person/${item.personId}`)}
+                    />
+                  ))}
+                </View>
+              </View>
+            );
+          })}
         </ScrollView>
       )}
 
@@ -177,5 +306,30 @@ export default function RemindersScreen() {
         </View>
       </Sheet>
     </Screen>
+  );
+}
+
+function RemindersHeader({ onAdd }: { onAdd: () => void }) {
+  return (
+    <View className="flex-row items-center justify-between pb-2 pt-3">
+      <Text variant="title">Reminders</Text>
+      <Pressable
+        onPress={onAdd}
+        hitSlop={10}
+        accessibilityRole="button"
+        accessibilityLabel="Add person"
+        className={cn('h-9 w-9 items-center justify-center rounded-full active:scale-95', focusRing)}>
+        <Icon icon={Plus} size={24} />
+      </Pressable>
+    </View>
+  );
+}
+
+/** Section heading on a sunken band (DESIGN.md §8.2, §4.1: Hanken 600 18px). */
+function SectionHeader({ label }: { label: string }) {
+  return (
+    <View className="mb-2 mt-3 rounded-sm bg-surface-sunken px-3 py-2">
+      <Text variant="heading">{label}</Text>
+    </View>
   );
 }

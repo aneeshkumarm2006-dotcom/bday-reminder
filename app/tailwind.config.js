@@ -32,6 +32,12 @@ module.exports = {
         snooze: { bg: 'var(--snz-bg)', fg: 'var(--snz-fg)' },
         warn: { bg: 'var(--warn-bg)', fg: 'var(--warn-fg)' },
         danger: { bg: 'var(--danger-bg)', fg: 'var(--danger-fg)' },
+        // Calendar event-type accents (dot/icon markers in the month grid).
+        cal: {
+          birthday: 'var(--cal-birthday)',
+          anniversary: 'var(--cal-anniversary)',
+          custom: 'var(--cal-custom)',
+        },
       },
       borderRadius: {
         sm: '8px',

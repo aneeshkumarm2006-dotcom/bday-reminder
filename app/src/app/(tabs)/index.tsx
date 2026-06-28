@@ -1,65 +1,97 @@
 import { useFocusEffect, useRouter } from 'expo-router';
-import { Cake, Plus } from 'lucide-react-native';
-import { useCallback, useEffect, useState, type ReactNode } from 'react';
-import { ActivityIndicator, Animated, Pressable, ScrollView, View } from 'react-native';
-import { useReducedMotion } from 'react-native-reanimated';
+import { CalendarPlus, PawPrint, Plus } from 'lucide-react-native';
+import { useCallback, useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native';
 
-import { PersonCard } from '@/components/person-card';
-import { Button, Chip, EmptyState, Icon, Screen, Text } from '@/components/ui';
+import { CalendarAgenda } from '@/components/calendar-agenda';
+import { CalendarGrid, CalendarLegend, eventDayInMonth } from '@/components/calendar-grid';
+import { CalendarMonthPicker } from '@/components/calendar-month-picker';
+import { CalendarNav, type CalendarMode } from '@/components/calendar-nav';
+import { Button, Card, Icon, Screen, Text } from '@/components/ui';
+import {
+  ApiError,
+  calendarEventsApi,
+  type CalendarEventsResponse,
+} from '@/lib/api';
 import { cn, focusRing } from '@/lib/cn';
-import { ApiError, peopleApi, type UpcomingGroup, type UpcomingResponse } from '@/lib/api';
-import { syncWidget } from '@/lib/widget';
+import { monthAbbr } from '@/lib/dates';
+import { eventTypeMeta } from '@/lib/event-style';
 import { useTokens } from '@/theme/theme-provider';
 
 /**
- * Upcoming feed (DESIGN.md §8.2). The computed feed comes from `GET /upcoming`
- * - each person's next event, grouped This week / This month / Later and sorted
- * ascending. A relationship-tag chip row filters the list (FR-9); the feed
- * mounts with a subtle stagger fade+rise (§9), reduced-motion safe.
+ * Calendar (the repurposed first tab). A month-grid (or list) view of every
+ * event - birthdays, anniversaries, custom - on its date, colored by type, where
+ * tapping a day shows who's on it and lets you add a birthday on that date
+ * (prefilled). A Month/List toggle, a "Today" jump and a month/year picker make
+ * it quick to move around. The Upcoming feed moved into Reminders; this tab is
+ * the browse-and-add surface.
+ *
+ * Data is `GET /calendar/events` - raw month/day per event - so the grid can page
+ * to any month. "Today" comes from the server (timezone-anchored), never the
+ * device clock, to match how reminders are scheduled.
  */
 
-const GROUP_ORDER: UpcomingGroup[] = ['This week', 'This month', 'Later'];
+/** Parse a UTC-midnight ISO date into calendar y/m/d (read in UTC). */
+function ymd(iso: string): { year: number; month: number; day: number } {
+  const d = new Date(iso);
+  return { year: d.getUTCFullYear(), month: d.getUTCMonth() + 1, day: d.getUTCDate() };
+}
 
-export default function UpcomingScreen() {
+/** Shift a {year, month} by whole months, rolling the year over. */
+function shiftMonth(c: { year: number; month: number }, delta: number): { year: number; month: number } {
+  const zero = c.month - 1 + delta;
+  return { year: c.year + Math.floor(zero / 12), month: ((zero % 12) + 12) % 12 + 1 };
+}
+
+export default function CalendarScreen() {
   const router = useRouter();
   const t = useTokens();
-  const reducedMotion = useReducedMotion();
 
-  const [data, setData] = useState<UpcomingResponse | null>(null);
+  const [data, setData] = useState<CalendarEventsResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTag, setActiveTag] = useState<string | null>(null);
+  const [displayed, setDisplayed] = useState<{ year: number; month: number } | null>(null);
+  const [selectedDay, setSelectedDay] = useState<number | null>(null);
+  const [mode, setMode] = useState<CalendarMode>('month');
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   const load = useCallback(async () => {
     setError(null);
     try {
-      const next = await peopleApi.upcoming();
+      const next = await calendarEventsApi.list();
       setData(next);
-      // Refresh the on-device home-screen widget cache (Stage 10; FR-48).
-      // Native-only + best-effort; a no-op on web.
-      void syncWidget(next.items);
+      // First load only: anchor to today's month and preselect today, so the day
+      // list below the grid shows today's events straight away.
+      const today = ymd(next.today);
+      setDisplayed((cur) => cur ?? { year: today.year, month: today.month });
+      setSelectedDay((cur) => cur ?? today.day);
     } catch (e) {
       setError(
         e instanceof ApiError
           ? e.message
-          : "Couldn't load your birthdays. Check your connection and try again.",
+          : "Couldn't load your calendar. Check your connection and try again.",
       );
     } finally {
       setLoading(false);
     }
   }, []);
 
-  // Refetch on focus so a just-added person shows immediately (§9.1).
+  // Refetch on focus so a just-added person shows on the grid immediately.
   useFocusEffect(
     useCallback(() => {
       void load();
     }, [load]),
   );
 
+  const goMonth = (delta: number) => {
+    setDisplayed((c) => (c ? shiftMonth(c, delta) : c));
+    setSelectedDay(null); // a new month: clear the selection until the user taps.
+  };
+
   if (loading && !data) {
     return (
       <Screen>
-        <FeedHeader onAdd={() => router.push('/add-person')} />
+        <CalendarHeader onAdd={() => router.push('/add-person')} />
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator color={t.biro} />
         </View>
@@ -70,7 +102,7 @@ export default function UpcomingScreen() {
   if (error && !data) {
     return (
       <Screen>
-        <FeedHeader onAdd={() => router.push('/add-person')} />
+        <CalendarHeader onAdd={() => router.push('/add-person')} />
         <View className="flex-1 items-center justify-center gap-4 px-6">
           <Text variant="body" className="text-center text-ink-secondary">
             {error}
@@ -83,97 +115,132 @@ export default function UpcomingScreen() {
     );
   }
 
-  const items = data?.items ?? [];
+  const today = data ? ymd(data.today) : { year: 0, month: 0, day: 0 };
+  const view = displayed ?? { year: today.year, month: today.month };
+  const events = data?.events ?? [];
 
-  if (items.length === 0) {
-    return (
-      <Screen>
-        <FeedHeader onAdd={() => router.push('/add-person')} />
-        <EmptyState
-          icon={Cake}
-          title="No birthdays yet."
-          body="Add the people you don't want to forget.">
-          <Button leftIcon={Plus} fullWidth onPress={() => router.push('/add-person')}>
-            Add person
-          </Button>
-        </EmptyState>
-      </Screen>
-    );
-  }
+  const goToday = () => {
+    setDisplayed({ year: today.year, month: today.month });
+    setSelectedDay(today.day);
+  };
 
-  const tags = data?.tags ?? [];
-  // Fall back to "All" if the active tag no longer exists (e.g. its last person
-  // was deleted) - otherwise the chip row vanishes and strands the filter.
-  const effectiveTag = activeTag && tags.includes(activeTag) ? activeTag : null;
-  const visible = effectiveTag
-    ? items.filter((i) => i.relationshipTag === effectiveTag)
-    : items;
+  const pickMonth = (next: { year: number; month: number }) => {
+    setDisplayed(next);
+    setSelectedDay(null);
+    setPickerOpen(false);
+  };
 
-  // Build header/card rows in group order; remember header positions so the
-  // section headings stick on scroll. A running index drives the stagger.
-  const rows: ReactNode[] = [];
-  const stickyIndices: number[] = [];
-  let animIndex = 0;
-  for (const group of GROUP_ORDER) {
-    const groupItems = visible.filter((i) => i.group === group);
-    if (groupItems.length === 0) continue;
-    stickyIndices.push(rows.length);
-    rows.push(<SectionHeader key={`h-${group}`} label={group} />);
-    for (const item of groupItems) {
-      rows.push(
-        <FeedItem key={item.eventId} index={animIndex} reduced={reducedMotion}>
-          <PersonCard item={item} onPress={() => router.push(`/person/${item.personId}`)} />
-        </FeedItem>,
-      );
-      animIndex += 1;
-    }
-  }
+  const dayEvents =
+    selectedDay != null
+      ? events.filter((ev) => eventDayInMonth(ev, view.year, view.month) === selectedDay)
+      : [];
+
+  const addOnDate = () => {
+    if (selectedDay == null) return;
+    router.push({
+      pathname: '/add-person',
+      params: { month: String(view.month), day: String(selectedDay) },
+    });
+  };
 
   return (
     <Screen>
-      <FeedHeader onAdd={() => router.push('/add-person')} />
+      <CalendarHeader onAdd={() => router.push('/add-person')} />
 
-      {tags.length > 0 ? (
-        <View className="pb-1">
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ gap: 8, paddingVertical: 4 }}>
-            <Chip label="All" selected={effectiveTag === null} onPress={() => setActiveTag(null)} />
-            {tags.map((tag) => (
-              <Chip
-                key={tag}
-                label={tag}
-                selected={effectiveTag === tag}
-                onPress={() => setActiveTag(tag)}
-              />
-            ))}
-          </ScrollView>
-        </View>
-      ) : null}
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 24, gap: 8 }}>
+        <CalendarNav
+          year={view.year}
+          month={view.month}
+          mode={mode}
+          onModeChange={setMode}
+          onPrev={() => goMonth(-1)}
+          onNext={() => goMonth(1)}
+          onToday={goToday}
+          onOpenPicker={() => setPickerOpen(true)}
+        />
 
-      {visible.length === 0 ? (
-        <View className="flex-1 items-center justify-center px-6">
-          <Text variant="body" className="text-center text-ink-secondary">
-            No birthdays tagged “{effectiveTag}” yet.
-          </Text>
-        </View>
-      ) : (
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          stickyHeaderIndices={stickyIndices}
-          contentContainerStyle={{ paddingBottom: 24 }}>
-          {rows}
-        </ScrollView>
-      )}
+        {mode === 'list' ? (
+          <CalendarAgenda
+            year={view.year}
+            month={view.month}
+            events={events}
+            today={today}
+            onSelectPerson={(personId) => router.push(`/person/${personId}`)}
+          />
+        ) : (
+          <>
+            <CalendarGrid
+              year={view.year}
+              month={view.month}
+              events={events}
+              today={today}
+              selectedDay={selectedDay}
+              onSelectDay={setSelectedDay}
+            />
+            <CalendarLegend />
+
+            {selectedDay != null ? (
+              <View className="mt-2 gap-3">
+                <Text variant="heading">{`${monthAbbr(view.month)} ${selectedDay}`}</Text>
+
+                {dayEvents.length === 0 ? (
+                  <Text variant="body" className="text-ink-secondary">
+                    No one on this day yet.
+                  </Text>
+                ) : (
+                  <View className="gap-2">
+                    {dayEvents.map((ev) => (
+                      <Card key={ev.eventId} onPress={() => router.push(`/person/${ev.personId}`)}>
+                        <View className="flex-row items-center gap-2">
+                          {ev.type === 'pet' ? (
+                            <Icon icon={PawPrint} size={16} color={t.inkMuted} label="Pet" />
+                          ) : null}
+                          <View className="flex-1">
+                            <Text variant="cardName" numberOfLines={1}>
+                              {ev.fullName}
+                            </Text>
+                            <Text variant="caption" numberOfLines={1} className="mt-0.5">
+                              {[eventTypeMeta(ev).label, ev.relationshipTag ?? undefined]
+                                .filter(Boolean)
+                                .join(' · ')}
+                            </Text>
+                          </View>
+                        </View>
+                      </Card>
+                    ))}
+                  </View>
+                )}
+
+                <Button variant="secondary" leftIcon={CalendarPlus} fullWidth onPress={addOnDate}>
+                  {`Add birthday on ${monthAbbr(view.month)} ${selectedDay}`}
+                </Button>
+              </View>
+            ) : (
+              <Text variant="caption" className="mt-2 text-center text-ink-muted">
+                Tap a day to see who&apos;s on it or add a birthday.
+              </Text>
+            )}
+          </>
+        )}
+      </ScrollView>
+
+      <CalendarMonthPicker
+        visible={pickerOpen}
+        year={view.year}
+        month={view.month}
+        onClose={() => setPickerOpen(false)}
+        onPick={pickMonth}
+      />
     </Screen>
   );
 }
 
-function FeedHeader({ onAdd }: { onAdd: () => void }) {
+function CalendarHeader({ onAdd }: { onAdd: () => void }) {
   return (
     <View className="flex-row items-center justify-between pb-2 pt-3">
-      <Text variant="title">Upcoming</Text>
+      <Text variant="title">Calendar</Text>
       <Pressable
         onPress={onAdd}
         hitSlop={10}
@@ -183,53 +250,5 @@ function FeedHeader({ onAdd }: { onAdd: () => void }) {
         <Icon icon={Plus} size={24} />
       </Pressable>
     </View>
-  );
-}
-
-/** Sticky group heading on a sunken band (DESIGN.md §8.2, §4.1: Hanken 600 18px). */
-function SectionHeader({ label }: { label: string }) {
-  return (
-    <View className="bg-paper">
-      <View className="mb-2 mt-3 rounded-sm bg-surface-sunken px-3 py-2">
-        <Text variant="heading">{label}</Text>
-      </View>
-    </View>
-  );
-}
-
-/** One feed row with a subtle mount fade+rise, staggered by index (§9). */
-function FeedItem({
-  index,
-  reduced,
-  children,
-}: {
-  index: number;
-  reduced: boolean;
-  children: ReactNode;
-}) {
-  // Held in state (not a ref) so it's safe to read in render - matches Toast.
-  const [progress] = useState(() => new Animated.Value(reduced ? 1 : 0));
-
-  useEffect(() => {
-    if (reduced) return;
-    const animation = Animated.timing(progress, {
-      toValue: 1,
-      duration: 240,
-      delay: Math.min(index, 12) * 30,
-      useNativeDriver: true,
-    });
-    animation.start();
-    return () => animation.stop();
-  }, [index, reduced, progress]);
-
-  return (
-    <Animated.View
-      style={{
-        marginBottom: 8,
-        opacity: progress,
-        transform: [{ translateY: progress.interpolate({ inputRange: [0, 1], outputRange: [8, 0] }) }],
-      }}>
-      {children}
-    </Animated.View>
   );
 }

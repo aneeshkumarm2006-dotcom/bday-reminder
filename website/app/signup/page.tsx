@@ -21,7 +21,7 @@ export default function SignupPage() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (status === "authenticated") router.replace("/dashboard");
+    if (status === "authenticated") router.replace("/reminders");
   }, [status, router]);
 
   const submit = async (e: React.FormEvent) => {

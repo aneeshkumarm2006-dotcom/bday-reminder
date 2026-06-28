@@ -21,7 +21,7 @@ export default function LoginPage() {
 
   // Already signed in (e.g. opened /login with a live session) → into the app.
   useEffect(() => {
-    if (status === "authenticated") router.replace("/dashboard");
+    if (status === "authenticated") router.replace("/reminders");
   }, [status, router]);
 
   const submit = async (e: React.FormEvent) => {
@@ -30,7 +30,7 @@ export default function LoginPage() {
     setBusy(true);
     try {
       await signIn(email.trim(), password);
-      router.replace("/dashboard");
+      router.replace("/reminders");
     } catch (err) {
       setError(
         err instanceof ApiError && err.status === 401

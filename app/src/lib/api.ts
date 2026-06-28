@@ -611,3 +611,33 @@ export const calendarApi = {
   /** Issue a new feed token, revoking the old subscribe link. */
   rotate: () => apiFetch<CalendarSyncSettings>('/me/calendar/rotate', { method: 'POST' }),
 };
+
+// --- In-app month calendar (raw month/day per event) ------------------------
+
+/**
+ * One event placed on the calendar grid by its RAW recurring month/day - the
+ * grid pages to any month, so it needs the stored date (not a resolved next
+ * occurrence). `feb29Rule` lets the grid observe a Feb-29 event in non-leap
+ * years (FR-15). Distinct from `calendarApi` (ICS sync settings, Stage 9).
+ */
+export type CalendarEvent = {
+  personId: string;
+  eventId: string;
+  fullName: string;
+  type: PersonType;
+  relationshipTag: string | null;
+  photoUrl: string | null;
+  eventType: EventType;
+  customName: string | null;
+  month: number;
+  day: number;
+  year: number | null;
+  feb29Rule: Feb29Rule;
+};
+
+export type CalendarEventsResponse = { today: string; events: CalendarEvent[] };
+
+export const calendarEventsApi = {
+  /** Every accessible event with its raw month/day for the month-grid calendar. */
+  list: () => apiFetch<CalendarEventsResponse>('/calendar/events'),
+};
