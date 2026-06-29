@@ -8,6 +8,7 @@ import { siteConfig } from "@/lib/site";
  * (the product is free at launch - PRD §2, §13). Sentence case throughout.
  */
 const footerLinks = [
+  { href: "/blog", label: "Blog" },
   { href: "/privacy", label: "Privacy" },
   { href: "/terms", label: "Terms" },
   { href: "/contact", label: "Contact" },
