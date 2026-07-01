@@ -13,8 +13,8 @@ import Link from "next/link";
 
 import { AnimatedRing } from "@/components/animated-ring";
 import { AppPreview, ReminderPreview, WidgetPreview } from "@/components/app-preview";
+import { TappableRing } from "@/components/interactive-ring";
 import { Reveal } from "@/components/reveal";
-import { Ring } from "@/components/ring";
 import { buttonVariants } from "@/components/ui/button";
 
 const MONTHS = [
@@ -320,7 +320,12 @@ function HowItWorks() {
             <Reveal key={step.title} delay={i * 0.05}>
               <div className="group flex flex-col items-center text-center sm:items-start sm:text-left">
                 <div className="transition-transform duration-300 ease-out group-hover:-translate-y-1 group-hover:rotate-3">
-                  <Ring day={step.day} month="Jun" size="lg" state={i === 2 ? "today" : "upcoming"} />
+                  <TappableRing
+                    day={step.day}
+                    month="Jun"
+                    size="lg"
+                    state={i === 2 ? "today" : "upcoming"}
+                  />
                 </div>
                 <h3 className="mt-5 font-display text-lg font-semibold text-ink transition-colors duration-300 group-hover:text-biro">
                   {step.title}
