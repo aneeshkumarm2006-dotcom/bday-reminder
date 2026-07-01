@@ -15,6 +15,7 @@ import { AnimatedRing } from "@/components/animated-ring";
 import { AppPreview, ReminderPreview, WidgetPreview } from "@/components/app-preview";
 import { TappableRing } from "@/components/interactive-ring";
 import { Reveal } from "@/components/reveal";
+import { SmoothScroll } from "@/components/smooth-scroll";
 import { buttonVariants } from "@/components/ui/button";
 
 const MONTHS = [
@@ -28,6 +29,7 @@ export default function Home() {
 
   return (
     <>
+      <SmoothScroll />
       <Hero today={today} />
       <ValueProp />
       <Features />
