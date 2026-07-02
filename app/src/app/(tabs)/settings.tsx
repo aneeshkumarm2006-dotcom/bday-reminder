@@ -3,6 +3,7 @@ import {
   CalendarPlus,
   ChevronRight,
   LayoutGrid,
+  Mail,
   Sparkles,
   Upload,
 } from 'lucide-react-native';
@@ -16,7 +17,8 @@ import {
   ReminderTimePicker,
 } from '@/components/reminder-prefs';
 import { Button, Card, Chip, Icon, Screen, Text, useConfirm, useToast } from '@/components/ui';
-import { configApi, type ChannelPreferences, type UpdateMeInput } from '@/lib/api';
+import { configApi, gmailApi, type ChannelPreferences, type UpdateMeInput } from '@/lib/api';
+import { connectGmail } from '@/lib/gmail-auth';
 import { useAuth } from '@/providers/auth-provider';
 import { useThemePreference, type ThemePreference } from '@/theme/theme-provider';
 
@@ -36,7 +38,7 @@ function SectionLabel({ children }: { children: string }) {
 
 export default function SettingsScreen() {
   const router = useRouter();
-  const { user, signOut, updateProfile } = useAuth();
+  const { user, signOut, updateProfile, refreshUser } = useAuth();
   const { preference, setPreference } = useThemePreference();
   const confirm = useConfirm();
   const toast = useToast();
@@ -48,13 +50,20 @@ export default function SettingsScreen() {
   const leadDays = user?.defaultLeadDays ?? [0, 7];
   const reminderTime = user?.defaultReminderTime ?? '09:00';
   const [smsCap, setSmsCap] = useState<number | null>(null);
+  const [gmailAvailable, setGmailAvailable] = useState(false);
+  const [connectingGmail, setConnectingGmail] = useState(false);
 
-  // The cap is a business-config value, fetched (not hardcoded) for the note.
+  // The cap is a business-config value, fetched (not hardcoded) for the note;
+  // the same call tells us whether Gmail auto-send is provisioned (Stage 14).
   useEffect(() => {
     let active = true;
     configApi
       .get()
-      .then((c) => active && setSmsCap(c.smsWhatsappMonthlyCap))
+      .then((c) => {
+        if (!active) return;
+        setSmsCap(c.smsWhatsappMonthlyCap);
+        setGmailAvailable(!!c.gmailAutoSendAvailable);
+      })
       .catch(() => {
         /* note falls back to number-free copy */
       });
@@ -72,6 +81,41 @@ export default function SettingsScreen() {
   const onChannels = (next: ChannelPreferences) => save({ channelPreferences: next });
   const onLeadDays = (next: number[]) => save({ defaultLeadDays: next });
   const onReminderTime = (next: string) => save({ defaultReminderTime: next });
+
+  const onConnectGmail = async () => {
+    setConnectingGmail(true);
+    try {
+      const result = await connectGmail();
+      if (result === 'connected') {
+        await refreshUser();
+        toast.show('Gmail connected.');
+      } else if (result === 'error') {
+        toast.show("Couldn't connect Gmail. Please try again.");
+      }
+    } catch {
+      toast.show("Couldn't connect Gmail. Please try again.");
+    } finally {
+      setConnectingGmail(false);
+    }
+  };
+
+  const onDisconnectGmail = async () => {
+    const ok = await confirm({
+      title: 'Disconnect Gmail?',
+      message: 'Auto-send birthday emails will stop until you reconnect.',
+      confirmLabel: 'Disconnect',
+      cancelLabel: 'Keep',
+      destructive: true,
+    });
+    if (!ok) return;
+    try {
+      await gmailApi.disconnect();
+      await refreshUser();
+      toast.show('Gmail disconnected.');
+    } catch {
+      toast.show("Couldn't disconnect. Please try again.");
+    }
+  };
 
   const onLogout = async () => {
     const ok = await confirm({
@@ -152,6 +196,36 @@ export default function SettingsScreen() {
         <Text variant="caption" className="mt-2 text-ink-muted">
           Subscribe to your birthdays in Apple, Google, or Outlook calendars.
         </Text>
+
+        {gmailAvailable ? (
+          <>
+            <SectionLabel>Auto-send email</SectionLabel>
+            <Card>
+              <View className="flex-row items-center gap-3">
+                <Icon icon={Mail} size={20} />
+                <View className="flex-1">
+                  <Text variant="body">Gmail account</Text>
+                  <Text variant="caption" className="mt-0.5 text-ink-muted">
+                    {user?.gmailConnected ? `Connected as ${user.gmailEmail}` : 'Not connected'}
+                  </Text>
+                </View>
+                {user?.gmailConnected ? (
+                  <Button variant="ghost" onPress={onDisconnectGmail}>
+                    Disconnect
+                  </Button>
+                ) : (
+                  <Button variant="secondary" loading={connectingGmail} onPress={onConnectGmail}>
+                    Connect
+                  </Button>
+                )}
+              </View>
+            </Card>
+            <Text variant="caption" className="mt-2 text-ink-muted">
+              Auto-send birthday greetings to friends from your own Gmail. Turn it on for a person
+              when you add or edit them.
+            </Text>
+          </>
+        ) : null}
 
         <SectionLabel>People</SectionLabel>
         <Card

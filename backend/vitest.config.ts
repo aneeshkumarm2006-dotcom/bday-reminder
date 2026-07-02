@@ -32,6 +32,13 @@ export default defineConfig({
       JWT_ACCESS_EXPIRES_IN: '15m',
       JWT_REFRESH_EXPIRES_IN: '30d',
       SMS_WHATSAPP_MONTHLY_CAP: '20',
+      // A valid 32-byte (base64) key so token-crypto tests can encrypt/decrypt.
+      GMAIL_TOKEN_ENC_KEY: '23vgi3FIiuDf5va/WTJSv9SKKe/4ffa7T1X2aXDmF5U=',
+      // Twilio auto-send SMS config so twilio-send unit tests see it "configured"
+      // (a Messaging Service sender; no From number, exercising that branch).
+      TWILIO_ACCOUNT_SID: 'ACtest0000000000000000000000000000',
+      TWILIO_AUTH_TOKEN: 'test-auth-token',
+      TWILIO_MESSAGING_SERVICE_SID: 'MGtest0000000000000000000000000000',
       // Pin the in-memory MongoDB binary so every run reuses one cached download.
       MONGOMS_VERSION: '7.0.24',
     },

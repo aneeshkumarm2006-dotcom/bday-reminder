@@ -64,6 +64,11 @@ const overrideFields = {
   // null clears the override → fall back to the user default.
   leadDaysOverride: z.array(z.number().int().min(0).max(365)).nullable().optional(),
   channelOverride: channelOverrideSchema.nullable().optional(),
+  reminderTimeOverride: z
+    .string()
+    .regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Use a 24-hour time like 09:00.')
+    .nullable()
+    .optional(),
 };
 
 /**
@@ -115,6 +120,8 @@ eventsRouter.post(
             ? null
             : [...new Set(body.leadDaysOverride)],
       channelOverride: body.channelOverride === undefined ? undefined : (body.channelOverride ?? null),
+      reminderTimeOverride:
+        body.reminderTimeOverride === undefined ? undefined : (body.reminderTimeOverride ?? null),
     });
 
     await generateForPersonViewers(person);
@@ -166,6 +173,10 @@ eventsRouter.patch(
     }
     if (patch.channelOverride !== undefined) {
       event.channelOverride = patch.channelOverride ?? null;
+      schedulingChanged = true;
+    }
+    if (patch.reminderTimeOverride !== undefined) {
+      event.reminderTimeOverride = patch.reminderTimeOverride ?? null;
       schedulingChanged = true;
     }
     await event.save();

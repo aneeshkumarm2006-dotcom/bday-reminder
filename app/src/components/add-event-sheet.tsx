@@ -2,6 +2,10 @@ import { useState } from 'react';
 import { View } from 'react-native';
 
 import {
+  defaultTimeInheritLabel,
+  ReminderTimePicker,
+} from '@/components/reminder-prefs';
+import {
   Button,
   Chip,
   Input,
@@ -13,14 +17,18 @@ import {
   useToast,
   type SelectOption,
 } from '@/components/ui';
-import { ApiError, eventsApi } from '@/lib/api';
+import { ApiError, eventsApi, type CreatePersonEventInput, type EventItem } from '@/lib/api';
+import { useAuth } from '@/providers/auth-provider';
 
 /**
- * Add an Anniversary or Custom event to a person (DESIGN.md §8.6, PRD §8.4;
- * FR-16/18). Opened from the profile's dashed "Add event" row. Month + day are
- * required, year optional (mirrors the DOB rule); a custom event needs a name.
- * Each new event reminds/recurs independently under the same rules as the
- * birthday.
+ * Add an Anniversary or Custom event (DESIGN.md §8.6, PRD §8.4; FR-16/18).
+ * Month + day are required, year optional (mirrors the DOB rule); a custom event
+ * needs a name. Two modes share the same fields + validation:
+ *  - API mode (person profile): pass `personId` + `onCreated`; submit calls
+ *    `POST /events` right away.
+ *  - Draft mode (Add person, before the person exists): pass `onAdd`; submit
+ *    hands the validated draft back so the parent can create it atomically with
+ *    the person. Each event reminds/recurs independently like the birthday.
  */
 
 const MONTHS = [
@@ -36,24 +44,58 @@ type EventErrors = { name?: string; dob?: string; year?: string };
 export function AddEventSheet({
   visible,
   personId,
+  event,
   onClose,
   onCreated,
+  onUpdated,
+  onAdd,
 }: {
   visible: boolean;
-  personId: string;
   onClose: () => void;
-  onCreated: () => void;
+  /** API mode: the person to attach the event to (with `onCreated`). */
+  personId?: string;
+  /** Edit mode: the existing event to edit (with `onUpdated`). */
+  event?: EventItem;
+  /** API mode: called after a successful `POST /events`. */
+  onCreated?: () => void;
+  /** Edit mode: called after a successful `PATCH /events/:id`. */
+  onUpdated?: () => void;
+  /** Draft mode: receive the validated event instead of hitting the API. */
+  onAdd?: (draft: CreatePersonEventInput) => void;
 }) {
   const toast = useToast();
+  const { user } = useAuth();
+  const isEdit = !!event;
 
   const [type, setType] = useState<'anniversary' | 'custom'>('anniversary');
   const [customName, setCustomName] = useState('');
   const [month, setMonth] = useState('');
   const [day, setDay] = useState('');
   const [year, setYear] = useState('');
+  // "" => inherit the user's global default reminder time; "HH:mm" => a set time.
+  const [reminderTime, setReminderTime] = useState('');
   const [errors, setErrors] = useState<EventErrors>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+
+  // Seed the fields from the event being edited whenever the sheet opens for it.
+  // Done during render (guarded by a tracker) rather than in an effect, so it
+  // doesn't trigger a setState-in-effect cascade.
+  const seedKey = visible && event ? event.id : null;
+  const [seededFor, setSeededFor] = useState<string | null>(null);
+  if (seedKey !== seededFor) {
+    setSeededFor(seedKey);
+    if (event && seedKey) {
+      setType(event.type === 'custom' ? 'custom' : 'anniversary');
+      setCustomName(event.customName ?? '');
+      setMonth(String(event.date.month));
+      setDay(String(event.date.day));
+      setYear(event.date.year != null ? String(event.date.year) : '');
+      setReminderTime(event.reminderTimeOverride ?? '');
+      setErrors({});
+      setSubmitError(null);
+    }
+  }
 
   const reset = () => {
     setType('anniversary');
@@ -61,6 +103,7 @@ export function AddEventSheet({
     setMonth('');
     setDay('');
     setYear('');
+    setReminderTime('');
     setErrors({});
     setSubmitError(null);
   };
@@ -92,38 +135,61 @@ export function AddEventSheet({
     setErrors(next);
     if (Object.keys(next).length > 0) return;
 
+    const draft: CreatePersonEventInput = {
+      type,
+      customName: type === 'custom' ? customName.trim() : null,
+      date: { month: m, day: d, year: parsedYear },
+      reminderTimeOverride: reminderTime || null,
+    };
+
+    // Draft mode (Add person): hand the event to the parent to hold and create
+    // atomically with the person - no API call, so no person exists yet.
+    if (onAdd) {
+      onAdd(draft);
+      close();
+      return;
+    }
+
     setSaving(true);
     try {
-      await eventsApi.create({
-        person: personId,
-        type,
-        customName: type === 'custom' ? customName.trim() : null,
-        date: { month: m, day: d, year: parsedYear },
-      });
-      onCreated();
-      toast.show('Event added.');
+      if (isEdit) {
+        // Type can't change here; only send the fields this event type allows.
+        await eventsApi.update(event.id, {
+          customName: event.type === 'custom' ? customName.trim() : undefined,
+          date: { month: m, day: d, year: parsedYear },
+          reminderTimeOverride: reminderTime || null,
+        });
+        onUpdated?.();
+        toast.show('Event updated.');
+      } else {
+        await eventsApi.create({ person: personId!, ...draft });
+        onCreated?.();
+        toast.show('Event added.');
+      }
       close();
     } catch (e) {
-      setSubmitError(e instanceof ApiError ? e.message : "Couldn't add the event. Try again.");
+      setSubmitError(e instanceof ApiError ? e.message : "Couldn't save the event. Try again.");
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <Sheet visible={visible} onClose={close} title="Add event">
+    <Sheet visible={visible} onClose={close} title={isEdit ? 'Edit event' : 'Add event'}>
       <View className="gap-4 pb-2">
-        <View>
-          <Label>Type</Label>
-          <View className="flex-row gap-2">
-            <Chip
-              label="Anniversary"
-              selected={type === 'anniversary'}
-              onPress={() => setType('anniversary')}
-            />
-            <Chip label="Custom" selected={type === 'custom'} onPress={() => setType('custom')} />
+        {!isEdit ? (
+          <View>
+            <Label>Type</Label>
+            <View className="flex-row gap-2">
+              <Chip
+                label="Anniversary"
+                selected={type === 'anniversary'}
+                onPress={() => setType('anniversary')}
+              />
+              <Chip label="Custom" selected={type === 'custom'} onPress={() => setType('custom')} />
+            </View>
           </View>
-        </View>
+        ) : null}
 
         {type === 'custom' ? (
           <TextField
@@ -186,6 +252,15 @@ export function AddEventSheet({
           )}
         </View>
 
+        <View>
+          <Label>Reminder time</Label>
+          <ReminderTimePicker
+            value={reminderTime}
+            onChange={setReminderTime}
+            inheritLabel={defaultTimeInheritLabel(user?.defaultReminderTime)}
+          />
+        </View>
+
         {submitError ? (
           <Text variant="caption" className="text-danger-fg">
             {submitError}
@@ -193,7 +268,7 @@ export function AddEventSheet({
         ) : null}
 
         <Button fullWidth loading={saving} onPress={submit}>
-          Add event
+          {isEdit ? 'Save changes' : 'Add event'}
         </Button>
       </View>
     </Sheet>

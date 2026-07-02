@@ -1,13 +1,16 @@
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Camera, X } from 'lucide-react-native';
+import { CalendarPlus, Camera, X } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from 'react-native';
 
+import { AddEventSheet } from '@/components/add-event-sheet';
 import {
   ChannelToggles,
   DEFAULT_CHANNELS,
+  defaultTimeInheritLabel,
   LeadTimeChips,
+  ReminderTimePicker,
 } from '@/components/reminder-prefs';
 import {
   Button,
@@ -31,11 +34,14 @@ import {
   listsApi,
   peopleApi,
   type ChannelPreferences,
+  type CreatePersonEventInput,
   type CreatePersonInput,
   type Feb29Rule,
   type PersonType,
   type SharedListView,
 } from '@/lib/api';
+import { eventTypeMeta } from '@/lib/event-style';
+import { connectGmail } from '@/lib/gmail-auth';
 import { formatNanp } from '@/lib/phone';
 import { pickAndUploadPhoto } from '@/lib/photo';
 import { useAuth } from '@/providers/auth-provider';
@@ -77,13 +83,40 @@ const FEB29_OPTIONS: SelectOption[] = [
 
 const CURRENT_YEAR = new Date().getFullYear();
 
-type Errors = { name?: string; dob?: string; year?: string };
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/** Default auto-send greeting body - mirrors the server default (Stage 14). */
+function defaultBirthdayEmail(name: string): string {
+  const first = name.trim().split(/\s+/)[0] || 'there';
+  return `Happy birthday, ${first}! Hope you have a wonderful day. 🎉`;
+}
+
+/** Cap for the auto-send SMS body - one GSM-7 segment (Stage 15). */
+const SMS_MAX = 160;
+
+/**
+ * Default auto-send SMS body - mirrors the server's `birthdaySmsBody`. Short and
+ * emoji-free (one segment), signed with the sender's name since the friend sees
+ * an app-owned Twilio number, not the user's (Stage 15).
+ */
+function defaultBirthdaySms(name: string, senderName: string): string {
+  const first = name.trim().split(/\s+/)[0] || 'there';
+  return `Happy birthday, ${first}! Hope you have a great day. - ${senderName}`;
+}
+
+type Errors = { name?: string; dob?: string; year?: string; email?: string; phone?: string };
 
 /** A prefilled month/day param → the field's string value, or '' if out of range. */
 function seedDatePart(raw: string | undefined, min: number, max: number): string {
   if (!raw) return '';
   const n = Number(raw);
   return Number.isInteger(n) && n >= min && n <= max ? String(n) : '';
+}
+
+/** Short human date for a pending-event row, e.g. "Jun 12" or "Jun 12, 1990". */
+function formatEventDate(date: { month: number; day: number; year?: number | null }): string {
+  const mon = MONTHS[date.month - 1]?.slice(0, 3) ?? '';
+  return `${mon} ${date.day}${date.year != null ? `, ${date.year}` : ''}`;
 }
 
 /** Lists the caller may add people to - every list they own or belong to (FR-43/45). */
@@ -108,7 +141,7 @@ export default function AddPersonScreen() {
   const router = useRouter();
   const toast = useToast();
   const t = useTokens();
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const { id, month: monthParam, day: dayParam } = useLocalSearchParams<{
     id?: string;
     month?: string;
@@ -129,15 +162,41 @@ export default function AddPersonScreen() {
   const [relationship, setRelationship] = useState('');
   const [customTag, setCustomTag] = useState(false);
   const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [photoBusy, setPhotoBusy] = useState(false);
   const [feb29Rule, setFeb29Rule] = useState<Feb29Rule>('feb28');
+
+  // Extra dates (anniversary/custom) added while creating the person; held
+  // locally and saved atomically with them (add mode only - editing manages
+  // events from the profile). The sheet reuses the profile's AddEventSheet.
+  const [pendingEvents, setPendingEvents] = useState<CreatePersonEventInput[]>([]);
+  const [eventSheetOpen, setEventSheetOpen] = useState(false);
+
+  // Auto-send birthday email (Stage 14). Sends a greeting to `email` on the
+  // birthday, from the user's connected Gmail. `gmailAvailable` gates the whole
+  // section (server-provisioned); `connecting` covers the OAuth round-trip.
+  const [autoSendOn, setAutoSendOn] = useState(false);
+  const [autoSendMessage, setAutoSendMessage] = useState('');
+  const [autoSendSeeded, setAutoSendSeeded] = useState(false);
+  const [connecting, setConnecting] = useState(false);
+  const [gmailAvailable, setGmailAvailable] = useState(false);
+
+  // Auto-send birthday SMS (Stage 15). Texts a greeting to `phone` on the
+  // birthday via one shared Twilio account - no per-user connect step, so it just
+  // needs a phone. `smsAutoSendAvailable` gates the whole section.
+  const [autoSmsOn, setAutoSmsOn] = useState(false);
+  const [autoSmsMessage, setAutoSmsMessage] = useState('');
+  const [autoSmsSeeded, setAutoSmsSeeded] = useState(false);
+  const [smsAutoSendAvailable, setSmsAutoSendAvailable] = useState(false);
 
   // Per-event reminder override (applies to this person's birthday event).
   const [birthdayEventId, setBirthdayEventId] = useState<string | null>(null);
   const [overrideOn, setOverrideOn] = useState(false);
   const [overrideLeadDays, setOverrideLeadDays] = useState<number[]>(defaultLeadDays);
   const [overrideChannels, setOverrideChannels] = useState<ChannelPreferences>(defaultChannels);
+  // "" => inherit the user's global default reminder time; "HH:mm" => a set time.
+  const [overrideTime, setOverrideTime] = useState<string>('');
   // True once the override has been seeded (from an existing event or on enable)
   // so we don't re-seed over the user's tweaks.
   const [overrideSeeded, setOverrideSeeded] = useState(false);
@@ -159,7 +218,12 @@ export default function AddPersonScreen() {
     let active = true;
     configApi
       .get()
-      .then((c) => active && setSmsCap(c.smsWhatsappMonthlyCap))
+      .then((c) => {
+        if (!active) return;
+        setSmsCap(c.smsWhatsappMonthlyCap);
+        setGmailAvailable(!!c.gmailAutoSendAvailable);
+        setSmsAutoSendAvailable(!!c.smsAutoSendAvailable);
+      })
       .catch(() => {});
     return () => {
       active = false;
@@ -204,6 +268,17 @@ export default function AddPersonScreen() {
         setCustomTag(!!tag && !PRESET_TAGS.has(tag));
         // Stored as E.164 (+1…); show it in the familiar (XXX) XXX-XXXX shape.
         setPhone(formatNanp(person.phone));
+        setEmail(person.email ?? '');
+        setAutoSendOn(person.autoBirthdayEmail?.enabled ?? false);
+        if (person.autoBirthdayEmail?.message) {
+          setAutoSendMessage(person.autoBirthdayEmail.message);
+          setAutoSendSeeded(true);
+        }
+        setAutoSmsOn(person.autoBirthdaySms?.enabled ?? false);
+        if (person.autoBirthdaySms?.message) {
+          setAutoSmsMessage(person.autoBirthdaySms.message);
+          setAutoSmsSeeded(true);
+        }
         setPhotoUrl(person.photoUrl ?? null);
         setFeb29Rule(person.feb29Rule);
 
@@ -219,12 +294,15 @@ export default function AddPersonScreen() {
         if (birthday) {
           setBirthdayEventId(birthday.id);
           const hasOverride =
-            birthday.leadDaysOverride != null || birthday.channelOverride != null;
+            birthday.leadDaysOverride != null ||
+            birthday.channelOverride != null ||
+            birthday.reminderTimeOverride != null;
           setOverrideOn(hasOverride);
           if (hasOverride) setOverrideSeeded(true);
           if (birthday.leadDaysOverride != null) setOverrideLeadDays(birthday.leadDaysOverride);
           if (birthday.channelOverride != null)
             setOverrideChannels(fullChannels(birthday.channelOverride, defaultChannels));
+          setOverrideTime(birthday.reminderTimeOverride ?? '');
         }
       } catch (e) {
         if (active)
@@ -261,6 +339,14 @@ export default function AddPersonScreen() {
       else parsedYear = y;
     }
 
+    const trimmedEmail = email.trim();
+    if (trimmedEmail && !EMAIL_RE.test(trimmedEmail)) next.email = 'Enter a valid email address.';
+    else if (autoSendOn && !trimmedEmail)
+      next.email = 'Add an email so the birthday greeting has somewhere to go.';
+
+    if (autoSmsOn && !phone.trim())
+      next.phone = 'Add a phone so the birthday SMS has somewhere to go.';
+
     setErrors(next);
     if (Object.keys(next).length > 0) return { ok: false };
 
@@ -273,6 +359,15 @@ export default function AddPersonScreen() {
         dob: { month: m, day: d, year: parsedYear },
         relationshipTag: tag ? tag : null,
         phone: phone.trim() ? phone.trim() : null,
+        email: trimmedEmail ? trimmedEmail : null,
+        autoBirthdayEmail: {
+          enabled: autoSendOn,
+          message: autoSendMessage.trim() ? autoSendMessage.trim() : null,
+        },
+        autoBirthdaySms: {
+          enabled: autoSmsOn,
+          message: autoSmsMessage.trim() ? autoSmsMessage.trim() : null,
+        },
         photoUrl: photoUrl ?? null,
         feb29Rule: isLeapDay ? feb29Rule : 'feb28',
       },
@@ -316,13 +411,72 @@ export default function AddPersonScreen() {
     setOverrideOn(on);
   };
 
+  // Enabling auto-send needs a recipient email + a connected Gmail. We collect
+  // the email in-form and, if Gmail isn't linked yet, kick off the OAuth flow
+  // right here (the permission is only ever requested at this point, never at
+  // login). The revealed message field + Save is the one-time confirmation.
+  const onToggleAutoSend = async (on: boolean) => {
+    if (!on) {
+      setAutoSendOn(false);
+      return;
+    }
+    if (!EMAIL_RE.test(email.trim())) {
+      toast.show("Add this person's email first.");
+      return;
+    }
+    if (!user?.gmailConnected) {
+      setConnecting(true);
+      try {
+        const result = await connectGmail();
+        if (result === 'connected') {
+          await refreshUser();
+        } else {
+          if (result === 'error') toast.show("Couldn't connect Gmail. Please try again.");
+          return; // dismissed / error → leave the toggle off
+        }
+      } catch {
+        toast.show("Couldn't connect Gmail. Please try again.");
+        return;
+      } finally {
+        setConnecting(false);
+      }
+    }
+    if (!autoSendSeeded) {
+      setAutoSendMessage(defaultBirthdayEmail(name));
+      setAutoSendSeeded(true);
+    }
+    setAutoSendOn(true);
+  };
+
+  // Auto-send SMS is simpler than email: one shared Twilio account, so there's no
+  // per-user connect step - it only needs a recipient phone on the person.
+  const onToggleAutoSms = (on: boolean) => {
+    if (!on) {
+      setAutoSmsOn(false);
+      return;
+    }
+    if (!phone.trim()) {
+      toast.show("Add this person's phone first.");
+      return;
+    }
+    if (!autoSmsSeeded) {
+      setAutoSmsMessage(defaultBirthdaySms(name, user?.name || 'me'));
+      setAutoSmsSeeded(true);
+    }
+    setAutoSmsOn(true);
+  };
+
   // Push the override onto the birthday event (or clear it → use defaults).
   const applyOverride = async (eventId: string) => {
     await eventsApi.update(
       eventId,
       overrideOn
-        ? { leadDaysOverride: overrideLeadDays, channelOverride: overrideChannels }
-        : { leadDaysOverride: null, channelOverride: null },
+        ? {
+            leadDaysOverride: overrideLeadDays,
+            channelOverride: overrideChannels,
+            reminderTimeOverride: overrideTime || null,
+          }
+        : { leadDaysOverride: null, channelOverride: null, reminderTimeOverride: null },
     );
   };
 
@@ -341,7 +495,12 @@ export default function AddPersonScreen() {
         if (birthdayEventId) await applyOverride(birthdayEventId);
         toast.show('Saved changes.');
       } else {
-        const { events } = await peopleApi.create({ ...result.input, lists });
+        const { events } = await peopleApi.create({
+          ...result.input,
+          lists,
+          // Extra anniversary/custom dates created with the person (FR-16).
+          events: pendingEvents.length > 0 ? pendingEvents : undefined,
+        });
         // Only touch the new birthday event when an override was actually set.
         const birthday = events.find((e) => e.type === 'birthday') ?? events[0];
         if (overrideOn && birthday) await applyOverride(birthday.id);
@@ -376,6 +535,7 @@ export default function AddPersonScreen() {
           <ActivityIndicator />
         </View>
       ) : (
+        <>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={{ flex: 1 }}>
@@ -451,6 +611,58 @@ export default function AddPersonScreen() {
               />
             ) : null}
 
+            {/* Other dates - anniversaries / custom events created with the
+                person (FR-16). Add mode only; editing manages these on the
+                profile, which already supports it. */}
+            {!isEdit ? (
+              <View>
+                <Label optional>Other dates</Label>
+                <View className="gap-2">
+                  {pendingEvents.map((ev, i) => {
+                    const meta = eventTypeMeta({ eventType: ev.type, customName: ev.customName ?? null });
+                    return (
+                      <View
+                        key={`${ev.type}-${i}`}
+                        className="flex-row items-center gap-3 rounded-md border border-border-subtle bg-surface px-3 py-2.5">
+                        <Icon icon={meta.Icon} size={18} color={t[meta.tokenKey]} />
+                        <View className="flex-1">
+                          <Text variant="body">{meta.label}</Text>
+                          <Text variant="caption" className="text-ink-muted">
+                            {formatEventDate(ev.date)}
+                          </Text>
+                        </View>
+                        <Pressable
+                          onPress={() => setPendingEvents((cur) => cur.filter((_, j) => j !== i))}
+                          hitSlop={8}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Remove ${meta.label}`}
+                          className={cn('rounded-full p-1', focusRing)}>
+                          <Icon icon={X} size={18} color={t.inkMuted} />
+                        </Pressable>
+                      </View>
+                    );
+                  })}
+                  <Pressable
+                    onPress={() => setEventSheetOpen(true)}
+                    accessibilityRole="button"
+                    accessibilityLabel="Add event"
+                    className={cn(
+                      'flex-row items-center justify-center gap-2 rounded-md border border-dashed border-border-strong py-3',
+                      focusRing,
+                    )}>
+                    <Icon icon={CalendarPlus} size={18} color={t.biro} />
+                    <Text variant="button" className="text-biro">
+                      Add event
+                    </Text>
+                  </Pressable>
+                </View>
+                <Text variant="caption" className="mt-1.5 text-ink-muted">
+                  Anniversaries or custom dates. They appear on the calendar and remind you like
+                  birthdays.
+                </Text>
+              </View>
+            ) : null}
+
             <View>
               <Select
                 label="Relationship"
@@ -512,8 +724,102 @@ export default function AddPersonScreen() {
               onChangeText={setPhone}
               placeholder="(555) 123-4567"
               keyboardType="phone-pad"
-              hint="Used only to open your own SMS with a prefilled greeting. Add a country code for numbers outside the US and Canada."
+              error={errors.phone}
+              hint="Used for the day-of greeting shortcut and auto-send SMS. Add a country code for numbers outside the US and Canada."
             />
+
+            <TextField
+              label="Email"
+              optional
+              value={email}
+              onChangeText={setEmail}
+              placeholder="emma@example.com"
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+              error={errors.email}
+              hint="Where an auto-sent birthday greeting would go."
+            />
+
+            {/* Auto-send birthday email (Stage 14) - only when provisioned. */}
+            {gmailAvailable ? (
+              <View>
+                <ToggleRow
+                  title="Auto-send birthday email"
+                  helper="Email a greeting on their birthday, sent from your Gmail as you."
+                  value={autoSendOn}
+                  disabled={connecting}
+                  onValueChange={onToggleAutoSend}
+                />
+                {connecting ? (
+                  <View className="mt-2 flex-row items-center gap-2">
+                    <ActivityIndicator color={t.biro} />
+                    <Text variant="caption" className="text-ink-muted">
+                      Connecting your Gmail…
+                    </Text>
+                  </View>
+                ) : autoSendOn ? (
+                  <View className="mt-1 gap-2 border-l-2 border-border-subtle pl-3">
+                    <TextField
+                      label="Message"
+                      value={autoSendMessage}
+                      onChangeText={setAutoSendMessage}
+                      placeholder={defaultBirthdayEmail(name)}
+                      multiline
+                      numberOfLines={3}
+                      maxLength={2000}
+                      autoCapitalize="sentences"
+                    />
+                    <Text variant="caption" className="text-ink-muted">
+                      {`Sends automatically to ${email.trim() || 'their email'} every year${
+                        user?.gmailEmail ? ` from ${user.gmailEmail}` : ''
+                      }. It arrives as a normal email from you — no “sent via an app” tag.`}
+                    </Text>
+                  </View>
+                ) : (
+                  <Text variant="caption" className="mt-1 text-ink-muted">
+                    {user?.gmailConnected
+                      ? 'Off. Your Gmail is connected and ready.'
+                      : "Off. You'll connect your Gmail when you turn this on."}
+                  </Text>
+                )}
+              </View>
+            ) : null}
+
+            {/* Auto-send birthday SMS (Stage 15) - only when Twilio is provisioned. */}
+            {smsAutoSendAvailable ? (
+              <View>
+                <ToggleRow
+                  title="Auto-send birthday SMS"
+                  helper="Text a greeting on their birthday, signed with your name."
+                  value={autoSmsOn}
+                  onValueChange={onToggleAutoSms}
+                />
+                {autoSmsOn ? (
+                  <View className="mt-1 gap-2 border-l-2 border-border-subtle pl-3">
+                    <TextField
+                      label="Message"
+                      value={autoSmsMessage}
+                      onChangeText={setAutoSmsMessage}
+                      placeholder={defaultBirthdaySms(name, user?.name || 'me')}
+                      multiline
+                      numberOfLines={2}
+                      maxLength={SMS_MAX}
+                      autoCapitalize="sentences"
+                    />
+                    <Text variant="caption" className="text-ink-muted">
+                      {`${autoSmsMessage.length}/${SMS_MAX} · Texts automatically to ${
+                        phone.trim() || 'their phone'
+                      } every year. Keep it short — one message. An emoji costs extra.`}
+                    </Text>
+                  </View>
+                ) : (
+                  <Text variant="caption" className="mt-1 text-ink-muted">
+                    Off. Sent from a shared number, signed with your name.
+                  </Text>
+                )}
+              </View>
+            ) : null}
 
             {/* Shared with - add to shared lists the user can edit (Stage 8). */}
             {availableLists.length > 0 ? (
@@ -539,7 +845,7 @@ export default function AddPersonScreen() {
             <View>
               <ToggleRow
                 title="Reminder override"
-                helper="Use custom lead times and channels just for this person."
+                helper="Use custom lead times, channels and time of day just for this person."
                 value={overrideOn}
                 onValueChange={onToggleOverride}
               />
@@ -548,6 +854,14 @@ export default function AddPersonScreen() {
                   <View>
                     <Label>Remind me ahead of time</Label>
                     <LeadTimeChips value={overrideLeadDays} onChange={setOverrideLeadDays} />
+                  </View>
+                  <View>
+                    <Label>Reminder time</Label>
+                    <ReminderTimePicker
+                      value={overrideTime}
+                      onChange={setOverrideTime}
+                      inheritLabel={defaultTimeInheritLabel(user?.defaultReminderTime)}
+                    />
                   </View>
                   <View>
                     <Label>Notify me by</Label>
@@ -577,6 +891,14 @@ export default function AddPersonScreen() {
             </Button>
           </ScrollView>
         </KeyboardAvoidingView>
+        {!isEdit ? (
+          <AddEventSheet
+            visible={eventSheetOpen}
+            onClose={() => setEventSheetOpen(false)}
+            onAdd={(draft) => setPendingEvents((cur) => [...cur, draft])}
+          />
+        ) : null}
+        </>
       )}
     </Screen>
   );

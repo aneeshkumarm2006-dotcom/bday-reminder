@@ -142,6 +142,9 @@ export type AuthUser = {
   defaultReminderTime?: string;
   /** First-run onboarding gate (Stage 7; FR-2/3). */
   hasOnboarded?: boolean;
+  /** Gmail send-as status for auto-send birthday emails (Stage 14). */
+  gmailConnected?: boolean;
+  gmailEmail?: string | null;
 };
 
 export type AuthResponse = {
@@ -180,9 +183,28 @@ export const authApi = {
     apiFetch<AuthUser>('/me', { method: 'PATCH', body: patch }),
 };
 
+// --- Gmail send-as integration (Stage 14) -----------------------------------
+
+export const gmailApi = {
+  /**
+   * Get the Google consent URL to open. `platform: 'app'` makes the backend
+   * callback return via the `circlethedate://gmail-connected` deep link.
+   */
+  connectUrl: () => apiFetch<{ url: string }>('/integrations/gmail/connect?platform=app'),
+
+  /** Disconnect Gmail (revokes + clears the stored token). */
+  disconnect: () => apiFetch<void>('/integrations/gmail', { method: 'DELETE' }),
+};
+
 // --- App config (Stage 5) ---------------------------------------------------
 
-export type AppConfig = { smsWhatsappMonthlyCap: number };
+export type AppConfig = {
+  smsWhatsappMonthlyCap: number;
+  /** Whether Gmail auto-send is provisioned on the server (Stage 14). */
+  gmailAutoSendAvailable?: boolean;
+  /** Whether Twilio SMS auto-send is provisioned on the server (Stage 15). */
+  smsAutoSendAvailable?: boolean;
+};
 
 export const configApi = {
   /** Business-configurable values the client shows but never hardcodes (FR-56). */
@@ -205,6 +227,12 @@ export type ChannelOverride = {
   inApp?: boolean;
 };
 
+/** Auto-send birthday greeting config for a person (Stage 14). */
+export type AutoBirthdayEmail = { enabled: boolean; message: string | null };
+
+/** Auto-send birthday SMS config for a person (Stage 15). */
+export type AutoBirthdaySms = { enabled: boolean; message: string | null };
+
 export type Person = {
   id: string;
   fullName: string;
@@ -214,6 +242,11 @@ export type Person = {
   dob: DateParts;
   feb29Rule: Feb29Rule;
   phone: string | null;
+  /** The friend's email + auto-send birthday greeting config (Stage 14). */
+  email: string | null;
+  autoBirthdayEmail: AutoBirthdayEmail;
+  /** Auto-send birthday SMS config, texted to `phone` (Stage 15). */
+  autoBirthdaySms: AutoBirthdaySms;
   lists: string[];
   /** Who last edited this entry, for the "Last edited by …" line (FR-45). */
   lastEditedBy?: { id: string; name: string } | null;
@@ -229,6 +262,7 @@ export type EventItem = {
   date: DateParts;
   leadDaysOverride: number[] | null;
   channelOverride: ChannelOverride | null;
+  reminderTimeOverride: string | null;
 };
 
 export type PersonWithEvents = { person: Person; events: EventItem[] };
@@ -262,6 +296,18 @@ export type UpcomingItem = {
 
 export type UpcomingResponse = { today: string; tags: string[]; items: UpcomingItem[] };
 
+/**
+ * An extra event ("other date" like an anniversary) created together with the
+ * person, so it's added in the same step as adding them (FR-16). Birthday is
+ * auto-created from the DOB, so only these two types are accepted here.
+ */
+export type CreatePersonEventInput = {
+  type: 'anniversary' | 'custom';
+  customName?: string | null;
+  date: { month: number; day: number; year?: number | null };
+  reminderTimeOverride?: string | null;
+};
+
 export type CreatePersonInput = {
   fullName: string;
   dob: { month: number; day: number; year?: number | null };
@@ -270,8 +316,15 @@ export type CreatePersonInput = {
   phone?: string | null;
   photoUrl?: string | null;
   feb29Rule?: Feb29Rule;
+  /** The friend's email + auto-send birthday greeting (Stage 14). */
+  email?: string | null;
+  autoBirthdayEmail?: { enabled: boolean; message?: string | null } | null;
+  /** Auto-send birthday SMS config, texted to `phone` (Stage 15). */
+  autoBirthdaySms?: { enabled: boolean; message?: string | null } | null;
   /** Shared lists to add this person to (Stage 8; caller must own or belong to them). */
   lists?: string[];
+  /** Extra anniversary/custom dates to create alongside the person (FR-16). */
+  events?: CreatePersonEventInput[];
 };
 export type UpdatePersonInput = Partial<CreatePersonInput>;
 
@@ -305,6 +358,7 @@ export const peopleApi = {
 export type EventOverrideInput = {
   leadDaysOverride?: number[] | null;
   channelOverride?: ChannelOverride | null;
+  reminderTimeOverride?: string | null;
 };
 
 /** Create an Anniversary/Custom event on a person (FR-16). Birthday is auto. */

@@ -15,6 +15,7 @@ import {
 } from '../lib/access';
 import { asyncHandler } from '../lib/async-handler';
 import { maxDayInMonth, resolveOccurrence, todayInTimeZone } from '../lib/dates';
+import { badRequest } from '../lib/http-error';
 import { normalizePhone } from '../lib/phone';
 import { serializeEvent, serializePerson, type PersonExtras } from '../lib/serialize';
 import { requireAuth } from '../middleware/require-auth';
@@ -24,7 +25,7 @@ import { Event, type EventDoc } from '../models/Event';
 import { Note } from '../models/Note';
 import { Person, type PersonDoc } from '../models/Person';
 import { Reminder } from '../models/Reminder';
-import { User } from '../models/User';
+import { User, type UserDoc } from '../models/User';
 
 /**
  * People + their birthday events (TODO Stage 3; FR-5/8/9/12/13/14/15). Creating
@@ -65,6 +66,38 @@ const photoUrlSchema = z
   .nullable()
   .optional();
 
+// Simple, permissive email shape - the friend's address, recipient of the
+// auto-send birthday greeting (Stage 14). Empty string / null clears it.
+const emailSchema = z
+  .string()
+  .trim()
+  .max(200)
+  .refine((v) => v === '' || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v), 'Enter a valid email address.')
+  .nullable()
+  .optional();
+
+// Auto-send toggle + editable greeting body (Stage 14). `null` clears the whole
+// config; `lastSentYear` is server-managed and never accepted from the client.
+const autoBirthdayEmailSchema = z
+  .object({
+    enabled: z.boolean(),
+    message: z.string().trim().max(2000).nullable().optional(),
+  })
+  .strict()
+  .nullable()
+  .optional();
+
+// Auto-send birthday SMS toggle + editable body (Stage 15). Same shape as email
+// but the message is capped at 160 chars to keep it within one SMS segment.
+const autoBirthdaySmsSchema = z
+  .object({
+    enabled: z.boolean(),
+    message: z.string().trim().max(160).nullable().optional(),
+  })
+  .strict()
+  .nullable()
+  .optional();
+
 const baseFields = {
   type: z.enum(['human', 'pet']).optional(),
   relationshipTag: z.string().trim().min(1).max(40).nullable().optional(),
@@ -73,15 +106,42 @@ const baseFields = {
   // Stored loosely (any region works); a bare 10-digit number is normalized to
   // NANP E.164 (+1) on save - see lib/phone.ts. No pattern, so we never reject.
   phone: z.string().trim().min(1).max(40).nullable().optional(),
+  email: emailSchema,
+  autoBirthdayEmail: autoBirthdayEmailSchema,
+  autoBirthdaySms: autoBirthdaySmsSchema,
   // Shared-list ids this person belongs to (Stage 8). The caller must own or
   // belong to every list they assign (FR-43/45).
   lists: z.array(z.string().trim().min(1)).optional(),
 };
 
+// An extra event (anniversary/custom) attached while creating the person, so
+// "other dates" can be added in one step instead of a follow-up POST /events
+// (FR-16). The birthday is still auto-created from the DOB, so only these two
+// types are accepted here; a custom event needs a name. Date rules reuse
+// `dobSchema` (month/day required, year optional, day-in-month checked).
+const createEventItemSchema = z
+  .object({
+    type: z.enum(['anniversary', 'custom']),
+    customName: z.string().trim().min(1).max(60).nullable().optional(),
+    date: dobSchema,
+    reminderTimeOverride: z
+      .string()
+      .regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Use a 24-hour time like 09:00.')
+      .nullable()
+      .optional(),
+  })
+  .strict()
+  .refine((e) => e.type !== 'custom' || !!e.customName?.trim(), {
+    message: 'Name this event so you know what it is.',
+    path: ['customName'],
+  });
+
 const createSchema = z
   .object({
     fullName: z.string().trim().min(1, 'Add a name so you know who this is.'),
     dob: dobSchema,
+    // Optional extra events created atomically with the person (see above).
+    events: z.array(createEventItemSchema).max(20).optional(),
     ...baseFields,
   })
   .strict();
@@ -141,6 +201,36 @@ async function lastEditedBy(person: PersonDoc): Promise<PersonExtras['lastEdited
   return editor ? { id: editor._id.toString(), name: editor.name } : null;
 }
 
+/** Trimmed lower-cased friend email, or undefined when blank (Stage 14). */
+function normalizeEmail(value: string | null | undefined): string | undefined {
+  const trimmed = value?.trim().toLowerCase();
+  return trimmed ? trimmed : undefined;
+}
+
+/**
+ * Guard enabling auto-send birthday email (Stage 14): it needs a recipient email
+ * on the person AND the caller's Gmail connected (the sender). Blocking a
+ * half-configured toggle keeps the confirm-once UX honest and the dispatch simple.
+ */
+function assertAutoSendAllowed(user: UserDoc, email: string | undefined, enabled: boolean): void {
+  if (!enabled) return;
+  if (!email) throw badRequest("Add this person's email before turning on auto-send.");
+  if (!user.gmailIntegration?.email) {
+    throw badRequest('Connect your Gmail before turning on auto-send.');
+  }
+}
+
+/**
+ * Guard enabling auto-send birthday SMS (Stage 15): it needs a recipient phone on
+ * the person. Unlike email there is NO per-user account check - the Twilio account
+ * is server-global, so a user can't "connect" it; the client hides the toggle when
+ * SMS auto-send isn't provisioned (GET /config `smsAutoSendAvailable`).
+ */
+function assertAutoSmsAllowed(phone: string | undefined, enabled: boolean): void {
+  if (!enabled) return;
+  if (!phone) throw badRequest("Add this person's phone before turning on auto-send SMS.");
+}
+
 /**
  * POST /people - create a Person and auto-create their Birthday Event (FR-5/12).
  * Name + DOB month/day are required; the year is optional. An optional `lists`
@@ -159,6 +249,14 @@ peopleRouter.post(
       lists = assertWritableLists(body.lists, access);
     }
 
+    const email = normalizeEmail(body.email);
+    const enabled = !!body.autoBirthdayEmail?.enabled;
+    assertAutoSendAllowed(req.user!, email, enabled);
+
+    const phone = normalizePhone(body.phone) ?? undefined;
+    const smsEnabled = !!body.autoBirthdaySms?.enabled;
+    assertAutoSmsAllowed(phone, smsEnabled);
+
     const person = await Person.create({
       owner: userId,
       lists,
@@ -168,24 +266,51 @@ peopleRouter.post(
       photoUrl: body.photoUrl ?? undefined,
       dob: { month: body.dob.month, day: body.dob.day, year: body.dob.year ?? undefined },
       feb29Rule: body.feb29Rule ?? 'feb28',
-      phone: normalizePhone(body.phone) ?? undefined,
+      phone,
+      email,
+      autoBirthdayEmail:
+        body.autoBirthdayEmail == null
+          ? undefined
+          : { enabled, message: body.autoBirthdayEmail.message?.trim() || undefined },
+      autoBirthdaySms:
+        body.autoBirthdaySms == null
+          ? undefined
+          : { enabled: smsEnabled, message: body.autoBirthdaySms.message?.trim() || undefined },
       createdBy: userId,
       updatedBy: userId,
     });
 
     // Every person has at least one event: their birthday, mirroring the DOB.
-    const event = await Event.create({
+    const birthday = await Event.create({
       person: person._id,
       type: 'birthday',
       date: { month: person.dob.month, day: person.dob.day, year: person.dob.year },
     });
 
+    // Any extra dates ("other things like anniversaries") requested with the
+    // person are created here too, so it's one atomic step (FR-16).
+    const events = [birthday];
+    if (body.events && body.events.length > 0) {
+      const extra = await Event.insertMany(
+        body.events.map((e) => ({
+          person: person._id,
+          type: e.type,
+          customName: e.type === 'custom' ? (e.customName ?? undefined) : undefined,
+          date: { month: e.date.month, day: e.date.day, year: e.date.year ?? undefined },
+          reminderTimeOverride:
+            e.reminderTimeOverride === undefined ? undefined : (e.reminderTimeOverride ?? null),
+        })),
+      );
+      events.push(...extra);
+    }
+
     // Schedule reminders for everyone who can see this person (owner + members).
+    // Runs once and covers all of the person's events, birthday and extras.
     await generateForPersonViewers(person);
 
     res.status(201).json({
       person: serializePerson(person, { lastEditedBy: await lastEditedBy(person) }),
-      events: [serializeEvent(event)],
+      events: events.map(serializeEvent),
     });
   }),
 );
@@ -273,6 +398,43 @@ peopleRouter.patch(
     if (patch.relationshipTag !== undefined) person.relationshipTag = patch.relationshipTag ?? undefined;
     if (patch.photoUrl !== undefined) person.photoUrl = patch.photoUrl ?? undefined;
     if (patch.phone !== undefined) person.phone = normalizePhone(patch.phone) ?? undefined;
+    if (patch.email !== undefined) person.email = normalizeEmail(patch.email);
+    if (patch.autoBirthdayEmail !== undefined) {
+      if (patch.autoBirthdayEmail === null) {
+        person.autoBirthdayEmail = undefined;
+      } else {
+        // Preserve the server-managed lastSentYear; only `message` undefined means
+        // "leave as-is" (null/'' clears it → the default copy is used at send time).
+        const prev = person.autoBirthdayEmail;
+        const nextMessage =
+          patch.autoBirthdayEmail.message === undefined
+            ? prev?.message
+            : patch.autoBirthdayEmail.message?.trim() || undefined;
+        person.autoBirthdayEmail = {
+          enabled: patch.autoBirthdayEmail.enabled,
+          message: nextMessage,
+          lastSentYear: prev?.lastSentYear,
+        };
+      }
+    }
+    if (patch.autoBirthdaySms !== undefined) {
+      if (patch.autoBirthdaySms === null) {
+        person.autoBirthdaySms = undefined;
+      } else {
+        // Preserve the server-managed lastSentYear; only `message` undefined means
+        // "leave as-is" (null/'' clears it → the default copy is used at send time).
+        const prev = person.autoBirthdaySms;
+        const nextMessage =
+          patch.autoBirthdaySms.message === undefined
+            ? prev?.message
+            : patch.autoBirthdaySms.message?.trim() || undefined;
+        person.autoBirthdaySms = {
+          enabled: patch.autoBirthdaySms.enabled,
+          message: nextMessage,
+          lastSentYear: prev?.lastSentYear,
+        };
+      }
+    }
     if (patch.feb29Rule !== undefined) person.feb29Rule = patch.feb29Rule;
     if (patch.dob !== undefined) {
       person.dob = { month: patch.dob.month, day: patch.dob.day, year: patch.dob.year ?? undefined };
@@ -287,6 +449,22 @@ peopleRouter.patch(
         patch.lists,
         access,
       ) as unknown as PersonDoc['lists'];
+    }
+    // Auto-send needs a recipient email + the owner's Gmail (checked against the
+    // post-patch email). The sender is always the person's owner, so validate
+    // against them, not necessarily the (possibly shared) editor.
+    if (patch.email !== undefined || patch.autoBirthdayEmail !== undefined) {
+      const owner = person.owner.equals(user._id) ? user : await User.findById(person.owner);
+      assertAutoSendAllowed(
+        owner ?? user,
+        person.email,
+        !!person.autoBirthdayEmail?.enabled,
+      );
+    }
+    // Auto-send SMS just needs a recipient phone (no per-user account); validate
+    // against the post-patch phone.
+    if (patch.phone !== undefined || patch.autoBirthdaySms !== undefined) {
+      assertAutoSmsAllowed(person.phone, !!person.autoBirthdaySms?.enabled);
     }
     person.updatedBy = user._id;
     await person.save();

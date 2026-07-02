@@ -73,3 +73,34 @@ export function reminderHeadline(input: Pick<ReminderCopyInput, 'name' | 'eventT
 export function greetingTemplate(name: string): string {
   return `Happy birthday, ${name}! 🎉`;
 }
+
+/** First name (or the whole name if single-word), for personal email copy. */
+function firstName(name: string): string {
+  const trimmed = name.trim();
+  return trimmed.split(/\s+/)[0] || trimmed;
+}
+
+/**
+ * Auto-send birthday email copy (Stage 14). This is a PERSONAL message the user
+ * sends to the friend from their own Gmail - deliberately plain and warm, with no
+ * app branding, so it reads like something the user typed. The subject is fixed;
+ * the body is the default the user sees (and can edit) when enabling auto-send.
+ */
+export function birthdayEmailSubject(name: string): string {
+  return `Happy Birthday, ${firstName(name)}!`;
+}
+
+export function birthdayEmailBody(name: string): string {
+  return `Happy birthday, ${firstName(name)}! Hope you have a wonderful day. 🎉`;
+}
+
+/**
+ * Auto-send birthday SMS copy (Stage 15). Deliberately SHORT and emoji-free to
+ * stay within one GSM-7 segment (160 chars) - an emoji would flip the whole
+ * message to pricier UCS-2. Signed with the sender's name because the friend
+ * sees an app-owned Twilio number, not the user's, so the name is how they know
+ * who it's from. This is the default the user sees (and can edit) when enabling.
+ */
+export function birthdaySmsBody(name: string, senderName: string): string {
+  return `Happy birthday, ${firstName(name)}! Hope you have a great day. - ${senderName}`;
+}

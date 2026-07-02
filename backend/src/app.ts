@@ -14,6 +14,7 @@ import { configRouter } from './routes/config';
 import { devRouter } from './routes/dev';
 import { eventsRouter } from './routes/events';
 import { importRouter } from './routes/import';
+import { integrationsRouter } from './routes/integrations';
 import { invitesRouter } from './routes/invites';
 import { listsRouter } from './routes/lists';
 import { meRouter } from './routes/me';
@@ -114,6 +115,7 @@ export function createApp(): Express {
   app.use('/lists', listsRouter);
   app.use('/invites', invitesRouter);
   app.use('/import', importRouter);
+  app.use('/integrations', integrationsRouter);
   app.use('/reminders', remindersRouter);
   app.use('/upcoming', upcomingRouter);
   app.use('/uploads', uploadsRouter);

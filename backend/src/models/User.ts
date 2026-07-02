@@ -29,6 +29,20 @@ export interface CalendarSync {
   lists: Types.ObjectId[];
 }
 
+/**
+ * Gmail send-as integration (Stage 14). Present once the user connects their
+ * Google account so the app can auto-send birthday greetings AS them via
+ * `gmail.send`. `refreshTokenEnc` is the AES-256-GCM-encrypted OAuth refresh
+ * token (never returned by default); `email` is the connected Gmail address.
+ * Absent/unset means "not connected".
+ */
+export interface GmailIntegration {
+  email: string;
+  refreshTokenEnc: string;
+  scope?: string;
+  connectedAt: Date;
+}
+
 export interface UserDoc {
   _id: Types.ObjectId;
   name: string;
@@ -47,6 +61,8 @@ export interface UserDoc {
   onboardedAt?: Date;
   /** Subscribable calendar feed settings (Stage 9, FR-38/39/40). */
   calendarSync: CalendarSync;
+  /** Connected Gmail for send-as birthday greetings (Stage 14); unset until connected. */
+  gmailIntegration?: GmailIntegration;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -73,6 +89,17 @@ const calendarSyncSchema = new Schema<CalendarSync>(
   { _id: false },
 );
 
+const gmailIntegrationSchema = new Schema<GmailIntegration>(
+  {
+    email: { type: String, required: true, trim: true, lowercase: true },
+    // The encrypted refresh token is a credential - never serialize it by default.
+    refreshTokenEnc: { type: String, required: true, select: false },
+    scope: { type: String },
+    connectedAt: { type: Date, default: () => new Date() },
+  },
+  { _id: false },
+);
+
 const userSchema = new Schema<UserDoc>(
   {
     name: { type: String, required: true, trim: true },
@@ -90,6 +117,7 @@ const userSchema = new Schema<UserDoc>(
     pushTokens: { type: [String], default: () => [] },
     onboardedAt: { type: Date },
     calendarSync: { type: calendarSyncSchema, default: () => ({}) },
+    gmailIntegration: { type: gmailIntegrationSchema, default: undefined },
   },
   { timestamps: true },
 );

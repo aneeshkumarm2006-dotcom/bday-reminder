@@ -165,13 +165,15 @@ const TIME_OPTIONS = Array.from({ length: 48 }, (_, i) => {
 export function ReminderTimePicker({
   value,
   onChange,
+  inheritLabel,
 }: {
   value: string;
   onChange: (next: string) => void;
+  /** When set, adds a leading "inherit" option (value "") that clears a per-event override. */
+  inheritLabel?: string;
 }) {
-  const options = TIME_OPTIONS.some((o) => o.value === value)
-    ? TIME_OPTIONS
-    : [{ label: value, value }, ...TIME_OPTIONS];
+  const base = inheritLabel ? [{ label: inheritLabel, value: "" }, ...TIME_OPTIONS] : TIME_OPTIONS;
+  const options = base.some((o) => o.value === value) ? base : [{ label: value, value }, ...base];
   return (
     <Select value={value} onChange={(e) => onChange(e.target.value)}>
       {options.map((o) => (
@@ -181,6 +183,17 @@ export function ReminderTimePicker({
       ))}
     </Select>
   );
+}
+
+/**
+ * Label for the per-event "use my default" option, e.g. "Default (9:00 AM)",
+ * built from the user's global `defaultReminderTime` so it stays accurate.
+ */
+export function defaultTimeInheritLabel(hhmm: string | undefined): string {
+  const m = /^(\d{2}):(\d{2})$/.exec(hhmm ?? "09:00");
+  const hour = m ? Number(m[1]) : 9;
+  const minute = m ? Number(m[2]) : 0;
+  return `Default (${timeLabel(hour, minute)})`;
 }
 
 export const DEFAULT_CHANNELS: ChannelPreferences = {

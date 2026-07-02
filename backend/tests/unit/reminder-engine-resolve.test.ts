@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { resolveChannels, resolveLeadDays } from '../../src/jobs/reminder-engine';
+import { resolveChannels, resolveLeadDays, resolveReminderTime } from '../../src/jobs/reminder-engine';
 import { CHANNEL_KEYS } from '../../src/models/common';
 import type { EventDoc } from '../../src/models/Event';
 import type { UserDoc } from '../../src/models/User';
@@ -14,16 +14,19 @@ import type { UserDoc } from '../../src/models/User';
 const makeUser = (over: Partial<{
   channelPreferences: { push: boolean; email: boolean; sms: boolean; inApp: boolean };
   defaultLeadDays: number[];
+  defaultReminderTime: string;
 }> = {}): UserDoc =>
   ({
     channelPreferences: { push: true, email: false, sms: false, inApp: true },
     defaultLeadDays: [7, 1, 0],
+    defaultReminderTime: '09:00',
     ...over,
   }) as unknown as UserDoc;
 
 const makeEvent = (over: Partial<{
   channelOverride: Partial<Record<string, boolean>> | null;
   leadDaysOverride: number[] | null;
+  reminderTimeOverride: string | null;
 }> = {}): EventDoc => ({ ...over }) as unknown as EventDoc;
 
 describe('reminder-engine: resolveChannels (FR-19)', () => {
@@ -78,5 +81,22 @@ describe('reminder-engine: resolveLeadDays (FR-21)', () => {
   it('applies the same validation to user defaults when no override is present', () => {
     const user = makeUser({ defaultLeadDays: [-5, 14, 14, 400, 2.2, 3] });
     expect(resolveLeadDays(user, makeEvent())).toEqual([14, 3]);
+  });
+});
+
+describe('reminder-engine: resolveReminderTime (FR-22)', () => {
+  it('with no override returns the user default reminder time', () => {
+    const user = makeUser({ defaultReminderTime: '08:30' });
+    expect(resolveReminderTime(user, makeEvent())).toBe('08:30');
+  });
+
+  it('an event reminderTimeOverride wins over the user default', () => {
+    const user = makeUser({ defaultReminderTime: '09:00' });
+    expect(resolveReminderTime(user, makeEvent({ reminderTimeOverride: '18:00' }))).toBe('18:00');
+  });
+
+  it('a null override falls back to the user default', () => {
+    const user = makeUser({ defaultReminderTime: '09:00' });
+    expect(resolveReminderTime(user, makeEvent({ reminderTimeOverride: null }))).toBe('09:00');
   });
 });

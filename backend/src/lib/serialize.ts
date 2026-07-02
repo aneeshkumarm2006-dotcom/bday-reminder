@@ -26,6 +26,11 @@ export function serializeUser(user: UserDoc) {
     defaultReminderTime: user.defaultReminderTime,
     // Drives the first-run onboarding gate in the app (Stage 7, FR-2/3).
     hasOnboarded: !!user.onboardedAt,
+    // Gmail send-as status for auto-send birthday emails (Stage 14). The token is
+    // never exposed; the client only needs to know whether it's connected + which
+    // address, to gate the auto-send toggle and show the Settings card.
+    gmailConnected: !!user.gmailIntegration?.email,
+    gmailEmail: user.gmailIntegration?.email ?? null,
   };
 }
 
@@ -73,6 +78,18 @@ export function serializePerson(person: PersonDoc, extras: PersonExtras = {}) {
     dob: { month: person.dob.month, day: person.dob.day, year: person.dob.year ?? null },
     feb29Rule: person.feb29Rule,
     phone: person.phone ?? null,
+    // The friend's email + auto-send birthday greeting config (Stage 14). Only the
+    // client-relevant bits (enabled + editable message) are exposed - the internal
+    // lastSentYear guard stays server-side.
+    email: person.email ?? null,
+    autoBirthdayEmail: person.autoBirthdayEmail
+      ? { enabled: person.autoBirthdayEmail.enabled, message: person.autoBirthdayEmail.message ?? null }
+      : { enabled: false, message: null },
+    // The friend's auto-send birthday SMS config (Stage 15). Same shape; the
+    // internal lastSentYear guard stays server-side.
+    autoBirthdaySms: person.autoBirthdaySms
+      ? { enabled: person.autoBirthdaySms.enabled, message: person.autoBirthdaySms.message ?? null }
+      : { enabled: false, message: null },
     lists: person.lists.map((id) => id.toString()),
     // Shared-list attribution (Stage 8); omitted on personal-only contexts that don't pass it.
     ...(extras.lastEditedBy !== undefined ? { lastEditedBy: extras.lastEditedBy } : {}),
@@ -120,6 +137,7 @@ export function serializeEvent(event: EventDoc) {
     date: { month: event.date.month, day: event.date.day, year: event.date.year ?? null },
     leadDaysOverride: event.leadDaysOverride ?? null,
     channelOverride: event.channelOverride ?? null,
+    reminderTimeOverride: event.reminderTimeOverride ?? null,
   };
 }
 

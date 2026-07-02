@@ -35,6 +35,24 @@ describe('people & birthdays (FR-5/8/9/12/13/14/15)', () => {
     expect(body.events[0].date.day).toBe(22);
   });
 
+  it('POST /people with extra events carries a per-event reminderTimeOverride', async () => {
+    const u = await signUp(api);
+    const { status, body } = await addPerson(api, u.auth, {
+      fullName: 'Nina',
+      dob: { month: 3, day: 14, year: 1990 },
+      events: [
+        { type: 'anniversary', date: { month: 6, day: 1, year: 2015 }, reminderTimeOverride: '07:30' },
+      ],
+    });
+    expect(status).toBe(201);
+    const anniversary = body.events.find((e: { type: string }) => e.type === 'anniversary');
+    expect(anniversary).toBeTruthy();
+    expect(anniversary.reminderTimeOverride).toBe('07:30');
+    // The birthday, created without an override, inherits the default.
+    const birthday = body.events.find((e: { type: string }) => e.type === 'birthday');
+    expect(birthday.reminderTimeOverride).toBeNull();
+  });
+
   it('POST /people without a year → 201 (year optional, serialized null)', async () => {
     const u = await signUp(api);
     const { status, body } = await addPerson(api, u.auth, {
@@ -64,6 +82,69 @@ describe('people & birthdays (FR-5/8/9/12/13/14/15)', () => {
     });
     expect(status).toBe(201);
     expect(body.person.type).toBe('pet');
+  });
+
+  it('POST /people with events → 201, creates the extra dates alongside the birthday (FR-16)', async () => {
+    const u = await signUp(api);
+    const { status, body } = await addPerson(api, u.auth, {
+      fullName: 'Emma Carter',
+      dob: { month: 6, day: 22, year: 1996 },
+      events: [
+        { type: 'anniversary', date: { month: 9, day: 1 } },
+        { type: 'custom', customName: 'Gotcha day', date: { month: 3, day: 15, year: 2020 } },
+      ],
+    });
+    expect(status).toBe(201);
+    // Birthday + the two extras all come back.
+    expect(body.events).toHaveLength(3);
+    expect(body.events.map((e: { type: string }) => e.type).sort()).toEqual([
+      'anniversary',
+      'birthday',
+      'custom',
+    ]);
+    const custom = body.events.find((e: { type: string }) => e.type === 'custom');
+    expect(custom.customName).toBe('Gotcha day');
+    expect(custom.date).toMatchObject({ month: 3, day: 15, year: 2020 });
+
+    // All three surface on the calendar feed, keyed by event type.
+    const cal = await api.get('/calendar/events').set('Authorization', u.auth);
+    expect(cal.status).toBe(200);
+    const mine = cal.body.events.filter((e: { personId: string }) => e.personId === body.person.id);
+    expect(mine.map((e: { eventType: string }) => e.eventType).sort()).toEqual([
+      'anniversary',
+      'birthday',
+      'custom',
+    ]);
+  });
+
+  it('POST /people with a custom event but no name → 400', async () => {
+    const u = await signUp(api);
+    const { status } = await addPerson(api, u.auth, {
+      fullName: 'No Name Event',
+      dob: { month: 1, day: 1 },
+      events: [{ type: 'custom', date: { month: 5, day: 5 } }],
+    });
+    expect(status).toBe(400);
+  });
+
+  it('POST /people with an impossible event date (Feb 30) → 400', async () => {
+    const u = await signUp(api);
+    const { status } = await addPerson(api, u.auth, {
+      fullName: 'Bad Event Date',
+      dob: { month: 1, day: 1 },
+      events: [{ type: 'anniversary', date: { month: 2, day: 30 } }],
+    });
+    expect(status).toBe(400);
+  });
+
+  it('POST /people rejects a birthday in the events array → 400 (birthday is auto-created)', async () => {
+    const u = await signUp(api);
+    const { status } = await addPerson(api, u.auth, {
+      fullName: 'Extra Birthday',
+      dob: { month: 1, day: 1 },
+      events: [{ type: 'birthday', date: { month: 2, day: 2 } }],
+    });
+    expect(status).toBe(400);
   });
 
   it('POST /people without a token → 401', async () => {

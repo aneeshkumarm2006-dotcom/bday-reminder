@@ -2,7 +2,12 @@ import cron from 'node-cron';
 
 import { loadEnv } from '../lib/env';
 import { logger } from '../lib/logger';
-import { dispatchDue, generateForAllUsers } from './reminder-engine';
+import {
+  dispatchBirthdayGreetings,
+  dispatchBirthdaySms,
+  dispatchDue,
+  generateForAllUsers,
+} from './reminder-engine';
 
 /**
  * Scheduled jobs (TODO Stage 4; FR-22/51-53). The ⭐ dispatcher runs frequently
@@ -44,6 +49,20 @@ async function tickDispatch(): Promise<void> {
     }
   } catch (err) {
     logger.error('dispatch tick failed', err instanceof Error ? err.message : err);
+  }
+  // Auto-send birthday greetings (Stage 14) - independent of the reminder feed,
+  // best-effort, and never allowed to break the reminder dispatch above.
+  try {
+    await dispatchBirthdayGreetings(new Date());
+  } catch (err) {
+    logger.error('greeting tick failed', err instanceof Error ? err.message : err);
+  }
+  // Auto-send birthday SMS (Stage 15) - likewise independent and best-effort, in
+  // its own guard so a Twilio failure never breaks reminders or email greetings.
+  try {
+    await dispatchBirthdaySms(new Date());
+  } catch (err) {
+    logger.error('sms greeting tick failed', err instanceof Error ? err.message : err);
   }
 }
 

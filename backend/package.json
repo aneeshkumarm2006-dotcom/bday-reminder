@@ -31,7 +31,9 @@
     "smoke:stage7": "tsx scripts/smoke-stage7.ts",
     "smoke:stage8": "tsx scripts/smoke-stage8.ts",
     "smoke:stage9": "tsx scripts/smoke-stage9.ts",
-    "smoke:stage12": "tsx scripts/smoke-stage12.ts"
+    "smoke:stage12": "tsx scripts/smoke-stage12.ts",
+    "smoke:autosend": "tsx scripts/smoke-autosend.ts",
+    "smoke:autosms": "tsx scripts/smoke-autosms.ts"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

@@ -1,25 +1,59 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { ImagePlus, Loader2 } from "lucide-react";
+import { CalendarPlus, ImagePlus, Loader2, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { AddEventDialog } from "@/components/app/add-event-dialog";
 import { DatePartsField, type DatePartsValue } from "@/components/app/date-parts-field";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Chip } from "@/components/ui/chip";
-import { Input, TextField } from "@/components/ui/input";
+import { Input, TextField, Textarea } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { ToggleRow } from "@/components/ui/switch";
 import { useToast } from "@/components/ui/toast";
 import {
+  configApi,
+  gmailApi,
   listsApi,
   peopleApi,
   uploadsApi,
+  type CreatePersonEventInput,
   type Feb29Rule,
   type PersonType,
   type PersonWithEvents,
 } from "@/lib/api";
+import { monthAbbr } from "@/lib/dates";
+import { eventTypeMeta } from "@/lib/event-style";
+import { useAuth } from "@/providers/auth-provider";
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/** Default auto-send greeting body - mirrors the server default (Stage 14). */
+function defaultBirthdayEmail(name: string): string {
+  const first = name.trim().split(/\s+/)[0] || "there";
+  return `Happy birthday, ${first}! Hope you have a wonderful day. 🎉`;
+}
+
+/** Cap for the auto-send SMS body - one GSM-7 segment (Stage 15). */
+const SMS_MAX = 160;
+
+/**
+ * Default auto-send SMS body - mirrors the server's `birthdaySmsBody`. Short and
+ * emoji-free (one segment) and signed with the sender's name, since the friend
+ * sees an app-owned Twilio number, not the user's (Stage 15).
+ */
+function defaultBirthdaySms(name: string, senderName: string): string {
+  const first = name.trim().split(/\s+/)[0] || "there";
+  return `Happy birthday, ${first}! Hope you have a great day. - ${senderName}`;
+}
+
+/** Short human date for a pending-event row, e.g. "Jun 12" or "Jun 12, 1990". */
+function formatEventDate(date: { month: number; day: number; year?: number | null }): string {
+  return `${monthAbbr(date.month)} ${date.day}${date.year != null ? `, ${date.year}` : ""}`;
+}
 
 /**
  * Add / edit person form (FR-5/8/10/13/14/15). Birthday is set here via DOB and
@@ -46,6 +80,7 @@ export function PersonForm({
 }) {
   const router = useRouter();
   const { toast } = useToast();
+  const { user, refreshUser } = useAuth();
   const person = existing?.person;
 
   const birthday = existing?.events.find((e) => e.type === "birthday");
@@ -65,12 +100,77 @@ export function PersonForm({
   const [customTag, setCustomTag] = useState<string>(presetTag ? "" : (person?.relationshipTag ?? ""));
   const [useCustom, setUseCustom] = useState<boolean>(!!person?.relationshipTag && !presetTag);
   const [phone, setPhone] = useState(person?.phone ?? "");
+  const [email, setEmail] = useState(person?.email ?? "");
+  const [autoSendOn, setAutoSendOn] = useState(person?.autoBirthdayEmail?.enabled ?? false);
+  const [autoSendMessage, setAutoSendMessage] = useState(person?.autoBirthdayEmail?.message ?? "");
+  const [autoSmsOn, setAutoSmsOn] = useState(person?.autoBirthdaySms?.enabled ?? false);
+  const [autoSmsMessage, setAutoSmsMessage] = useState(person?.autoBirthdaySms?.message ?? "");
+  const [connectingGmail, setConnectingGmail] = useState(false);
   const [photoUrl, setPhotoUrl] = useState<string | null>(person?.photoUrl ?? null);
   const [selectedLists, setSelectedLists] = useState<string[]>(person?.lists ?? []);
   const [uploading, setUploading] = useState(false);
   const [busy, setBusy] = useState(false);
 
+  // Extra dates (anniversary/custom) added while creating the person; held
+  // locally and saved atomically with them (add mode only - editing manages
+  // events from the profile). Reuses the detail page's AddEventDialog.
+  const [pendingEvents, setPendingEvents] = useState<CreatePersonEventInput[]>([]);
+  const [eventDialogOpen, setEventDialogOpen] = useState(false);
+
   const { data: listsData } = useQuery({ queryKey: ["lists"], queryFn: () => listsApi.list() });
+  const { data: config } = useQuery({ queryKey: ["config"], queryFn: () => configApi.get() });
+
+  // Enabling auto-send needs a recipient email + a connected Gmail. If Gmail isn't
+  // linked yet we open the consent flow in a new tab (so this form isn't lost);
+  // once they connect there and come back, toggling again picks it up. The
+  // revealed message + Save is the one-time confirmation.
+  const onToggleAutoSend = async (on: boolean) => {
+    if (!on) {
+      setAutoSendOn(false);
+      return;
+    }
+    if (!EMAIL_RE.test(email.trim())) {
+      toast({ message: "Add this person's email first.", tone: "error" });
+      return;
+    }
+    let connected = user?.gmailConnected ?? false;
+    if (!connected) {
+      const me = await refreshUser(); // maybe they connected in another tab
+      connected = me?.gmailConnected ?? false;
+    }
+    if (!connected) {
+      setConnectingGmail(true);
+      try {
+        const { url } = await gmailApi.connectUrl();
+        window.open(url, "_blank", "noopener,noreferrer");
+        toast({ message: "Connect your Gmail in the new tab, then switch this on.", tone: "success" });
+      } catch {
+        toast({ message: "Couldn't start the Gmail connection. Try again.", tone: "error" });
+      } finally {
+        setConnectingGmail(false);
+      }
+      return; // leave the toggle off until Gmail is connected
+    }
+    if (!autoSendMessage.trim()) setAutoSendMessage(defaultBirthdayEmail(fullName));
+    setAutoSendOn(true);
+  };
+
+  // Auto-send SMS is simpler than email: no per-user account to connect (one
+  // shared Twilio account), so we only need a recipient phone on the person.
+  const onToggleAutoSms = (on: boolean) => {
+    if (!on) {
+      setAutoSmsOn(false);
+      return;
+    }
+    if (!phone.trim()) {
+      toast({ message: "Add this person's phone first.", tone: "error" });
+      return;
+    }
+    if (!autoSmsMessage.trim()) {
+      setAutoSmsMessage(defaultBirthdaySms(fullName, user?.name || "me"));
+    }
+    setAutoSmsOn(true);
+  };
 
   const isLeapDay = date.month === 2 && date.day === 29;
 
@@ -98,6 +198,19 @@ export function PersonForm({
       toast({ message: "Add a name.", tone: "error" });
       return;
     }
+    const trimmedEmail = email.trim();
+    if (trimmedEmail && !EMAIL_RE.test(trimmedEmail)) {
+      toast({ message: "Enter a valid email address.", tone: "error" });
+      return;
+    }
+    if (autoSendOn && !trimmedEmail) {
+      toast({ message: "Add an email so the birthday greeting has somewhere to go.", tone: "error" });
+      return;
+    }
+    if (autoSmsOn && !phone.trim()) {
+      toast({ message: "Add a phone so the birthday SMS has somewhere to go.", tone: "error" });
+      return;
+    }
     const relationshipTag = useCustom ? customTag.trim() || null : tag || null;
     const payload = {
       fullName: fullName.trim(),
@@ -106,6 +219,15 @@ export function PersonForm({
       feb29Rule: isLeapDay ? feb29Rule : ("feb28" as Feb29Rule),
       relationshipTag,
       phone: phone.trim() || null,
+      email: trimmedEmail || null,
+      autoBirthdayEmail: {
+        enabled: autoSendOn,
+        message: autoSendMessage.trim() || null,
+      },
+      autoBirthdaySms: {
+        enabled: autoSmsOn,
+        message: autoSmsMessage.trim() || null,
+      },
       photoUrl,
       lists: selectedLists,
     };
@@ -117,7 +239,11 @@ export function PersonForm({
         toast({ message: "Saved.", tone: "success" });
         router.replace(`/people/${person.id}`);
       } else {
-        const { person: created } = await peopleApi.create(payload);
+        const { person: created } = await peopleApi.create({
+          ...payload,
+          // Extra anniversary/custom dates created with the person (FR-16).
+          events: pendingEvents.length > 0 ? pendingEvents : undefined,
+        });
         toast({ message: "Person added.", tone: "success" });
         router.replace(`/people/${created.id}`);
       }
@@ -187,6 +313,51 @@ export function PersonForm({
         </div>
       )}
 
+      {/* Other dates - anniversaries / custom events created with the person
+          (FR-16). Add mode only; editing manages these on the profile. */}
+      {!person && (
+        <div>
+          <label className="mb-1.5 block text-sm font-medium text-ink-secondary">Other dates</label>
+          <div className="flex flex-col gap-2">
+            {pendingEvents.map((ev, i) => {
+              const meta = eventTypeMeta({ eventType: ev.type, customName: ev.customName ?? null });
+              const EventIcon = meta.Icon;
+              return (
+                <div
+                  key={`${ev.type}-${i}`}
+                  className="flex items-center gap-3 rounded-lg border border-border-subtle bg-surface px-3 py-2.5"
+                >
+                  <EventIcon size={18} className={`shrink-0 ${meta.textClass}`} aria-hidden="true" />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-ink">{meta.label}</p>
+                    <p className="text-xs text-ink-muted">{formatEventDate(ev.date)}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setPendingEvents((cur) => cur.filter((_, j) => j !== i))}
+                    aria-label={`Remove ${meta.label}`}
+                    className="rounded-full p-1 text-ink-muted transition-colors hover:text-ink"
+                  >
+                    <X size={18} aria-hidden="true" />
+                  </button>
+                </div>
+              );
+            })}
+            <button
+              type="button"
+              onClick={() => setEventDialogOpen(true)}
+              className="flex items-center justify-center gap-2 rounded-lg border border-dashed border-border-strong py-3 text-sm font-medium text-biro transition-colors hover:bg-surface"
+            >
+              <CalendarPlus size={18} aria-hidden="true" />
+              Add event
+            </button>
+          </div>
+          <p className="mt-1.5 text-xs text-ink-muted">
+            Anniversaries or custom dates. They appear on the calendar and remind you like birthdays.
+          </p>
+        </div>
+      )}
+
       {/* Relationship tag */}
       <div>
         <label className="mb-1.5 block text-sm font-medium text-ink-secondary">Relationship</label>
@@ -227,6 +398,85 @@ export function PersonForm({
         onChange={(e) => setPhone(e.target.value)}
       />
 
+      {/* Email */}
+      <TextField
+        label="Email (optional)"
+        type="email"
+        autoComplete="off"
+        helper="Where an auto-sent birthday greeting would go."
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+      />
+
+      {/* Auto-send birthday email (Stage 14) - only when provisioned. */}
+      {config?.gmailAutoSendAvailable && (
+        <div>
+          <ToggleRow
+            label="Auto-send birthday email"
+            description="Email a greeting on their birthday, sent from your Gmail as you."
+            checked={autoSendOn}
+            disabled={connectingGmail}
+            onCheckedChange={onToggleAutoSend}
+          />
+          {autoSendOn ? (
+            <div className="mt-2 border-l-2 border-border-subtle pl-3">
+              <label className="mb-1.5 block text-sm font-medium text-ink-secondary">Message</label>
+              <Textarea
+                value={autoSendMessage}
+                maxLength={2000}
+                placeholder={defaultBirthdayEmail(fullName)}
+                onChange={(e) => setAutoSendMessage(e.target.value)}
+              />
+              <p className="mt-1.5 text-xs text-ink-muted">
+                Sends automatically to {email.trim() || "their email"} every year
+                {user?.gmailEmail ? ` from ${user.gmailEmail}` : ""}. It arrives as a normal email
+                from you — no “sent via an app” tag.
+              </p>
+            </div>
+          ) : (
+            <p className="mt-1 text-xs text-ink-muted">
+              {user?.gmailConnected
+                ? "Off. Your Gmail is connected and ready."
+                : "Off. You'll connect your Gmail when you turn this on."}
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Auto-send birthday SMS (Stage 15) - only when Twilio is provisioned. */}
+      {config?.smsAutoSendAvailable && (
+        <div>
+          <ToggleRow
+            label="Auto-send birthday SMS"
+            description="Text a greeting on their birthday, signed with your name."
+            checked={autoSmsOn}
+            onCheckedChange={onToggleAutoSms}
+          />
+          {autoSmsOn ? (
+            <div className="mt-2 border-l-2 border-border-subtle pl-3">
+              <label className="mb-1.5 block text-sm font-medium text-ink-secondary">Message</label>
+              <Textarea
+                value={autoSmsMessage}
+                maxLength={SMS_MAX}
+                placeholder={defaultBirthdaySms(fullName, user?.name || "me")}
+                onChange={(e) => setAutoSmsMessage(e.target.value)}
+              />
+              <p className="mt-1.5 text-xs text-ink-muted">
+                <span className="tabular-nums">
+                  {autoSmsMessage.length}/{SMS_MAX}
+                </span>{" "}
+                · Texts automatically to {phone.trim() || "their phone"} every year. Keep it short —
+                one message. An emoji costs extra.
+              </p>
+            </div>
+          ) : (
+            <p className="mt-1 text-xs text-ink-muted">
+              Off. Sent from a shared number, signed with your name.
+            </p>
+          )}
+        </div>
+      )}
+
       {/* Lists */}
       {listsData && listsData.lists.length > 0 && (
         <div>
@@ -259,6 +509,15 @@ export function PersonForm({
           Cancel
         </Button>
       </div>
+
+      {/* Draft-mode event picker for the "Other dates" section (add only). */}
+      {!person && (
+        <AddEventDialog
+          open={eventDialogOpen}
+          onClose={() => setEventDialogOpen(false)}
+          onAdd={(draft) => setPendingEvents((cur) => [...cur, draft])}
+        />
+      )}
     </form>
   );
 }

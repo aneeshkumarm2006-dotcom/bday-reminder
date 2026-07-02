@@ -19,10 +19,24 @@
 import { dispatchToChannels, type ReminderPayload } from '../channels';
 import { accessiblePeopleFilter } from '../lib/access';
 import { ageTurning, daysUntil, resolveOccurrence, todayInTimeZone } from '../lib/dates';
+import {
+  autoSmsPeriod,
+  getAutoSmsUsage,
+  incrementAutoSmsUsage,
+  twilioMonthlyCap,
+} from '../lib/auto-sms-usage';
+import { sendGmailAs, type GmailSender } from '../lib/gmail-send';
 import { logger } from '../lib/logger';
-import { reminderHeadline, reminderMessage } from '../lib/reminder-content';
+import {
+  birthdayEmailBody,
+  birthdayEmailSubject,
+  birthdaySmsBody,
+  reminderHeadline,
+  reminderMessage,
+} from '../lib/reminder-content';
 import { fireInstant } from '../lib/schedule';
 import { incrementSmsUsage, resolveFairUse, smsPeriod } from '../lib/sms-usage';
+import { sendTwilioSms, twilioConfigured, type SmsSender } from '../lib/twilio-send';
 import { CHANNEL_KEYS, type ChannelKey } from '../models/common';
 import { Event, type EventDoc } from '../models/Event';
 import { Person, type PersonDoc } from '../models/Person';
@@ -48,6 +62,11 @@ export function resolveLeadDays(user: UserDoc, event: EventDoc): number[] {
   const source = event.leadDaysOverride ?? user.defaultLeadDays;
   const valid = source.filter((d) => Number.isInteger(d) && d >= 0 && d <= 365);
   return [...new Set(valid)];
+}
+
+/** Reminder time-of-day for an event: per-event override wins, else the user default (FR-22). */
+export function resolveReminderTime(user: UserDoc, event: EventDoc): string {
+  return event.reminderTimeOverride ?? user.defaultReminderTime;
 }
 
 /**
@@ -77,7 +96,7 @@ export async function generateForUser(user: UserDoc, now: Date = new Date()): Pr
     const leadDays = resolveLeadDays(user, event);
 
     for (const lead of leadDays) {
-      const scheduledFor = fireInstant(occurrence, lead, user.timezone, user.defaultReminderTime);
+      const scheduledFor = fireInstant(occurrence, lead, user.timezone, resolveReminderTime(user, event));
       // Don't backfill a lead time whose moment already passed by more than a
       // day - adding someone two days before their birthday shouldn't resurface
       // a stale "1 week before" reminder. The day-of instance still survives.
@@ -296,4 +315,222 @@ async function deliverReminder(reminder: ReminderDoc, now: Date = new Date()): P
       `reminder ${reminder._id.toString()} delivered in-app only - all external channels failed`,
     );
   }
+}
+
+export interface GreetingDispatchSummary {
+  considered: number;
+  sent: number;
+  skipped: number;
+  failed: number;
+}
+
+/**
+ * Auto-send birthday greetings (Stage 14). Distinct from the reminder dispatch:
+ * this emails the *person* (the friend) on their birthday, AS the person's owner,
+ * through the owner's connected Gmail - so it reads like a message the user sent.
+ *
+ * Runs on the same cron tick as `dispatchDue` but is intentionally decoupled from
+ * the per-viewer Reminder rows: it fires whenever the birthday is *today* (in the
+ * owner's timezone) at/after their reminder time, regardless of whether they keep
+ * a day-of reminder. A per-person atomic claim on `autoBirthdayEmail.lastSentYear`
+ * dedupes overlapping ticks and enforces once-per-year; a non-`sent` outcome rolls
+ * the claim back so a transient failure is retried on the next tick.
+ *
+ * `deps.send` is injectable so tests/smoke drive it with a stub (no real Gmail).
+ */
+export async function dispatchBirthdayGreetings(
+  now: Date = new Date(),
+  deps: { send?: GmailSender } = {},
+): Promise<GreetingDispatchSummary> {
+  const send = deps.send ?? sendGmailAs;
+  const summary: GreetingDispatchSummary = { considered: 0, sent: 0, skipped: 0, failed: 0 };
+
+  // Only owners who connected Gmail can auto-send; pull the encrypted token
+  // (select:false) so the sender can decrypt it.
+  const senders = await User.find({ 'gmailIntegration.email': { $exists: true } }).select(
+    '+gmailIntegration.refreshTokenEnc',
+  );
+
+  for (const user of senders) {
+    const today = todayInTimeZone(user.timezone);
+    const people = await Person.find({
+      owner: user._id,
+      'autoBirthdayEmail.enabled': true,
+      email: { $exists: true, $nin: [null, ''] },
+    });
+
+    for (const person of people) {
+      if (!person.email) continue;
+      const { occurrence } = resolveOccurrence(person.dob, person.feb29Rule, today);
+      // Only on the birthday itself, once the owner's reminder time has arrived.
+      if (daysUntil(occurrence, today) !== 0) continue;
+      if (now.getTime() < fireInstant(occurrence, 0, user.timezone, user.defaultReminderTime).getTime()) {
+        continue;
+      }
+
+      const year = occurrence.getUTCFullYear();
+      const prevYear = person.autoBirthdayEmail?.lastSentYear;
+      if (prevYear === year) continue;
+      summary.considered += 1;
+
+      // Claim: only the writer that flips lastSentYear to this year proceeds.
+      const claim = await Person.updateOne(
+        { _id: person._id, 'autoBirthdayEmail.lastSentYear': { $ne: year } },
+        { $set: { 'autoBirthdayEmail.lastSentYear': year } },
+      );
+      if (claim.modifiedCount !== 1) continue;
+
+      const result = await send(user, {
+        to: person.email,
+        subject: birthdayEmailSubject(person.fullName),
+        text: person.autoBirthdayEmail?.message?.trim() || birthdayEmailBody(person.fullName),
+      });
+
+      if (result.outcome === 'sent') {
+        summary.sent += 1;
+      } else {
+        if (result.outcome === 'skipped') summary.skipped += 1;
+        else summary.failed += 1;
+        // Roll the claim back so the greeting is retried (next tick / next year).
+        await Person.updateOne(
+          { _id: person._id },
+          prevYear == null
+            ? { $unset: { 'autoBirthdayEmail.lastSentYear': '' } }
+            : { $set: { 'autoBirthdayEmail.lastSentYear': prevYear } },
+        );
+      }
+      logger.info(
+        `greeting ${person._id.toString()} → ${result.outcome}${result.detail ? ` (${result.detail})` : ''}`,
+      );
+    }
+  }
+
+  if (summary.sent > 0 || summary.failed > 0) {
+    logger.info(
+      `greetings: considered ${summary.considered}, sent ${summary.sent}, failed ${summary.failed}`,
+    );
+  }
+  return summary;
+}
+
+/**
+ * Auto-send birthday SMS greetings (Stage 15). The SMS analog of
+ * `dispatchBirthdayGreetings`, texting the *person* on their birthday AS the
+ * person's owner. Two structural differences from the email path:
+ *
+ *  1. There is no per-user carrier account, so we can't shrink the candidate set
+ *     by "users who connected an integration". We query people directly and
+ *     resolve each person's OWNER (cached) for timezone / reminder-time gating
+ *     and the sender name. Only the owner auto-sends, even for shared-list people
+ *     (the single per-person yearly claim guarantees exactly one send).
+ *  2. The shared Twilio account costs money per message, so an account-wide
+ *     monthly cap (`TWILIO_MONTHLY_CAP`, 0 = unlimited) stops sends once reached.
+ *
+ * Same once-per-year atomic claim on `autoBirthdaySms.lastSentYear` with rollback
+ * on a non-`sent` outcome, so a transient failure is retried on the next tick.
+ * `deps.send` is injectable for tests/smoke.
+ */
+export async function dispatchBirthdaySms(
+  now: Date = new Date(),
+  deps: { send?: SmsSender } = {},
+): Promise<GreetingDispatchSummary> {
+  const send = deps.send ?? sendTwilioSms;
+  const summary: GreetingDispatchSummary = { considered: 0, sent: 0, skipped: 0, failed: 0 };
+
+  // Nothing to do until a shared Twilio account is provisioned.
+  if (!twilioConfigured()) return summary;
+
+  const people = await Person.find({
+    'autoBirthdaySms.enabled': true,
+    phone: { $exists: true, $nin: [null, ''] },
+  });
+  if (people.length === 0) return summary;
+
+  // Budget cap: read the account-wide count once, track a running total locally,
+  // and stop for the month once the cap is hit.
+  const cap = twilioMonthlyCap();
+  const period = autoSmsPeriod(now);
+  let used = cap > 0 ? await getAutoSmsUsage(period) : 0;
+
+  const ownerCache = new Map<string, UserDoc | null>();
+  const ownerOf = async (id: string): Promise<UserDoc | null> => {
+    if (!ownerCache.has(id)) ownerCache.set(id, await User.findById(id));
+    return ownerCache.get(id) ?? null;
+  };
+
+  for (const person of people) {
+    if (!person.phone) continue;
+    const owner = await ownerOf(person.owner.toString());
+    if (!owner) continue;
+
+    const today = todayInTimeZone(owner.timezone);
+    const { occurrence } = resolveOccurrence(person.dob, person.feb29Rule, today);
+    // Only on the birthday itself, once the owner's reminder time has arrived.
+    if (daysUntil(occurrence, today) !== 0) continue;
+    if (
+      now.getTime() <
+      fireInstant(occurrence, 0, owner.timezone, owner.defaultReminderTime).getTime()
+    ) {
+      continue;
+    }
+
+    const year = occurrence.getUTCFullYear();
+    const prevYear = person.autoBirthdaySms?.lastSentYear;
+    if (prevYear === year) continue;
+    summary.considered += 1;
+
+    // A malformed / non-E.164 number can never send; skip it rather than let
+    // Twilio 400 on every tick forever (normalizePhone is soft on non-NANP input).
+    if (!/^\+[1-9]\d{6,14}$/.test(person.phone)) {
+      summary.skipped += 1;
+      logger.info(`greeting-sms ${person._id.toString()} → skipped (phone not E.164)`);
+      continue;
+    }
+
+    // Budget stop: don't send (or claim) once the month's cap is reached.
+    if (cap > 0 && used >= cap) {
+      summary.skipped += 1;
+      logger.info(
+        `greeting-sms ${person._id.toString()} → skipped (twilio monthly cap ${cap} reached)`,
+      );
+      continue;
+    }
+
+    // Claim: only the writer that flips lastSentYear to this year proceeds.
+    const claim = await Person.updateOne(
+      { _id: person._id, 'autoBirthdaySms.lastSentYear': { $ne: year } },
+      { $set: { 'autoBirthdaySms.lastSentYear': year } },
+    );
+    if (claim.modifiedCount !== 1) continue;
+
+    const result = await send(
+      person.phone,
+      person.autoBirthdaySms?.message?.trim() || birthdaySmsBody(person.fullName, owner.name),
+    );
+
+    if (result.outcome === 'sent') {
+      summary.sent += 1;
+      used = await incrementAutoSmsUsage(period);
+    } else {
+      if (result.outcome === 'skipped') summary.skipped += 1;
+      else summary.failed += 1;
+      // Roll the claim back so the greeting is retried (next tick / next year).
+      await Person.updateOne(
+        { _id: person._id },
+        prevYear == null
+          ? { $unset: { 'autoBirthdaySms.lastSentYear': '' } }
+          : { $set: { 'autoBirthdaySms.lastSentYear': prevYear } },
+      );
+    }
+    logger.info(
+      `greeting-sms ${person._id.toString()} → ${result.outcome}${result.detail ? ` (${result.detail})` : ''}`,
+    );
+  }
+
+  if (summary.sent > 0 || summary.failed > 0) {
+    logger.info(
+      `greetings-sms: considered ${summary.considered}, sent ${summary.sent}, failed ${summary.failed}`,
+    );
+  }
+  return summary;
 }

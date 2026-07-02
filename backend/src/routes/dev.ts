@@ -2,7 +2,11 @@ import { Router } from 'express';
 
 import { asyncHandler } from '../lib/async-handler';
 import { logger } from '../lib/logger';
-import { dispatchDue, generateForAllUsers } from '../jobs/reminder-engine';
+import {
+  dispatchBirthdayGreetings,
+  dispatchDue,
+  generateForAllUsers,
+} from '../jobs/reminder-engine';
 import { Reminder } from '../models/Reminder';
 import { User } from '../models/User';
 
@@ -57,6 +61,20 @@ devRouter.post(
   '/reminders/dispatch',
   asyncHandler(async (_req, res) => {
     const summary = await dispatchDue(new Date());
+    res.json(summary);
+  }),
+);
+
+/**
+ * POST /dev/greetings/run - run the birthday auto-send pass once at `now` (Stage
+ * 14 QA). Sends real Gmail greetings for any person whose birthday is today and
+ * whose owner has Gmail connected, so a tester doesn't wait for the cron tick.
+ */
+devRouter.post(
+  '/greetings/run',
+  asyncHandler(async (_req, res) => {
+    const summary = await dispatchBirthdayGreetings(new Date());
+    logger.info(`[dev] greetings/run ${JSON.stringify(summary)}`);
     res.json(summary);
   }),
 );

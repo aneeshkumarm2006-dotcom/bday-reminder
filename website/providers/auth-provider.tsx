@@ -38,6 +38,8 @@ type AuthContextValue = {
   signOut: () => Promise<void>;
   /** Patch the current user's profile/preferences and sync context (Stage 5). */
   updateProfile: (patch: UpdateMeInput) => Promise<AuthUser>;
+  /** Re-fetch the current user from the server (e.g. after connecting Gmail). */
+  refreshUser: () => Promise<AuthUser | null>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -185,9 +187,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const refreshUser = useCallback(async () => {
+    try {
+      const me = await authApi.me();
+      userRef.current = me;
+      setUser(me);
+      return me;
+    } catch {
+      return null;
+    }
+  }, []);
+
   const value = useMemo<AuthContextValue>(
-    () => ({ status, user, signIn, signUp, signOut, updateProfile }),
-    [status, user, signIn, signUp, signOut, updateProfile],
+    () => ({ status, user, signIn, signUp, signOut, updateProfile, refreshUser }),
+    [status, user, signIn, signUp, signOut, updateProfile, refreshUser],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

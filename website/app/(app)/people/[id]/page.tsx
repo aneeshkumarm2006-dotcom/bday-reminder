@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { CalendarPlus, PawPrint, Pencil, Trash2 } from "lucide-react";
+import { CalendarPlus, Mail, MessageSquare, PawPrint, Pencil, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
@@ -38,6 +38,7 @@ export default function PersonProfilePage() {
   const { toast } = useToast();
   const confirm = useConfirm();
   const [addOpen, setAddOpen] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<EventItem | null>(null);
 
   const personQ = useQuery({ queryKey: ["person", id], queryFn: () => peopleApi.get(id) });
   const notesQ = useQuery({ queryKey: ["notes", id], queryFn: () => notesApi.list(id) });
@@ -128,11 +129,46 @@ export default function PersonProfilePage() {
               key={event.id}
               event={event}
               feb29Rule={person.feb29Rule}
+              onEdit={() => setEditingEvent(event)}
               onDelete={event.type === "birthday" ? undefined : () => deleteEvent(event)}
             />
           ))}
         </div>
       </section>
+
+      {/* Auto-send birthday email status (Stage 14) - shown only when on. */}
+      {person.autoBirthdayEmail?.enabled && person.email && (
+        <section className="mt-8">
+          <h2 className="mb-3 font-display text-lg font-semibold text-ink">Auto-send email</h2>
+          <div className="flex items-center gap-3 rounded-lg border border-border-subtle bg-surface p-4">
+            <Mail size={20} className="shrink-0 text-biro" aria-hidden="true" />
+            <div className="min-w-0">
+              <p className="font-medium text-ink">On</p>
+              <p className="mt-0.5 text-sm text-ink-muted">
+                A birthday greeting emails to {person.email} each year, sent from you. Edit to change
+                the message or turn it off.
+              </p>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Auto-send birthday SMS status (Stage 15) - shown only when on. */}
+      {person.autoBirthdaySms?.enabled && person.phone && (
+        <section className="mt-8">
+          <h2 className="mb-3 font-display text-lg font-semibold text-ink">Auto-send SMS</h2>
+          <div className="flex items-center gap-3 rounded-lg border border-border-subtle bg-surface p-4">
+            <MessageSquare size={20} className="shrink-0 text-biro" aria-hidden="true" />
+            <div className="min-w-0">
+              <p className="font-medium text-ink">On</p>
+              <p className="mt-0.5 text-sm text-ink-muted">
+                A birthday text goes to {person.phone} each year, signed with your name. Edit to
+                change the message or turn it off.
+              </p>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Notes */}
       <section className="mt-8">
@@ -157,6 +193,18 @@ export default function PersonProfilePage() {
           qc.invalidateQueries({ queryKey: ["upcoming"] });
         }}
       />
+
+      <AddEventDialog
+        personId={person.id}
+        event={editingEvent ?? undefined}
+        open={!!editingEvent}
+        onClose={() => setEditingEvent(null)}
+        onUpdated={() => {
+          setEditingEvent(null);
+          qc.invalidateQueries({ queryKey: ["person", id] });
+          qc.invalidateQueries({ queryKey: ["upcoming"] });
+        }}
+      />
     </div>
   );
 }
@@ -164,10 +212,12 @@ export default function PersonProfilePage() {
 function EventRow({
   event,
   feb29Rule,
+  onEdit,
   onDelete,
 }: {
   event: EventItem;
   feb29Rule: Feb29Rule;
+  onEdit?: () => void;
   onDelete?: () => void;
 }) {
   const rule = event.type === "birthday" ? feb29Rule : "feb28";
@@ -197,6 +247,16 @@ function EventRow({
           {age != null ? ` · turns ${age}` : ""}
         </p>
       </div>
+      {onEdit && (
+        <button
+          type="button"
+          onClick={onEdit}
+          aria-label={`Edit ${label}`}
+          className="rounded-md p-2 text-ink-muted transition-colors hover:text-ink"
+        >
+          <Pencil size={16} aria-hidden="true" />
+        </button>
+      )}
       {onDelete && (
         <button
           type="button"

@@ -24,6 +24,8 @@ export interface EventDoc {
   /** Lead times for this event; null/undefined => use the user's default. */
   leadDaysOverride?: number[] | null;
   channelOverride?: ChannelOverride | null;
+  /** Reminder time-of-day "HH:mm"; null/undefined => use the user's default reminder time. */
+  reminderTimeOverride?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -46,6 +48,7 @@ const eventSchema = new Schema<EventDoc>(
     date: { type: dateParts(true), required: true },
     leadDaysOverride: { type: [Number], default: undefined },
     channelOverride: { type: channelOverrideSchema, default: undefined },
+    reminderTimeOverride: { type: String, default: undefined },
   },
   { timestamps: true },
 );

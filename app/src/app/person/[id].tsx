@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
 import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { CalendarPlus, ChevronLeft, Pencil, Trash2 } from 'lucide-react-native';
+import { CalendarPlus, ChevronLeft, Mail, MessageSquare, Pencil, Trash2 } from 'lucide-react-native';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native';
 
@@ -185,6 +185,7 @@ function ProfileBody({
   const next = resolved[0];
 
   const [addOpen, setAddOpen] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<EventItem | null>(null);
   const [removingId, setRemovingId] = useState<string | null>(null);
 
   // Remove an anniversary/custom event (the birthday has no delete - it lives
@@ -272,20 +273,31 @@ function ProfileBody({
                   {countdownLabel(r.days)}
                 </Text>
               </View>
-              {/* The birthday can't be removed on its own (delete the person). */}
+              {/* The birthday's reminder time is edited on the add-person form
+                  (its date lives with the person); other events edit inline. */}
               {r.event.type !== 'birthday' ? (
-                removingId === r.event.id ? (
-                  <ActivityIndicator color={t.inkMuted} />
-                ) : (
+                <View className="flex-row items-center gap-1">
                   <Pressable
-                    onPress={() => void onRemoveEvent(r.event)}
+                    onPress={() => setEditingEvent(r.event)}
                     hitSlop={8}
                     accessibilityRole="button"
-                    accessibilityLabel={`Remove ${eventLabel(r.event)}`}
-                    className={cn('rounded-full active:scale-90', focusRing)}>
-                    <Icon icon={Trash2} size={18} color={t.inkMuted} />
+                    accessibilityLabel={`Edit ${eventLabel(r.event)}`}
+                    className={cn('rounded-full p-1 active:scale-90', focusRing)}>
+                    <Icon icon={Pencil} size={18} color={t.inkMuted} />
                   </Pressable>
-                )
+                  {removingId === r.event.id ? (
+                    <ActivityIndicator color={t.inkMuted} />
+                  ) : (
+                    <Pressable
+                      onPress={() => void onRemoveEvent(r.event)}
+                      hitSlop={8}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Remove ${eventLabel(r.event)}`}
+                      className={cn('rounded-full p-1 active:scale-90', focusRing)}>
+                      <Icon icon={Trash2} size={18} color={t.inkMuted} />
+                    </Pressable>
+                  )}
+                </View>
               ) : null}
             </View>
           </View>
@@ -306,6 +318,48 @@ function ProfileBody({
           Add event
         </Text>
       </Pressable>
+
+      {/* Auto-send birthday email status (Stage 14) - shown only when on. */}
+      {person.autoBirthdayEmail?.enabled && person.email ? (
+        <>
+          <Text variant="label" className="mb-2 mt-6 text-ink-muted">
+            Auto-send email
+          </Text>
+          <Card>
+            <View className="flex-row items-center gap-3">
+              <Icon icon={Mail} size={20} color={t.biro} />
+              <View className="flex-1">
+                <Text variant="body">On</Text>
+                <Text variant="caption" className="mt-0.5 text-ink-muted">
+                  A birthday greeting emails to {person.email} each year, sent from you. Edit to
+                  change the message or turn it off.
+                </Text>
+              </View>
+            </View>
+          </Card>
+        </>
+      ) : null}
+
+      {/* Auto-send birthday SMS status (Stage 15) - shown only when on. */}
+      {person.autoBirthdaySms?.enabled && person.phone ? (
+        <>
+          <Text variant="label" className="mb-2 mt-6 text-ink-muted">
+            Auto-send SMS
+          </Text>
+          <Card>
+            <View className="flex-row items-center gap-3">
+              <Icon icon={MessageSquare} size={20} color={t.biro} />
+              <View className="flex-1">
+                <Text variant="body">On</Text>
+                <Text variant="caption" className="mt-0.5 text-ink-muted">
+                  A birthday text goes to {person.phone} each year, signed with your name. Edit to
+                  change the message or turn it off.
+                </Text>
+              </View>
+            </View>
+          </Card>
+        </>
+      ) : null}
 
       {/* Gift notes (§8.6) - running, timestamped list. */}
       <NotesSection personId={person.id} />
@@ -331,6 +385,17 @@ function ProfileBody({
         personId={person.id}
         onClose={() => setAddOpen(false)}
         onCreated={onReload}
+      />
+
+      <AddEventSheet
+        visible={!!editingEvent}
+        personId={person.id}
+        event={editingEvent ?? undefined}
+        onClose={() => setEditingEvent(null)}
+        onUpdated={() => {
+          setEditingEvent(null);
+          onReload();
+        }}
       />
     </ScrollView>
   );

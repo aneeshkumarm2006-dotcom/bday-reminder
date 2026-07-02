@@ -212,15 +212,28 @@ const TIME_OPTIONS: SelectOption[] = Array.from({ length: 48 }, (_, i) => {
 export function ReminderTimePicker({
   value,
   onChange,
+  inheritLabel,
 }: {
   value: string;
   onChange: (next: string) => void;
+  /** When set, adds a leading "inherit" option (value "") that clears a per-event override. */
+  inheritLabel?: string;
 }) {
+  const base = inheritLabel ? [{ label: inheritLabel, value: '' }, ...TIME_OPTIONS] : TIME_OPTIONS;
   // Guard against a stored value off the half-hour grid so it still shows.
-  const options = TIME_OPTIONS.some((o) => o.value === value)
-    ? TIME_OPTIONS
-    : [{ label: value, value }, ...TIME_OPTIONS];
+  const options = base.some((o) => o.value === value) ? base : [{ label: value, value }, ...base];
   return <Select value={value} options={options} onChange={onChange} placeholder="9:00 AM" />;
+}
+
+/**
+ * Label for the per-event "use my default" option, e.g. "Default (9:00 AM)",
+ * built from the user's global `defaultReminderTime` so it stays accurate.
+ */
+export function defaultTimeInheritLabel(hhmm: string | undefined): string {
+  const m = /^(\d{2}):(\d{2})$/.exec(hhmm ?? '09:00');
+  const hour = m ? Number(m[1]) : 9;
+  const minute = m ? Number(m[2]) : 0;
+  return `Default (${timeLabel(hour, minute)})`;
 }
 
 /** Default channel prefs to seed a new override from (mirrors the User default). */

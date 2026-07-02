@@ -156,6 +156,61 @@ describe('events (FR-16/18)', () => {
     expect(cleared.body.event.channelOverride).toBeNull();
   });
 
+  it('sets, validates, and clears reminderTimeOverride (null reverts to default)', async () => {
+    const { auth, personId } = await setupPerson();
+    const created = await api
+      .post('/events')
+      .set('Authorization', auth)
+      .send({ person: personId, type: 'custom', customName: 'Adoption day', date: md(todayUTC) });
+    const customId: string = created.body.event.id;
+    expect(created.body.event.reminderTimeOverride).toBeNull();
+
+    const set = await api
+      .patch(`/events/${customId}`)
+      .set('Authorization', auth)
+      .send({ reminderTimeOverride: '18:30' });
+    expect(set.status).toBe(200);
+    expect(set.body.event.reminderTimeOverride).toBe('18:30');
+
+    // A malformed time is rejected by Zod.
+    const bad = await api
+      .patch(`/events/${customId}`)
+      .set('Authorization', auth)
+      .send({ reminderTimeOverride: '25:00' });
+    expect(bad.status).toBe(400);
+
+    const cleared = await api
+      .patch(`/events/${customId}`)
+      .set('Authorization', auth)
+      .send({ reminderTimeOverride: null });
+    expect(cleared.status).toBe(200);
+    expect(cleared.body.event.reminderTimeOverride).toBeNull();
+  });
+
+  it('a reminderTimeOverride re-anchors the pending reminder to a different instant', async () => {
+    const { auth, birthdayId } = await setupPerson();
+    const { Reminder } = await import('../../src/models/Reminder');
+
+    // Birthday is dated today → a surviving pending reminder exists at the
+    // default 09:00. Capture its lead-day + fire instant before the change.
+    const before = await Reminder.findOne({ event: birthdayId });
+    expect(before).not.toBeNull();
+    const lead = before!.leadDays;
+    const beforeTime = before!.scheduledFor!.getTime();
+
+    const res = await api
+      .patch(`/events/${birthdayId}`)
+      .set('Authorization', auth)
+      .send({ reminderTimeOverride: '18:00' });
+    expect(res.status).toBe(200);
+    expect(res.body.event.reminderTimeOverride).toBe('18:00');
+
+    // Regeneration re-anchored the same lead-day instance to a new time-of-day.
+    const after = await Reminder.findOne({ event: birthdayId, leadDays: lead });
+    expect(after).not.toBeNull();
+    expect(after!.scheduledFor!.getTime()).not.toBe(beforeTime);
+  });
+
   it("rejects another user's access to your event → 403", async () => {
     const { auth, personId } = await setupPerson();
     const created = await api

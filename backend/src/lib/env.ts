@@ -46,6 +46,33 @@ const EnvSchema = z.object({
   EMAIL_FROM: z.string().default('Birthday Reminder <onboarding@resend.dev>'),
   EXPO_ACCESS_TOKEN: z.string().optional(),
 
+  // --- Gmail auto-send greeting (send a birthday email AS the user, via their
+  // own Gmail / OAuth `gmail.send`) - all optional. When any of the three are
+  // absent the feature degrades gracefully: the connect endpoint reports "not
+  // configured" and the greeting dispatch skips, so the app runs end-to-end in
+  // dev/QA without provisioning the Google project.
+  GOOGLE_CLIENT_ID: z.string().optional(),
+  GOOGLE_CLIENT_SECRET: z.string().optional(),
+  // Where Google redirects after consent; defaults to `<API_PUBLIC_URL>/integrations/gmail/callback`
+  // (computed in lib/google-oauth.ts) so it stays in step with the deployed API.
+  GOOGLE_OAUTH_REDIRECT_URL: z.string().optional(),
+  // Encrypts the stored Gmail refresh token at rest (AES-256-GCM). Generate with
+  // `openssl rand -base64 32` → decodes to exactly 32 bytes.
+  GMAIL_TOKEN_ENC_KEY: z.string().optional(),
+
+  // --- Twilio auto-send SMS greeting (text a birthday message to a friend AS the
+  // user, from one shared Twilio account) [Stage 15] - all optional. When the
+  // account isn't configured the feature is hidden (GET /config) and the dispatch
+  // skips, so the app runs end-to-end in dev/QA without provisioning Twilio.
+  // A sender is required: prefer TWILIO_MESSAGING_SERVICE_SID, else TWILIO_FROM_NUMBER.
+  TWILIO_ACCOUNT_SID: z.string().optional(),
+  TWILIO_AUTH_TOKEN: z.string().optional(),
+  TWILIO_MESSAGING_SERVICE_SID: z.string().optional(),
+  TWILIO_FROM_NUMBER: z.string().optional(),
+  // Account-wide monthly budget cap for auto-send SMS; 0 = unlimited. At the cap,
+  // further auto-texts skip until the next UTC month. Surfaced on /seoteam.
+  TWILIO_MONTHLY_CAP: z.coerce.number().int().min(0).default(0),
+
   // --- Photo hosting - Cloudinary [Stage 6] - all optional (FR-10). When the
   // account isn't configured the upload endpoint degrades gracefully (echoes the
   // image back as a data URL) so add-photo works end-to-end in dev/QA without
