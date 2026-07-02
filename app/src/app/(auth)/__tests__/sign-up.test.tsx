@@ -17,6 +17,11 @@ jest.mock('expo-router', () => ({
 jest.mock('@/providers/auth-provider', () => ({
   useAuth: () => ({ signUp: mockSignUp }),
 }));
+// The Google sign-in button fetches /config on mount; stub it out so these
+// validation tests stay network-free.
+jest.mock('@/components/google-sign-in-button', () => ({
+  GoogleSignInButton: () => null,
+}));
 
 describe('SignUpScreen validation', () => {
   beforeEach(() => mockSignUp.mockClear());

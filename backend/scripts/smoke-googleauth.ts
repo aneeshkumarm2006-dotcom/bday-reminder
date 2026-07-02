@@ -104,7 +104,9 @@ async function main(): Promise<void> {
     res = await get('/me', { headers: { Authorization: `Bearer ${session.accessToken}` } });
     check(res.status === 200 && (await res.json()).email === 'gina@gmail.com', 'the issued token authenticates GET /me');
 
-    // --- Bad / expired handoff is rejected ---------------------------------
+    // --- Bad / expired / replayed handoff is rejected -----------------------
+    res = await post('/auth/google/session', { handoff });
+    check(res.status === 401, 'a handoff is single-use - replaying it is rejected (401)');
     res = await post('/auth/google/session', { handoff: 'not-a-real-token' });
     check(res.status === 401, 'a garbage handoff is rejected (401)');
     res = await post('/auth/google/session', {});

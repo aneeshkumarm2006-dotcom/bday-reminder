@@ -110,7 +110,7 @@ export default function ImportPage() {
 
           <Textarea
             className="min-h-40 font-mono text-sm"
-            placeholder={"name,month,day,year,relationship\nAda Lovelace,12,10,1815,Friend"}
+            placeholder={"name,month,day,year,relationship\nAda Lovelace,12,10,1991,Friend"}
             value={csv}
             onChange={(e) => setCsv(e.target.value)}
           />

@@ -1,4 +1,4 @@
-import { Check, Clock, MessageCircle } from 'lucide-react-native';
+import { Check, Clock, Copy, MessageCircle } from 'lucide-react-native';
 import { View } from 'react-native';
 
 import { DateRing, type RingState } from '@/components/date-ring';
@@ -9,7 +9,8 @@ import { monthAbbr } from '@/lib/dates';
 /**
  * Reminder / in-app feed item (DESIGN.md §8.3). Left ring + the reminder copy as
  * the primary line + a status pill; an actions row underneath. "Send greeting"
- * shows only day-of when a phone exists (FR-28/30); Done items stay in the feed,
+ * and "Copy message" show only day-of when a phone exists (FR-28/30); Done
+ * items stay in the feed,
  * de-emphasized with the ring in its done state (§8.3). Microcopy variants
  * (with year / day-of / no year) are authored server-side in `item.message`.
  *
@@ -28,12 +29,14 @@ export function ReminderCard({
   item,
   busy = false,
   onGreet,
+  onCopy,
   onDone,
   onSnooze,
 }: {
   item: ReminderItem;
   busy?: boolean;
   onGreet: () => void;
+  onCopy: () => void;
   onDone: () => void;
   onSnooze: () => void;
 }) {
@@ -76,6 +79,11 @@ export function ReminderCard({
           {item.canGreet ? (
             <Button variant="primary" leftIcon={MessageCircle} onPress={onGreet} disabled={busy}>
               Send greeting
+            </Button>
+          ) : null}
+          {item.canGreet ? (
+            <Button variant="ghost" leftIcon={Copy} onPress={onCopy} disabled={busy}>
+              Copy message
             </Button>
           ) : null}
           <Button variant="secondary" leftIcon={Check} onPress={onDone} loading={busy}>

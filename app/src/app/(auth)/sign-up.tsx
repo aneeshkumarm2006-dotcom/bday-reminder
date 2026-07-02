@@ -2,6 +2,7 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from 'react-native';
 
+import { GoogleSignInButton } from '@/components/google-sign-in-button';
 import { Button, Screen, Text, TextField } from '@/components/ui';
 import { cn, focusRing } from '@/lib/cn';
 import { ApiError } from '@/lib/api';
@@ -89,6 +90,7 @@ export default function SignUpScreen() {
               <Button fullWidth loading={loading} onPress={submit}>
                 Create account
               </Button>
+              <GoogleSignInButton label="Sign up with Google" />
             </View>
 
             <View className="flex-row items-center justify-center gap-1.5">

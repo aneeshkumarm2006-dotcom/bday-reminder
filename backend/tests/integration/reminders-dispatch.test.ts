@@ -75,10 +75,11 @@ describe('reminder dispatch (mocked providers)', () => {
     expect(first.sent).toBeGreaterThan(0);
     expect(dispatchMock).toHaveBeenCalled();
 
-    // The engine fans out to the resolved channels (default prefs: push+email,
-    // sms off) AND carries the §11 day-of copy + headline for the person.
+    // The engine fans out to the resolved channels (default prefs: push+inApp,
+    // email+sms off) AND carries the §11 day-of copy + headline for the person.
     const [channels, payload] = dispatchMock.mock.calls[0];
-    expect(channels).toEqual(expect.arrayContaining(['push', 'email']));
+    expect(channels).toEqual(expect.arrayContaining(['push', 'inApp']));
+    expect(channels).not.toContain('email');
     expect(channels).not.toContain('sms');
     expect(payload.headline).toContain('Sarah Bennett');
     expect(payload.message).toContain("Sarah Bennett's birthday today");

@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+
 import jwt from 'jsonwebtoken';
 
 import { loadEnv } from './env';
@@ -280,11 +282,12 @@ export async function exchangeCodeForIdentity(code: string): Promise<GoogleIdent
 interface HandoffPayload {
   sub: string;
   isNew: boolean;
+  jti: string;
   type: 'google_handoff';
 }
 
 /**
- * Short-lived one-time-ish "handoff" token. The backend callback can't write to
+ * Short-lived single-use "handoff" token. The backend callback can't write to
  * the browser's localStorage, so instead of putting the real (long-lived)
  * refresh token in the redirect URL, it signs this tiny 2-minute token; the
  * website POSTs it straight back to `/auth/google/session` and receives the real
@@ -292,14 +295,34 @@ interface HandoffPayload {
  */
 export function signGoogleHandoff(userId: string, isNew: boolean): string {
   const env = loadEnv();
-  const payload: HandoffPayload = { sub: userId, isNew, type: 'google_handoff' };
+  const payload: HandoffPayload = { sub: userId, isNew, jti: randomUUID(), type: 'google_handoff' };
   return jwt.sign(payload, env.JWT_ACCESS_SECRET, { expiresIn: '2m' });
 }
 
-/** Verify a handoff token; throws on tamper/expiry/wrong type. */
+// Handoffs travel in a redirect URL (and, for the app, over a custom scheme any
+// installed app can claim - RFC 8252 §8.1), so a replayed token must not mint a
+// second session. Consumed jtis are held in memory until the token would have
+// expired anyway; in-memory is fine for the same reason the rate limiter's
+// counters are (single-instance deploy; a restart only re-opens a ≤2-minute
+// window).
+const usedHandoffs = new Map<string, number>();
+const HANDOFF_TTL_MS = 2 * 60 * 1000;
+
+function consumeHandoffJti(jti: string): boolean {
+  const now = Date.now();
+  for (const [key, expiresAt] of usedHandoffs) if (expiresAt <= now) usedHandoffs.delete(key);
+  if (usedHandoffs.has(jti)) return false;
+  usedHandoffs.set(jti, now + HANDOFF_TTL_MS);
+  return true;
+}
+
+/** Verify AND consume a handoff token; throws on tamper/expiry/wrong type/reuse. */
 export function verifyGoogleHandoff(token: string): { userId: string; isNew: boolean } {
   const env = loadEnv();
   const decoded = jwt.verify(token, env.JWT_ACCESS_SECRET) as HandoffPayload;
   if (decoded.type !== 'google_handoff') throw new Error('Not a google_handoff token');
+  if (!decoded.jti || !consumeHandoffJti(decoded.jti)) {
+    throw new Error('Handoff token already used');
+  }
   return { userId: decoded.sub, isNew: !!decoded.isNew };
 }

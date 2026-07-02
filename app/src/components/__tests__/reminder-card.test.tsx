@@ -5,9 +5,10 @@ import { fireEvent, renderWithTheme, screen } from '../../test-utils/render';
 
 /**
  * ReminderCard - in-app feed item (TODO Stage 13; DESIGN.md §8.3). Asserts the
- * server-rendered copy is the primary line, "Send greeting" appears only when
- * day-of + a phone exists (canGreet, FR-28/30), Done rows are de-emphasized with
- * their actions hidden, the status pill matches, and the action callbacks fire.
+ * server-rendered copy is the primary line, "Send greeting" + "Copy message"
+ * appear only when day-of + a phone exists (canGreet, FR-28/30), Done rows are
+ * de-emphasized with their actions hidden, the status pill matches, and the
+ * action callbacks fire.
  */
 function reminder(overrides: Partial<ReminderItem> = {}): ReminderItem {
   return {
@@ -32,26 +33,28 @@ function reminder(overrides: Partial<ReminderItem> = {}): ReminderItem {
 const noop = () => {};
 
 describe('ReminderCard', () => {
-  it('shows the server-rendered reminder copy and the three day-of actions', () => {
+  it('shows the server-rendered reminder copy and the four day-of actions', () => {
     renderWithTheme(
-      <ReminderCard item={reminder()} onGreet={noop} onDone={noop} onSnooze={noop} />,
+      <ReminderCard item={reminder()} onGreet={noop} onCopy={noop} onDone={noop} onSnooze={noop} />,
     );
     expect(screen.getByText("It's Sarah Bennett's birthday today - turns 36.")).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Send greeting' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Copy message' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Mark as done' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Snooze' })).toBeTruthy();
   });
 
-  it('hides "Send greeting" when canGreet is false (no phone / not day-of) (FR-30)', () => {
+  it('hides "Send greeting" + "Copy message" when canGreet is false (no phone / not day-of) (FR-30)', () => {
     renderWithTheme(
-      <ReminderCard item={reminder({ canGreet: false })} onGreet={noop} onDone={noop} onSnooze={noop} />,
+      <ReminderCard item={reminder({ canGreet: false })} onGreet={noop} onCopy={noop} onDone={noop} onSnooze={noop} />,
     );
     expect(screen.queryByRole('button', { name: 'Send greeting' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Copy message' })).toBeNull();
   });
 
   it('shows the Done pill and hides actions once done (FR-31/34)', () => {
     renderWithTheme(
-      <ReminderCard item={reminder({ status: 'done' })} onGreet={noop} onDone={noop} onSnooze={noop} />,
+      <ReminderCard item={reminder({ status: 'done' })} onGreet={noop} onCopy={noop} onDone={noop} onSnooze={noop} />,
     );
     expect(screen.getByText('Done')).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Mark as done' })).toBeNull();
@@ -61,14 +64,14 @@ describe('ReminderCard', () => {
   it('maps reminder status/days to the ring state (ringStateFor)', () => {
     // day-of (sent) → today → filled ring present
     const today = renderWithTheme(
-      <ReminderCard item={reminder({ daysRemaining: 0 })} onGreet={noop} onDone={noop} onSnooze={noop} />,
+      <ReminderCard item={reminder({ daysRemaining: 0 })} onGreet={noop} onCopy={noop} onDone={noop} onSnooze={noop} />,
     );
     expect(today.getByTestId('date-ring-fill')).toBeTruthy();
     today.unmount();
 
     // upcoming (days > 0) → no fill, no done check
     const upcoming = renderWithTheme(
-      <ReminderCard item={reminder({ daysRemaining: 3 })} onGreet={noop} onDone={noop} onSnooze={noop} />,
+      <ReminderCard item={reminder({ daysRemaining: 3 })} onGreet={noop} onCopy={noop} onDone={noop} onSnooze={noop} />,
     );
     expect(upcoming.queryByTestId('date-ring-fill')).toBeNull();
     expect(upcoming.queryByLabelText('Done')).toBeNull();
@@ -76,29 +79,38 @@ describe('ReminderCard', () => {
 
     // done → done check rendered (state-derived, not color-only)
     const done = renderWithTheme(
-      <ReminderCard item={reminder({ status: 'done' })} onGreet={noop} onDone={noop} onSnooze={noop} />,
+      <ReminderCard item={reminder({ status: 'done' })} onGreet={noop} onCopy={noop} onDone={noop} onSnooze={noop} />,
     );
     expect(done.getAllByLabelText('Done').length).toBeGreaterThan(0);
   });
 
   it('shows the Snoozed pill when snoozed', () => {
     renderWithTheme(
-      <ReminderCard item={reminder({ status: 'snoozed' })} onGreet={noop} onDone={noop} onSnooze={noop} />,
+      <ReminderCard item={reminder({ status: 'snoozed' })} onGreet={noop} onCopy={noop} onDone={noop} onSnooze={noop} />,
     );
     expect(screen.getByText('Snoozed')).toBeTruthy();
   });
 
   it('fires the action callbacks on press', () => {
     const onGreet = jest.fn();
+    const onCopy = jest.fn();
     const onDone = jest.fn();
     const onSnooze = jest.fn();
     renderWithTheme(
-      <ReminderCard item={reminder()} onGreet={onGreet} onDone={onDone} onSnooze={onSnooze} />,
+      <ReminderCard
+        item={reminder()}
+        onGreet={onGreet}
+        onCopy={onCopy}
+        onDone={onDone}
+        onSnooze={onSnooze}
+      />,
     );
     fireEvent.press(screen.getByRole('button', { name: 'Send greeting' }));
+    fireEvent.press(screen.getByRole('button', { name: 'Copy message' }));
     fireEvent.press(screen.getByRole('button', { name: 'Mark as done' }));
     fireEvent.press(screen.getByRole('button', { name: 'Snooze' }));
     expect(onGreet).toHaveBeenCalledTimes(1);
+    expect(onCopy).toHaveBeenCalledTimes(1);
     expect(onDone).toHaveBeenCalledTimes(1);
     expect(onSnooze).toHaveBeenCalledTimes(1);
   });

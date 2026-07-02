@@ -16,6 +16,8 @@ import {
   type UpcomingResponse,
 } from '@/lib/api';
 import { cn, focusRing } from '@/lib/cn';
+import { copyText } from '@/lib/clipboard';
+import { greetingText, greetingUrl, smsGreetingUrl } from '@/lib/greeting';
 import { syncWidget } from '@/lib/widget';
 import { useTokens } from '@/theme/theme-provider';
 
@@ -96,17 +98,23 @@ export default function RemindersScreen() {
 
   const onGreet = useCallback(
     async (item: ReminderItem) => {
-      const firstName = item.person.fullName.trim().split(/\s+/)[0] ?? item.person.fullName;
-      const greeting = `Happy birthday, ${firstName}! 🎉`;
-      const phone = item.person.phone ?? '';
-      // iOS uses `&` before the body param; Android uses `?`.
-      const separator = Platform.OS === 'ios' ? '&' : '?';
-      const url = `sms:${phone}${separator}body=${encodeURIComponent(greeting)}`;
+      // wa.me click-to-chat on web (a browser has no Messages composer); the
+      // sms: composer on native. An https wa.me link always opens *something*
+      // (the browser) on a phone, so it can't be probed as a fallback there.
+      const url = Platform.OS === 'web' ? greetingUrl(item) : smsGreetingUrl(item);
       try {
         await Linking.openURL(url);
       } catch {
         toast.show("Couldn't open your messages app.");
       }
+    },
+    [toast],
+  );
+
+  const onCopy = useCallback(
+    async (item: ReminderItem) => {
+      const ok = await copyText(greetingText(item));
+      toast.show(ok ? 'Greeting copied.' : "Couldn't copy on this device.");
     },
     [toast],
   );
@@ -260,6 +268,7 @@ export default function RemindersScreen() {
                     item={item}
                     busy={busyId === item.id}
                     onGreet={() => void onGreet(item)}
+                    onCopy={() => void onCopy(item)}
                     onDone={() => void onDone(item)}
                     onSnooze={() => setSnoozeTarget(item)}
                   />

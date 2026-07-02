@@ -16,9 +16,20 @@ import {
   LeadTimeChips,
   ReminderTimePicker,
 } from '@/components/reminder-prefs';
-import { Button, Card, Chip, Icon, Screen, Text, useConfirm, useToast } from '@/components/ui';
+import {
+  Button,
+  Card,
+  Chip,
+  Icon,
+  Screen,
+  Text,
+  TextField,
+  useConfirm,
+  useToast,
+} from '@/components/ui';
 import { configApi, gmailApi, type ChannelPreferences, type UpdateMeInput } from '@/lib/api';
 import { connectGmail } from '@/lib/gmail-auth';
+import { formatNanp } from '@/lib/phone';
 import { useAuth } from '@/providers/auth-provider';
 import { useThemePreference, type ThemePreference } from '@/theme/theme-provider';
 
@@ -52,6 +63,41 @@ export default function SettingsScreen() {
   const [smsCap, setSmsCap] = useState<number | null>(null);
   const [gmailAvailable, setGmailAvailable] = useState(false);
   const [connectingGmail, setConnectingGmail] = useState(false);
+
+  // Editable profile (name signs auto-send SMS and shows to shared-list
+  // members). Fields are local drafts, seeded once the user hydrates - unlike
+  // the toggles above they'd lose in-progress typing if they read from `user`.
+  const [name, setName] = useState(user?.name ?? '');
+  const [phone, setPhone] = useState(formatNanp(user?.phone));
+  const [profileSeeded, setProfileSeeded] = useState(!!user);
+  const [nameError, setNameError] = useState<string | undefined>(undefined);
+  const [savingProfile, setSavingProfile] = useState(false);
+
+  // Seed once during render (not in an effect) when the user hydrates after
+  // mount — React re-renders immediately with the seeded values.
+  if (user && !profileSeeded) {
+    setName(user.name);
+    setPhone(formatNanp(user.phone));
+    setProfileSeeded(true);
+  }
+
+  const onSaveProfile = async () => {
+    const trimmedName = name.trim();
+    if (!trimmedName) {
+      setNameError('Add your name — it signs your greetings and shows on shared lists.');
+      return;
+    }
+    setNameError(undefined);
+    setSavingProfile(true);
+    try {
+      await updateProfile({ name: trimmedName, phone: phone.trim() ? phone.trim() : null });
+      toast.show('Profile saved.');
+    } catch {
+      toast.show("Couldn't save that. Check your connection and try again.");
+    } finally {
+      setSavingProfile(false);
+    }
+  };
 
   // The cap is a business-config value, fetched (not hardcoded) for the note;
   // the same call tells us whether Gmail auto-send is provisioned (Stage 14).
@@ -136,12 +182,37 @@ export default function SettingsScreen() {
 
         <SectionLabel>Account</SectionLabel>
         <Card>
-          <Text variant="cardName">{user?.name ?? 'Your account'}</Text>
-          {user?.email ? (
-            <Text variant="body" className="mt-0.5 text-ink-secondary">
-              {user.email}
-            </Text>
-          ) : null}
+          <View className="gap-4">
+            <TextField
+              label="Name"
+              value={name}
+              onChangeText={setName}
+              placeholder="Your name"
+              error={nameError}
+            />
+            <TextField
+              label="Phone"
+              optional
+              value={phone}
+              onChangeText={setPhone}
+              placeholder="(555) 123-4567"
+              keyboardType="phone-pad"
+              hint="Used for the day-of greeting shortcut."
+            />
+            <View>
+              {user?.email ? (
+                <Text variant="caption" className="text-ink-muted">
+                  Signed in as {user.email}
+                </Text>
+              ) : null}
+              <Text variant="caption" className="mt-0.5 text-ink-muted">
+                Timezone: {user?.timezone ?? 'auto'}
+              </Text>
+            </View>
+            <Button onPress={onSaveProfile} loading={savingProfile}>
+              Save profile
+            </Button>
+          </View>
         </Card>
 
         <SectionLabel>Notify me by</SectionLabel>

@@ -498,6 +498,17 @@ export default function AddPersonScreen() {
               returnKeyType="next"
             />
 
+            {/* Person vs pet (FR-17). Everything else in the form is shared —
+                pet-specific rendering (paw icon, no age) lives on the feed and
+                profile, keyed off this type. */}
+            <View>
+              <Label>Type</Label>
+              <View className="flex-row gap-2">
+                <Chip label="Person" selected={type === 'human'} onPress={() => setType('human')} />
+                <Chip label="Pet" selected={type === 'pet'} onPress={() => setType('pet')} />
+              </View>
+            </View>
+
             <View>
               <Label>Date of birth</Label>
               <View className="flex-row gap-2">

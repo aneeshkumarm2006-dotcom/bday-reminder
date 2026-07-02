@@ -16,6 +16,10 @@ import {
   type ChannelPreferences,
   type UpdateMeInput,
 } from '@/lib/api';
+import {
+  signInWithGoogle as runGoogleSignIn,
+  type GoogleSignInStatus,
+} from '@/lib/google-auth';
 import { registerForPushNotifications } from '@/lib/notifications';
 import { clearTokens, loadTokens, saveTokens } from '@/lib/token-store';
 import { clearWidget } from '@/lib/widget';
@@ -34,6 +38,12 @@ type AuthContextValue = {
   user: AuthUser | null;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (input: { name: string; email: string; password: string }) => Promise<void>;
+  /**
+   * "Sign in with Google" (identity only, Stage 16). Runs the in-app OAuth
+   * session and, on 'ok', adopts the returned tokens + user like `signIn`.
+   * Non-ok statuses are returned (never thrown) for the screen to message.
+   */
+  signInWithGoogle: () => Promise<GoogleSignInStatus>;
   signOut: () => Promise<void>;
   /** Patch the current user's profile/preferences and sync context (Stage 5). */
   updateProfile: (patch: UpdateMeInput) => Promise<AuthUser>;
@@ -150,6 +160,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setStatus('authenticated');
   }, []);
 
+  const signInWithGoogle = useCallback(async (): Promise<GoogleSignInStatus> => {
+    const result = await runGoogleSignIn();
+    if (result.status === 'ok') {
+      const { accessToken, refreshToken, user: googleUser } = result.session;
+      await saveTokens({ accessToken, refreshToken });
+      setUser(googleUser);
+      setStatus('authenticated');
+    }
+    return result.status;
+  }, []);
+
   const signUp = useCallback(
     async ({ name, email, password }: { name: string; email: string; password: string }) => {
       const res = await authApi.signup({ name, email, password, timezone: detectTimezone() });
@@ -204,8 +225,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo<AuthContextValue>(
-    () => ({ status, user, signIn, signUp, signOut, updateProfile, refreshUser }),
-    [status, user, signIn, signUp, signOut, updateProfile, refreshUser],
+    () => ({ status, user, signIn, signUp, signInWithGoogle, signOut, updateProfile, refreshUser }),
+    [status, user, signIn, signUp, signInWithGoogle, signOut, updateProfile, refreshUser],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from 'react-native';
 
 import { DateRing } from '@/components/date-ring';
+import { GoogleSignInButton } from '@/components/google-sign-in-button';
 import { Button, Screen, Text, TextField } from '@/components/ui';
 import { cn, focusRing } from '@/lib/cn';
 import { ApiError } from '@/lib/api';
@@ -90,6 +91,7 @@ export default function LoginScreen() {
               <Button fullWidth loading={loading} onPress={submit}>
                 Log in
               </Button>
+              <GoogleSignInButton label="Sign in with Google" />
             </View>
 
             <View className="flex-row items-center justify-center gap-1.5">

@@ -1,8 +1,9 @@
+import * as Clipboard from 'expo-clipboard';
+
 /**
- * Best-effort copy-to-clipboard without a native dependency. Uses the Web
- * Clipboard API where available (the app's web build, the primary place an
- * invite link is shared) and reports success so callers can fall back to a
- * "long-press to copy" hint on native, where the link is rendered selectable.
+ * Copy text to the clipboard. Prefers the Web Clipboard API on web (works in
+ * secure contexts without a permission prompt) and expo-clipboard on native.
+ * Reports success so callers can fall back to a "long-press to copy" hint.
  */
 export async function copyText(text: string): Promise<boolean> {
   try {
@@ -11,6 +12,7 @@ export async function copyText(text: string): Promise<boolean> {
       await nav.clipboard.writeText(text);
       return true;
     }
+    return await Clipboard.setStringAsync(text);
   } catch {
     // Fall through - caller shows the manual-copy hint.
   }

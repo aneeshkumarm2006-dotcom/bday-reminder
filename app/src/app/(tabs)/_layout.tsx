@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router';
-import { Bell, CalendarDays, Settings, Users } from 'lucide-react-native';
+import { Bell, CalendarDays, Contact, Settings, Users } from 'lucide-react-native';
 
 import { useTokens } from '@/theme/theme-provider';
 
@@ -33,6 +33,13 @@ export default function TabsLayout() {
         options={{
           title: 'Reminders',
           tabBarIcon: ({ color, size }) => <Bell color={color} size={size} strokeWidth={1.75} />,
+        }}
+      />
+      <Tabs.Screen
+        name="people"
+        options={{
+          title: 'People',
+          tabBarIcon: ({ color, size }) => <Contact color={color} size={size} strokeWidth={1.75} />,
         }}
       />
       <Tabs.Screen

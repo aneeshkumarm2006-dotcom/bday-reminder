@@ -1,9 +1,12 @@
+import * as DocumentPicker from 'expo-document-picker';
+import { File as FsFile } from 'expo-file-system';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   AlertTriangle,
   CheckCircle2,
+  FileText,
+  FileUp,
   Upload,
-  UserPlus,
   Users,
   X,
 } from 'lucide-react-native';
@@ -15,6 +18,7 @@ import {
   Card,
   Chip,
   Icon,
+  Input,
   Screen,
   Text,
   useToast,
@@ -30,12 +34,14 @@ import {
   type ImportResolution,
 } from '@/lib/api';
 import { importDeviceContacts } from '@/lib/contacts';
+import { MAX_IMPORT_ROWS, parseCsv } from '@/lib/csv';
 import { monthAbbr } from '@/lib/dates';
 import { useTokens } from '@/theme/theme-provider';
 
 /**
  * Bulk import (TODO Stage 7; FR-6/11). Three phases:
- *   • input   - scan device contacts (native only; web adds people manually).
+ *   • input   - scan device contacts (native only) or paste/upload a CSV (all
+ *     platforms - the only import path on web, where there's no address book).
  *   • preview - the server's annotated rows: ready / possible duplicates (resolve
  *     each as keep both / merge / skip) / couldn't-read. Nothing is created yet.
  *   • summary - what actually happened (added / merged / skipped / unreadable).
@@ -43,6 +49,16 @@ import { useTokens } from '@/theme/theme-provider';
  */
 
 type Phase = 'input' | 'preview' | 'summary';
+
+// System monospace for the CSV paste box (columns line up; no bundled mono font).
+const MONO_FONT = Platform.select({ ios: 'Menlo', default: 'monospace' });
+
+// Android's mime filtering is unreliable (providers report .csv as text/plain
+// or worse), so cast a wide net on native; web `accept` also honors extensions.
+const CSV_PICKER_TYPES =
+  Platform.OS === 'web'
+    ? ['text/csv', 'text/comma-separated-values', '.csv']
+    : ['text/csv', 'text/comma-separated-values', 'text/plain', 'application/csv'];
 
 function formatDob(dob: DateParts): string {
   const base = `${monthAbbr(dob.month)} ${dob.day}`;
@@ -58,6 +74,7 @@ export default function ImportScreen() {
   const [phase, setPhase] = useState<Phase>('input');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [csvText, setCsvText] = useState('');
   const [rows, setRows] = useState<ImportPreviewRow[]>([]);
   const [resolutions, setResolutions] = useState<Record<string, ImportResolution>>({});
   const [summary, setSummary] = useState<{ added: number; merged: number; skipped: number } | null>(
@@ -118,6 +135,62 @@ export default function ImportScreen() {
       setBusy(false);
     }
   }, [runPreview, toast]);
+
+  const previewCsv = useCallback(
+    async (text: string) => {
+      // Backstop for the paste path (files are size-checked before reading);
+      // matches the server's 2 MB csv cap.
+      if (text.length > 2_000_000) {
+        setError('That CSV is too big. Keep an import under 2 MB.');
+        return;
+      }
+      const candidates = parseCsv(text);
+      if (candidates.length === 0) {
+        setError(
+          'No rows found. The first line must be a header (like name,month,day) with at least one row below it.',
+        );
+        return;
+      }
+      if (candidates.length > MAX_IMPORT_ROWS) {
+        setError(
+          `That's ${candidates.length.toLocaleString()} rows - imports are capped at ${MAX_IMPORT_ROWS.toLocaleString()}. Split the file and run it in batches.`,
+        );
+        return;
+      }
+      // Parse feedback before the server round-trip, like the scan's toasts.
+      toast.show(`${candidates.length} ${candidates.length === 1 ? 'row' : 'rows'} parsed.`);
+      await runPreview(candidates);
+    },
+    [runPreview, toast],
+  );
+
+  const pickCsvFile = useCallback(async () => {
+    setError(null);
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: CSV_PICKER_TYPES,
+        copyToCacheDirectory: true,
+        base64: false,
+      });
+      if (result.canceled) return;
+      const asset = result.assets[0];
+      // Web assets carry a DOM File; native ones a cache uri for expo-file-system.
+      const file = asset.file ?? new FsFile(asset.uri);
+      // Refuse huge picks before materializing them in memory (Android's picker
+      // happily returns any text/plain file, and some providers report no size -
+      // stat the cached copy then); the server caps CSVs at 2 MB too.
+      const size = asset.size ?? file.size;
+      if (size != null && size > 2_000_000) {
+        setError('That file is too big. Keep an import under 2 MB.');
+        return;
+      }
+      const text = await file.text();
+      setCsvText(text);
+      await previewCsv(text);
+    } catch {
+      setError("Couldn't read that file. Check it's a plain .csv and try again.");
+    }
+  }, [previewCsv]);
 
   // Arriving via "Import from contacts" (source=contacts) auto-starts the scan (native).
   const autoScanned = useRef(false);
@@ -189,7 +262,10 @@ export default function ImportScreen() {
       {phase === 'input' ? (
         <InputPhase
           onScan={scanContacts}
-          onAddManual={() => router.replace('/add-person')}
+          csvText={csvText}
+          onChangeCsv={setCsvText}
+          onParseCsv={() => void previewCsv(csvText)}
+          onPickFile={() => void pickCsvFile()}
           busy={busy}
           error={error}
         />
@@ -213,6 +289,7 @@ export default function ImportScreen() {
             setResolutions({});
             setSummary(null);
             setError(null);
+            setCsvText('');
             setPhase('input');
           }}
           tint={t.biro}
@@ -226,22 +303,27 @@ export default function ImportScreen() {
 
 function InputPhase({
   onScan,
-  onAddManual,
+  csvText,
+  onChangeCsv,
+  onParseCsv,
+  onPickFile,
   busy,
   error,
 }: {
   onScan: () => void;
-  onAddManual: () => void;
+  csvText: string;
+  onChangeCsv: (text: string) => void;
+  onParseCsv: () => void;
+  onPickFile: () => void;
   busy: boolean;
   error: string | null;
 }) {
-  const isWeb = Platform.OS === 'web';
   return (
     <ScrollView
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
       contentContainerStyle={{ paddingBottom: 32, gap: 20 }}>
-      {!isWeb ? (
+      {Platform.OS !== 'web' ? (
         <Pressable
           onPress={onScan}
           disabled={busy}
@@ -261,20 +343,42 @@ function InputPhase({
             <Icon icon={Upload} size={20} />
           </Card>
         </Pressable>
-      ) : (
-        <Card className="gap-3">
-          <View>
-            <Text variant="cardName">Import only works in the mobile app</Text>
+      ) : null}
+
+      <Card className="gap-3">
+        <View className="flex-row items-center gap-3">
+          <View className="h-10 w-10 items-center justify-center rounded-full bg-surface-sunken">
+            <Icon icon={FileText} size={20} />
+          </View>
+          <View className="flex-1">
+            <Text variant="cardName">Import from a CSV</Text>
             <Text variant="caption" className="mt-0.5 text-ink-secondary">
-              Importing from your contacts is only available in the mobile app.
-              You can add people manually here instead.
+              Paste rows or upload a file. The first line is the header: name, month, day, then
+              optional year, relationship, phone. A single birthday column (MM/DD/YYYY) also works.
             </Text>
           </View>
-          <Button variant="secondary" leftIcon={UserPlus} onPress={onAddManual}>
-            Add someone manually
-          </Button>
-        </Card>
-      )}
+        </View>
+
+        <Input
+          value={csvText}
+          onChangeText={onChangeCsv}
+          multiline
+          numberOfLines={6}
+          autoCapitalize="none"
+          autoCorrect={false}
+          placeholder={'name,month,day,year,relationship\nAda Lovelace,12,10,1991,Friend'}
+          accessibilityLabel="CSV rows"
+          className="text-[13px]"
+          style={{ fontFamily: MONO_FONT, minHeight: 120, textAlignVertical: 'top' }}
+        />
+
+        <Button fullWidth loading={busy} disabled={!csvText.trim()} onPress={onParseCsv}>
+          Parse rows
+        </Button>
+        <Button variant="secondary" fullWidth leftIcon={FileUp} disabled={busy} onPress={onPickFile}>
+          Upload a CSV file
+        </Button>
+      </Card>
 
       {error ? (
         <Text variant="caption" className="text-danger-fg">
