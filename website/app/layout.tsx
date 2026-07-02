@@ -83,7 +83,10 @@ export default function RootLayout({
       suppressHydrationWarning
       className={`${hanken.variable} ${inter.variable} h-full`}
     >
-      <body className="flex min-h-full flex-col bg-paper font-body text-ink antialiased">
+      <body
+        suppressHydrationWarning
+        className="flex min-h-full flex-col bg-paper font-body text-ink antialiased"
+      >
         <ThemeProvider>
           <AppProviders>{children}</AppProviders>
         </ThemeProvider>

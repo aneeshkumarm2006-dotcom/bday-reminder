@@ -24,8 +24,6 @@ export function serializeUser(user: UserDoc) {
     channelPreferences: user.channelPreferences,
     defaultLeadDays: user.defaultLeadDays,
     defaultReminderTime: user.defaultReminderTime,
-    // Drives the first-run onboarding gate in the app (Stage 7, FR-2/3).
-    hasOnboarded: !!user.onboardedAt,
     // Gmail send-as status for auto-send birthday emails (Stage 14). The token is
     // never exposed; the client only needs to know whether it's connected + which
     // address, to gate the auto-send toggle and show the Settings card.

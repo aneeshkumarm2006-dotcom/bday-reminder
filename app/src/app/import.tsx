@@ -119,7 +119,7 @@ export default function ImportScreen() {
     }
   }, [runPreview, toast]);
 
-  // Arriving from onboarding's "Import from contacts" auto-starts the scan (native).
+  // Arriving via "Import from contacts" (source=contacts) auto-starts the scan (native).
   const autoScanned = useRef(false);
   useEffect(() => {
     if (source === 'contacts' && Platform.OS !== 'web' && !autoScanned.current) {

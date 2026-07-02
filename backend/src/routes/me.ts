@@ -35,9 +35,6 @@ const patchSchema = z
       .string()
       .regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Use a 24-hour time like 09:00.')
       .optional(),
-    // One-way: marks first-run onboarding complete (Stage 7, FR-2/3). Only
-    // `true` is meaningful - onboarding can't be "undone".
-    onboarded: z.literal(true).optional(),
   })
   .strict();
 
@@ -73,8 +70,6 @@ meRouter.patch(
     }
     if (patch.defaultLeadDays) user.defaultLeadDays = patch.defaultLeadDays;
     if (patch.defaultReminderTime) user.defaultReminderTime = patch.defaultReminderTime;
-    // Set once, on first completion; re-sending `onboarded:true` is a no-op.
-    if (patch.onboarded && !user.onboardedAt) user.onboardedAt = new Date();
 
     await user.save();
 

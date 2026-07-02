@@ -48,9 +48,9 @@ export default function RootLayout() {
   );
 }
 
-/** File-based stack + the auth guard (login → onboarding → the app). */
+/** File-based stack + the auth guard (login → the app). */
 function RootNavigator() {
-  const { status, user } = useAuth();
+  const { status } = useAuth();
   const segments = useSegments();
   const router = useRouter();
   const tokens = useTokens();
@@ -61,20 +61,13 @@ function RootNavigator() {
     void SplashScreen.hideAsync();
 
     const inAuthGroup = segments[0] === '(auth)';
-    const inOnboarding = segments[0] === 'onboarding';
     if (status === 'unauthenticated' && !inAuthGroup) {
       router.replace('/(auth)/login');
-    } else if (status === 'authenticated') {
-      // A new user goes through onboarding once (FR-2/3). `hasOnboarded` is only
-      // strictly false for a not-yet-onboarded account; treat unknown as done so
-      // we never trap an existing user. Onboarding navigates onward itself.
-      if (user?.hasOnboarded === false && !inOnboarding) {
-        router.replace('/onboarding');
-      } else if (user?.hasOnboarded !== false && inAuthGroup) {
-        router.replace('/(tabs)/reminders');
-      }
+    } else if (status === 'authenticated' && inAuthGroup) {
+      // Signed in - drop straight into the app (no onboarding step).
+      router.replace('/(tabs)/reminders');
     }
-  }, [status, user?.hasOnboarded, segments, router]);
+  }, [status, segments, router]);
 
   return (
     <Stack
@@ -84,7 +77,6 @@ function RootNavigator() {
       }}>
       <Stack.Screen name="(auth)" />
       <Stack.Screen name="(tabs)" />
-      <Stack.Screen name="onboarding" />
       <Stack.Screen name="add-person" options={{ presentation: 'modal' }} />
       <Stack.Screen name="import" options={{ presentation: 'modal' }} />
       <Stack.Screen name="person/[id]" />

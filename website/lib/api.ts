@@ -140,8 +140,6 @@ export type AuthUser = {
   channelPreferences?: ChannelPreferences;
   defaultLeadDays?: number[];
   defaultReminderTime?: string;
-  /** First-run onboarding gate (Stage 7; FR-2/3). */
-  hasOnboarded?: boolean;
   /** Gmail send-as status for auto-send birthday emails (Stage 14). */
   gmailConnected?: boolean;
   gmailEmail?: string | null;
@@ -172,8 +170,6 @@ export type UpdateMeInput = {
   channelPreferences?: Partial<ChannelPreferences>;
   defaultLeadDays?: number[];
   defaultReminderTime?: string;
-  /** Mark first-run onboarding complete - one-way (Stage 7; FR-2/3). */
-  onboarded?: true;
 };
 
 export const authApi = {

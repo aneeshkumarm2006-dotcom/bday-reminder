@@ -239,7 +239,7 @@ export function defaultTimeInheritLabel(hhmm: string | undefined): string {
 /** Default channel prefs to seed a new override from (mirrors the User default). */
 export const DEFAULT_CHANNELS: ChannelPreferences = {
   push: true,
-  email: true,
+  email: false,
   sms: false,
   inApp: true,
 };

@@ -1,6 +1,6 @@
 "use client";
 
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useEffect, type ReactNode } from "react";
 
 import { Sidebar } from "@/components/app/sidebar";
@@ -10,38 +10,19 @@ import { useAuth } from "@/providers/auth-provider";
 /**
  * The authenticated app shell. Client-side auth guard (tokens live in
  * localStorage, so there's no server session to gate on): while loading, show a
- * spinner; if signed out, bounce to /login; if signed in but not yet onboarded,
- * route through /onboarding first (FR-2/3). Renders the persistent Sidebar.
+ * spinner; if signed out, bounce to /login. Renders the persistent Sidebar.
  */
 export default function AppLayout({ children }: { children: ReactNode }) {
-  const { status, user } = useAuth();
+  const { status } = useAuth();
   const router = useRouter();
-  const pathname = usePathname();
-
-  const needsOnboarding = status === "authenticated" && user && user.hasOnboarded === false;
-  const onOnboarding = pathname === "/onboarding";
 
   useEffect(() => {
     if (status === "unauthenticated") {
       router.replace("/login");
-    } else if (needsOnboarding && !onOnboarding) {
-      router.replace("/onboarding");
     }
-  }, [status, needsOnboarding, onOnboarding, router]);
+  }, [status, router]);
 
   if (status !== "authenticated") {
-    return (
-      <div className="flex min-h-dvh items-center justify-center">
-        <LoadingBlock />
-      </div>
-    );
-  }
-
-  // Onboarding renders full-bleed (no sidebar) until it's complete.
-  if (needsOnboarding && onOnboarding) {
-    return <>{children}</>;
-  }
-  if (needsOnboarding) {
     return (
       <div className="flex min-h-dvh items-center justify-center">
         <LoadingBlock />

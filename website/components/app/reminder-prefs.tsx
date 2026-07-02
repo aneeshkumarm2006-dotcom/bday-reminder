@@ -198,7 +198,7 @@ export function defaultTimeInheritLabel(hhmm: string | undefined): string {
 
 export const DEFAULT_CHANNELS: ChannelPreferences = {
   push: true,
-  email: true,
+  email: false,
   sms: false,
   inApp: true,
 };

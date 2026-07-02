@@ -9,8 +9,8 @@ import { useAuth } from "@/providers/auth-provider";
 /**
  * Landing page for the "Sign in with Google" redirect. The backend callback
  * bounces the browser here with a one-time `?handoff=…` token; we exchange it
- * for a real session and route on: brand-new accounts to onboarding, returning
- * users to their reminders. Any failure sends them back to /login with a flag.
+ * for a real session and drop the user into their reminders. Any failure sends
+ * them back to /login with a flag.
  */
 function GoogleCallback() {
   const { completeGoogleSession } = useAuth();
@@ -30,7 +30,7 @@ function GoogleCallback() {
       return;
     }
     completeGoogleSession(handoff)
-      .then(({ isNew }) => router.replace(isNew ? "/onboarding" : "/reminders"))
+      .then(() => router.replace("/reminders"))
       .catch(() => {
         setFailed(true);
         router.replace("/login?google=error");

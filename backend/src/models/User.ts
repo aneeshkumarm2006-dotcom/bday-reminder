@@ -66,8 +66,6 @@ export interface UserDoc {
   defaultReminderTime: string;
   /** Expo push tokens registered across this user's devices (Stage 4). */
   pushTokens: string[];
-  /** When the user finished first-run onboarding; unset until they do (Stage 7, FR-2/3). */
-  onboardedAt?: Date;
   /** Subscribable calendar feed settings (Stage 9, FR-38/39/40). */
   calendarSync: CalendarSync;
   /** Connected Gmail for send-as birthday greetings (Stage 14); unset until connected. */
@@ -79,7 +77,8 @@ export interface UserDoc {
 const channelPreferencesSchema = new Schema<ChannelPreferences>(
   {
     push: { type: Boolean, default: true },
-    email: { type: Boolean, default: true },
+    // Off by default - users opt into email/SMS later from Settings (no onboarding step).
+    email: { type: Boolean, default: false },
     sms: { type: Boolean, default: false },
     inApp: { type: Boolean, default: true },
   },
@@ -128,7 +127,6 @@ const userSchema = new Schema<UserDoc>(
     defaultLeadDays: { type: [Number], default: () => [0, 7] },
     defaultReminderTime: { type: String, default: '09:00' },
     pushTokens: { type: [String], default: () => [] },
-    onboardedAt: { type: Date },
     calendarSync: { type: calendarSyncSchema, default: () => ({}) },
     gmailIntegration: { type: gmailIntegrationSchema, default: undefined },
   },

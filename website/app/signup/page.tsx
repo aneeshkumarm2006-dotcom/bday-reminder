@@ -35,7 +35,7 @@ export default function SignupPage() {
     setBusy(true);
     try {
       await signUp({ name: name.trim(), email: email.trim(), password });
-      router.replace("/onboarding");
+      router.replace("/reminders");
     } catch (err) {
       setError(
         err instanceof ApiError && err.status === 409

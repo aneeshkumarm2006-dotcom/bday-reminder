@@ -1,12 +1,12 @@
 /* eslint-disable no-console */
 /**
- * End-to-end smoke test for Stage 7 - onboarding, contact import, CSV bulk
+ * End-to-end smoke test for Stage 7 - account defaults, contact import, CSV bulk
  * import, and duplicate detection - against an ephemeral MongoDB over real HTTP.
- * Verifies the "Done when": a new user can finish onboarding (defaults set +
- * flag persisted), import a CSV (parsed + column-mapped + many date formats) and
- * structured device-contact rows, and is correctly prompted to resolve
- * duplicates (merge / keep both / skip) - never a silent auto-merge or overwrite
- * (FR-2/3/6/7/11, §10).
+ * Verifies the "Done when": a new user starts with sensible notification defaults
+ * (onboarding removed), can import a CSV (parsed + column-mapped + many date
+ * formats) and structured device-contact rows, and is correctly prompted to
+ * resolve duplicates (merge / keep both / skip) - never a silent auto-merge or
+ * overwrite (FR-6/7/11, §10).
  *
  * Run: npm run smoke:stage7
  */
@@ -72,19 +72,20 @@ async function main(): Promise<void> {
     // One day-of lead so every created person yields exactly one reminder.
     await patch('/me', { defaultLeadDays: [0] }, tokenA);
 
-    // --- Onboarding flag (FR-2/3) -------------------------------------------
-    let me = await (await get('/me', tokenA)).json();
-    check(me.hasOnboarded === false, 'a fresh user starts not-onboarded (hasOnboarded:false)');
-
-    res = await patch('/me', { onboarded: false }, tokenA);
-    check(res.status === 400, "onboarded can't be set false (one-way) → 400");
+    // --- Account defaults (onboarding removed) ------------------------------
+    const me = await (await get('/me', tokenA)).json();
+    check(me.hasOnboarded === undefined, 'onboarding is gone - no hasOnboarded flag on the user');
+    check(
+      me.channelPreferences.push === true && me.channelPreferences.inApp === true,
+      'new users default to push + in-app notifications on',
+    );
+    check(
+      me.channelPreferences.email === false && me.channelPreferences.sms === false,
+      'new users default to email + SMS off (opt in later from Settings)',
+    );
 
     res = await patch('/me', { onboarded: true }, tokenA);
-    check(res.status === 200 && (await res.json()).hasOnboarded === true, 'PATCH /me { onboarded:true } marks onboarding complete');
-    me = await (await get('/me', tokenA)).json();
-    check(me.hasOnboarded === true, 'the onboarded flag persists across requests (one account, synced - FR-4)');
-    res = await patch('/me', { onboarded: true }, tokenA);
-    check(res.status === 200, 're-marking onboarded is an idempotent no-op');
+    check(res.status === 400, 'PATCH /me no longer accepts the onboarded flag → 400');
 
     // --- Import requires auth ----------------------------------------------
     res = await post('/import/preview', { csv: 'name,date of birth\nX,2000-01-01' });

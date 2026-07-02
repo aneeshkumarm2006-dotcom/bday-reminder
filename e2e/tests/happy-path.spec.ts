@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 /**
- * E2E happy path (TODO Stage 13): sign up → (skip onboarding) → add a person
+ * E2E happy path (TODO Stage 13): sign up → add a person
  * with a birthday TODAY → see them in the feed → trigger the day-of reminder via
  * the dev endpoint → see it in the Reminders feed → mark it done.
  *
@@ -36,12 +36,7 @@ test('sign up, add a person, receive and complete a reminder', async ({ page, re
   await page.getByPlaceholder('At least 8 characters').fill(password);
   await page.getByRole('button', { name: 'Create account' }).click();
 
-  // --- Onboarding gate: new users land on onboarding; skip to the feed -----
-  const skip = page.getByRole('button', { name: 'Skip onboarding' });
-  await expect(skip).toBeVisible();
-  await skip.click();
-
-  // --- Add a person with a birthday today ----------------------------------
+  // --- Add a person with a birthday today (onboarding removed - land on feed) --
   await page.getByRole('button', { name: 'Add person' }).first().click();
   // The add-person form is the unique signal we've arrived (the modal renders
   // over the feed, so "Add person" text alone is ambiguous).

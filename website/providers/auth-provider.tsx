@@ -38,7 +38,7 @@ type AuthContextValue = {
   /**
    * Finish a "Sign in with Google" flow: exchange the one-time handoff token
    * (from the callback URL) for a session. Returns whether the account was just
-   * created, so the callback page can route new users to onboarding.
+   * created (the callback page drops everyone straight into the app).
    */
   completeGoogleSession: (handoff: string) => Promise<{ isNew: boolean }>;
   signOut: () => Promise<void>;
@@ -50,7 +50,7 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-const DEFAULT_CHANNELS: ChannelPreferences = { push: true, email: true, sms: false, inApp: true };
+const DEFAULT_CHANNELS: ChannelPreferences = { push: true, email: false, sms: false, inApp: true };
 
 /** Apply a /me patch onto the cached user for an optimistic update. */
 function applyMePatch(user: AuthUser, patch: UpdateMeInput): AuthUser {
@@ -60,7 +60,6 @@ function applyMePatch(user: AuthUser, patch: UpdateMeInput): AuthUser {
   if (patch.timezone !== undefined) next.timezone = patch.timezone;
   if (patch.defaultLeadDays !== undefined) next.defaultLeadDays = patch.defaultLeadDays;
   if (patch.defaultReminderTime !== undefined) next.defaultReminderTime = patch.defaultReminderTime;
-  if (patch.onboarded) next.hasOnboarded = true;
   if (patch.channelPreferences !== undefined) {
     next.channelPreferences = {
       ...(user.channelPreferences ?? DEFAULT_CHANNELS),
