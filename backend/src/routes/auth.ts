@@ -60,7 +60,12 @@ authRouter.post(
 
     // passwordHash is select:false, so re-select it for verification.
     const user = await User.findOne({ email }).select('+passwordHash');
-    if (!user || !(await verifyPassword(password, user.passwordHash))) {
+    // A Google-created account has no password yet: point them at the Google
+    // button rather than failing with a generic "incorrect" message.
+    if (user && !user.passwordHash && user.googleId) {
+      throw unauthorized('This account uses Google sign-in. Tap “Continue with Google”.');
+    }
+    if (!user || !user.passwordHash || !(await verifyPassword(password, user.passwordHash))) {
       throw unauthorized('Email or password is incorrect.');
     }
 

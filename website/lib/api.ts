@@ -153,6 +153,17 @@ export type AuthResponse = {
   refreshToken: string;
 };
 
+/** Google-login session response - same as AuthResponse plus a new-account flag. */
+export type GoogleSessionResponse = AuthResponse & { isNew: boolean };
+
+/**
+ * Top-level navigation target for the "Continue with Google" button. Hitting it
+ * 302-redirects the browser to Google's consent screen; `platform=web` makes the
+ * backend callback return here (to `/auth/google`). This is a full-page nav (not
+ * a fetch) because the OAuth dance leaves and re-enters the site.
+ */
+export const googleLoginUrl = `${API_URL}/auth/google/start?platform=web`;
+
 /** Fields the settings screen can change on the current user (Stage 5). */
 export type UpdateMeInput = {
   name?: string;
@@ -181,6 +192,18 @@ export const authApi = {
 
   updateMe: (patch: UpdateMeInput) =>
     apiFetch<AuthUser>('/me', { method: 'PATCH', body: patch }),
+
+  /**
+   * Exchange the one-time `handoff` token (delivered in the URL by the Google
+   * callback redirect) for the real JWT pair. No auth header - the handoff IS
+   * the credential.
+   */
+  googleSession: (handoff: string) =>
+    apiFetch<GoogleSessionResponse>('/auth/google/session', {
+      method: 'POST',
+      body: { handoff },
+      auth: false,
+    }),
 };
 
 // --- Gmail send-as integration (Stage 14) -----------------------------------
@@ -204,6 +227,8 @@ export type AppConfig = {
   gmailAutoSendAvailable?: boolean;
   /** Whether Twilio SMS auto-send is provisioned on the server (Stage 15). */
   smsAutoSendAvailable?: boolean;
+  /** Whether "Sign in with Google" is provisioned (gates the login button). */
+  googleAuthAvailable?: boolean;
 };
 
 export const configApi = {

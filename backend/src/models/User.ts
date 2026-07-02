@@ -47,7 +47,16 @@ export interface UserDoc {
   _id: Types.ObjectId;
   name: string;
   email: string;
-  passwordHash: string;
+  /**
+   * bcrypt hash of the password. Optional: accounts created via "Sign in with
+   * Google" have no password until they set one, so this is unset for them.
+   */
+  passwordHash?: string;
+  /**
+   * Google account id (`sub`) once the user has signed in with Google. Links a
+   * Google identity to this account; unset for password-only accounts.
+   */
+  googleId?: string;
   phone?: string;
   timezone: string;
   channelPreferences: ChannelPreferences;
@@ -105,8 +114,12 @@ const userSchema = new Schema<UserDoc>(
     name: { type: String, required: true, trim: true },
     // `unique` creates the index the TODO asks for; don't double-declare it.
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
-    // Never returned by default - login re-selects it explicitly.
-    passwordHash: { type: String, required: true, select: false },
+    // Never returned by default - login re-selects it explicitly. Not required:
+    // Google-created accounts have no password (see googleId below).
+    passwordHash: { type: String, select: false },
+    // Google `sub`; sparse+unique so only Google-linked accounts are indexed and
+    // no two accounts can claim the same Google identity.
+    googleId: { type: String },
     phone: { type: String, trim: true },
     // US/CA-first soft default; the app overwrites it with the detected device
     // zone on signup and whenever it drifts (FR-52).
@@ -125,6 +138,10 @@ const userSchema = new Schema<UserDoc>(
 // The feed token must be globally unique, but most users never enable sync, so
 // the index is sparse - token-less users aren't indexed and don't collide.
 userSchema.index({ 'calendarSync.token': 1 }, { unique: true, sparse: true });
+
+// One account per Google identity; sparse so password-only accounts (no googleId)
+// don't collide on `null`.
+userSchema.index({ googleId: 1 }, { unique: true, sparse: true });
 
 export const User: Model<UserDoc> =
   (models.User as Model<UserDoc>) || model<UserDoc>('User', userSchema);

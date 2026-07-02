@@ -56,6 +56,11 @@ const EnvSchema = z.object({
   // Where Google redirects after consent; defaults to `<API_PUBLIC_URL>/integrations/gmail/callback`
   // (computed in lib/google-oauth.ts) so it stays in step with the deployed API.
   GOOGLE_OAUTH_REDIRECT_URL: z.string().optional(),
+  // Redirect URI for "Sign in with Google" (identity login); defaults to
+  // `<API_PUBLIC_URL>/auth/google/callback`. This is a SEPARATE URI from the
+  // Gmail one above - both must be registered on the Google OAuth client. Reuses
+  // the same GOOGLE_CLIENT_ID/SECRET; login needs no token encryption key.
+  GOOGLE_LOGIN_REDIRECT_URL: z.string().optional(),
   // Encrypts the stored Gmail refresh token at rest (AES-256-GCM). Generate with
   // `openssl rand -base64 32` → decodes to exactly 32 bytes.
   GMAIL_TOKEN_ENC_KEY: z.string().optional(),

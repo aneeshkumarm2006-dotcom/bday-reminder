@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { AuthShell } from "@/components/app/auth-shell";
+import { GoogleAuthButton } from "@/components/app/google-auth-button";
 import { Button } from "@/components/ui/button";
 import { TextField } from "@/components/ui/input";
 import { ApiError } from "@/lib/api";
@@ -89,6 +90,7 @@ export default function SignupPage() {
           {busy ? "Creating account…" : "Create account"}
         </Button>
       </form>
+      <GoogleAuthButton label="Sign up with Google" />
     </AuthShell>
   );
 }

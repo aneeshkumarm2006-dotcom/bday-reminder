@@ -23,6 +23,15 @@ const REVOKE_URL = 'https://oauth2.googleapis.com/revoke';
 
 export const GMAIL_SCOPE = 'openid email https://www.googleapis.com/auth/gmail.send';
 
+/**
+ * Sign-in scope (identity only). Deliberately does NOT include `gmail.send`:
+ * logging in must never trigger the scary "this app wants to send email as you"
+ * consent. That heavier scope is requested separately, later, when the user
+ * actually turns on auto-send (the Stage 14 GMAIL_SCOPE flow) - Google's
+ * incremental-authorization pattern, so the two grants stay decoupled.
+ */
+export const LOGIN_SCOPE = 'openid email profile';
+
 export type OAuthPlatform = 'app' | 'web';
 
 /** State payload signed into the consent URL and read back on callback. */
@@ -170,4 +179,127 @@ export async function revokeToken(refreshToken: string): Promise<void> {
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({ token: refreshToken }).toString(),
   });
+}
+
+// ── "Sign in with Google" (identity login) ───────────────────────────────────
+// Reuses the SAME Google project / client id + secret as the Gmail send-as
+// integration, but a distinct redirect URI and the identity-only LOGIN_SCOPE.
+// Because there's no stored refresh token, token-crypto is NOT required here -
+// only the client id + secret. Both redirect URIs must be registered in the
+// Google Cloud console's OAuth client.
+
+/** True when the client id + secret are set (login needs no token encryption). */
+export function googleLoginConfigured(): boolean {
+  const env = loadEnv();
+  return !!env.GOOGLE_CLIENT_ID && !!env.GOOGLE_CLIENT_SECRET;
+}
+
+/** The redirect URI Google calls back for login; explicit env wins, else derived. */
+export function loginRedirectUri(): string {
+  const env = loadEnv();
+  if (env.GOOGLE_LOGIN_REDIRECT_URL) return env.GOOGLE_LOGIN_REDIRECT_URL;
+  return `${env.API_PUBLIC_URL.replace(/\/+$/, '')}/auth/google/callback`;
+}
+
+/** State payload for the login flow - no user yet, just the return platform. */
+interface LoginStatePayload {
+  platform: OAuthPlatform;
+  type: 'google_login';
+}
+
+function signLoginState(platform: OAuthPlatform): string {
+  const env = loadEnv();
+  const payload: LoginStatePayload = { platform, type: 'google_login' };
+  return jwt.sign(payload, env.JWT_ACCESS_SECRET, { expiresIn: '10m' });
+}
+
+/** Verify + decode a login state token; throws on tamper/expiry/wrong type. */
+export function verifyLoginState(state: string): { platform: OAuthPlatform } {
+  const env = loadEnv();
+  const decoded = jwt.verify(state, env.JWT_ACCESS_SECRET) as LoginStatePayload;
+  if (decoded.type !== 'google_login') throw new Error('Not a google_login state token');
+  return { platform: decoded.platform === 'web' ? 'web' : 'app' };
+}
+
+/** Build the Google consent URL for signing in (identity scope only). */
+export function buildLoginConsentUrl(platform: OAuthPlatform): string {
+  const env = loadEnv();
+  const params = new URLSearchParams({
+    client_id: env.GOOGLE_CLIENT_ID!,
+    redirect_uri: loginRedirectUri(),
+    response_type: 'code',
+    scope: LOGIN_SCOPE,
+    // Login needs no offline/refresh token, and no forced `prompt=consent` -
+    // returning users skip the consent screen entirely for a one-tap sign-in.
+    include_granted_scopes: 'true',
+    state: signLoginState(platform),
+  });
+  return `${AUTH_URL}?${params.toString()}`;
+}
+
+export interface GoogleIdentity {
+  /** Google's stable account id (`sub`) - the durable link key. */
+  googleId: string;
+  email: string;
+  name: string;
+}
+
+/** Exchange a login authorization code for the user's verified identity. */
+export async function exchangeCodeForIdentity(code: string): Promise<GoogleIdentity> {
+  const env = loadEnv();
+  const res = await fetch(TOKEN_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      code,
+      client_id: env.GOOGLE_CLIENT_ID!,
+      client_secret: env.GOOGLE_CLIENT_SECRET!,
+      redirect_uri: loginRedirectUri(),
+      grant_type: 'authorization_code',
+    }).toString(),
+  });
+  const data = (await res.json().catch(() => null)) as {
+    id_token?: string;
+    error?: string;
+    error_description?: string;
+  } | null;
+  if (!res.ok || !data) {
+    throw new Error(data?.error_description || data?.error || `token exchange failed (${res.status})`);
+  }
+  const claims = decodeJwtPayload(data.id_token ?? '');
+  const googleId = String(claims.sub ?? '');
+  const email = String(claims.email ?? '').toLowerCase();
+  // Fall back to the email's local part if Google returns no display name.
+  const name = String(claims.name ?? '').trim() || email.split('@')[0] || 'Friend';
+  if (!googleId || !email) {
+    throw new Error('Could not read the Google account identity from the token response.');
+  }
+  return { googleId, email, name };
+}
+
+interface HandoffPayload {
+  sub: string;
+  isNew: boolean;
+  type: 'google_handoff';
+}
+
+/**
+ * Short-lived one-time-ish "handoff" token. The backend callback can't write to
+ * the browser's localStorage, so instead of putting the real (long-lived)
+ * refresh token in the redirect URL, it signs this tiny 2-minute token; the
+ * website POSTs it straight back to `/auth/google/session` and receives the real
+ * JWT pair. Kept out of the URL any longer than one navigation.
+ */
+export function signGoogleHandoff(userId: string, isNew: boolean): string {
+  const env = loadEnv();
+  const payload: HandoffPayload = { sub: userId, isNew, type: 'google_handoff' };
+  return jwt.sign(payload, env.JWT_ACCESS_SECRET, { expiresIn: '2m' });
+}
+
+/** Verify a handoff token; throws on tamper/expiry/wrong type. */
+export function verifyGoogleHandoff(token: string): { userId: string; isNew: boolean } {
+  const env = loadEnv();
+  const decoded = jwt.verify(token, env.JWT_ACCESS_SECRET) as HandoffPayload;
+  if (decoded.type !== 'google_handoff') throw new Error('Not a google_handoff token');
+  return { userId: decoded.sub, isNew: !!decoded.isNew };
 }

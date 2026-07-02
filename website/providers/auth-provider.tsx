@@ -35,6 +35,12 @@ type AuthContextValue = {
   user: AuthUser | null;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (input: { name: string; email: string; password: string }) => Promise<void>;
+  /**
+   * Finish a "Sign in with Google" flow: exchange the one-time handoff token
+   * (from the callback URL) for a session. Returns whether the account was just
+   * created, so the callback page can route new users to onboarding.
+   */
+  completeGoogleSession: (handoff: string) => Promise<{ isNew: boolean }>;
   signOut: () => Promise<void>;
   /** Patch the current user's profile/preferences and sync context (Stage 5). */
   updateProfile: (patch: UpdateMeInput) => Promise<AuthUser>;
@@ -159,6 +165,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [],
   );
 
+  const completeGoogleSession = useCallback(async (handoff: string) => {
+    const res = await authApi.googleSession(handoff);
+    await saveTokens({ accessToken: res.accessToken, refreshToken: res.refreshToken });
+    setUser(res.user);
+    setStatus("authenticated");
+    return { isNew: res.isNew };
+  }, []);
+
   const signOut = useCallback(async () => {
     const tokens = await loadTokens();
     if (tokens) await authApi.logout(tokens.refreshToken);
@@ -199,8 +213,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo<AuthContextValue>(
-    () => ({ status, user, signIn, signUp, signOut, updateProfile, refreshUser }),
-    [status, user, signIn, signUp, signOut, updateProfile, refreshUser],
+    () => ({ status, user, signIn, signUp, completeGoogleSession, signOut, updateProfile, refreshUser }),
+    [status, user, signIn, signUp, completeGoogleSession, signOut, updateProfile, refreshUser],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

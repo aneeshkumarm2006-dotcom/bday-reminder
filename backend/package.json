@@ -33,7 +33,8 @@
     "smoke:stage9": "tsx scripts/smoke-stage9.ts",
     "smoke:stage12": "tsx scripts/smoke-stage12.ts",
     "smoke:autosend": "tsx scripts/smoke-autosend.ts",
-    "smoke:autosms": "tsx scripts/smoke-autosms.ts"
+    "smoke:autosms": "tsx scripts/smoke-autosms.ts",
+    "smoke:googleauth": "tsx scripts/smoke-googleauth.ts"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

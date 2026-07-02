@@ -1,6 +1,6 @@
 import { Router } from 'express';
 
-import { gmailOAuthConfigured } from '../lib/google-oauth';
+import { gmailOAuthConfigured, googleLoginConfigured } from '../lib/google-oauth';
 import { smsMonthlyCap } from '../lib/sms-usage';
 import { twilioConfigured } from '../lib/twilio-send';
 
@@ -19,5 +19,8 @@ configRouter.get('/', (_req, res) => {
     smsWhatsappMonthlyCap: smsMonthlyCap(),
     gmailAutoSendAvailable: gmailOAuthConfigured(),
     smsAutoSendAvailable: twilioConfigured(),
+    // Whether "Sign in with Google" is provisioned (so the login page can hide
+    // the button when it isn't).
+    googleAuthAvailable: googleLoginConfigured(),
   });
 });
