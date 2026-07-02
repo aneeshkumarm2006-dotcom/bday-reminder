@@ -7,14 +7,18 @@ import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { AddEventDialog } from "@/components/app/add-event-dialog";
+import { AutoSendDialog, type AutoSendDraft } from "@/components/app/auto-send-dialog";
 import { NotesSection } from "@/components/app/notes-section";
 import { Avatar } from "@/components/ui/avatar";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { LoadingBlock } from "@/components/ui/spinner";
+import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/components/ui/toast";
 import { Ring } from "@/components/ring";
 import {
+  ApiError,
+  configApi,
   eventsApi,
   notesApi,
   peopleApi,
@@ -39,9 +43,16 @@ export default function PersonProfilePage() {
   const confirm = useConfirm();
   const [addOpen, setAddOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<EventItem | null>(null);
+  const [emailDialogOpen, setEmailDialogOpen] = useState(false);
+  const [smsDialogOpen, setSmsDialogOpen] = useState(false);
+  const [savingChannel, setSavingChannel] = useState<"email" | "sms" | null>(null);
 
   const personQ = useQuery({ queryKey: ["person", id], queryFn: () => peopleApi.get(id) });
   const notesQ = useQuery({ queryKey: ["notes", id], queryFn: () => notesApi.list(id) });
+  const { data: config, isError: configFailed } = useQuery({
+    queryKey: ["config"],
+    queryFn: () => configApi.get(),
+  });
 
   if (personQ.isLoading) return <LoadingBlock />;
   if (personQ.isError || !personQ.data) {
@@ -82,6 +93,53 @@ export default function PersonProfilePage() {
     } catch {
       toast({ message: "Couldn't remove the event.", tone: "error" });
     }
+  };
+
+  const invalidatePerson = () => {
+    qc.invalidateQueries({ queryKey: ["person", id] });
+    qc.invalidateQueries({ queryKey: ["people"] });
+  };
+
+  // Live mode: changes here persist immediately (unlike the edit form's
+  // draft-mode popups). Message omitted on toggle-off so the saved text
+  // survives an off/on cycle; never send null (it wipes the whole sub-doc).
+  const autoSendOff = async (channel: "email" | "sms") => {
+    setSavingChannel(channel);
+    try {
+      await peopleApi.update(
+        person.id,
+        channel === "email"
+          ? { autoBirthdayEmail: { enabled: false } }
+          : { autoBirthdaySms: { enabled: false } },
+      );
+      invalidatePerson();
+      toast({ message: channel === "email" ? "Auto-send email off." : "Auto-send SMS off.", tone: "success" });
+    } catch (e) {
+      toast({ message: e instanceof ApiError ? e.message : "Couldn't save. Try again.", tone: "error" });
+    } finally {
+      setSavingChannel(null);
+    }
+  };
+
+  // Confirm handlers for the popups; a thrown ApiError (e.g. "connect Gmail
+  // first" for a shared person whose owner isn't connected) is surfaced by the
+  // dialog itself, which stays open.
+  const confirmAutoEmail = async ({ recipient, message }: AutoSendDraft) => {
+    await peopleApi.update(person.id, {
+      email: recipient,
+      autoBirthdayEmail: { enabled: true, message },
+    });
+    invalidatePerson();
+    toast({ message: "Auto-send email on.", tone: "success" });
+  };
+
+  const confirmAutoSms = async ({ recipient, message }: AutoSendDraft) => {
+    await peopleApi.update(person.id, {
+      phone: recipient,
+      autoBirthdaySms: { enabled: true, message },
+    });
+    invalidatePerson();
+    toast({ message: "Auto-send SMS on.", tone: "success" });
   };
 
   return (
@@ -136,39 +194,72 @@ export default function PersonProfilePage() {
         </div>
       </section>
 
-      {/* Auto-send birthday email status (Stage 14) - shown only when on. */}
-      {person.autoBirthdayEmail?.enabled && person.email && (
-        <section className="mt-8">
-          <h2 className="mb-3 font-display text-lg font-semibold text-ink">Auto-send email</h2>
+      {/* Auto-send greetings (Stage 14/15) — interactive: the switch opens the
+          setup popup to turn on, and changes persist immediately. */}
+      <section className="mt-8">
+        <h2 className="mb-3 font-display text-lg font-semibold text-ink">Auto-send</h2>
+        <div className="flex flex-col gap-2">
           <div className="flex items-center gap-3 rounded-lg border border-border-subtle bg-surface p-4">
             <Mail size={20} className="shrink-0 text-biro" aria-hidden="true" />
-            <div className="min-w-0">
-              <p className="font-medium text-ink">On</p>
+            <div className="min-w-0 flex-1">
+              <p className="font-medium text-ink">Birthday email</p>
               <p className="mt-0.5 text-sm text-ink-muted">
-                A birthday greeting emails to {person.email} each year, sent from you. Edit to change
-                the message or turn it off.
+                {person.autoBirthdayEmail?.enabled ? (
+                  <>
+                    Emails {person.email || "their email"} each year, sent from your Gmail as you.{" "}
+                    <button
+                      type="button"
+                      aria-label="Edit the birthday email message"
+                      className="font-medium text-biro hover:underline"
+                      onClick={() => setEmailDialogOpen(true)}
+                    >
+                      Edit message
+                    </button>
+                  </>
+                ) : (
+                  "Off. Turn on to email a greeting from your Gmail, as you."
+                )}
               </p>
             </div>
+            <Switch
+              checked={!!person.autoBirthdayEmail?.enabled}
+              disabled={savingChannel === "email"}
+              onCheckedChange={(on) => (on ? setEmailDialogOpen(true) : autoSendOff("email"))}
+              aria-label="Auto-send birthday email"
+            />
           </div>
-        </section>
-      )}
 
-      {/* Auto-send birthday SMS status (Stage 15) - shown only when on. */}
-      {person.autoBirthdaySms?.enabled && person.phone && (
-        <section className="mt-8">
-          <h2 className="mb-3 font-display text-lg font-semibold text-ink">Auto-send SMS</h2>
           <div className="flex items-center gap-3 rounded-lg border border-border-subtle bg-surface p-4">
             <MessageSquare size={20} className="shrink-0 text-biro" aria-hidden="true" />
-            <div className="min-w-0">
-              <p className="font-medium text-ink">On</p>
+            <div className="min-w-0 flex-1">
+              <p className="font-medium text-ink">Birthday SMS</p>
               <p className="mt-0.5 text-sm text-ink-muted">
-                A birthday text goes to {person.phone} each year, signed with your name. Edit to
-                change the message or turn it off.
+                {person.autoBirthdaySms?.enabled ? (
+                  <>
+                    Texts {person.phone || "their phone"} each year, signed with your name.{" "}
+                    <button
+                      type="button"
+                      aria-label="Edit the birthday SMS message"
+                      className="font-medium text-biro hover:underline"
+                      onClick={() => setSmsDialogOpen(true)}
+                    >
+                      Edit message
+                    </button>
+                  </>
+                ) : (
+                  "Off. Turn on to text a greeting, signed with your name."
+                )}
               </p>
             </div>
+            <Switch
+              checked={!!person.autoBirthdaySms?.enabled}
+              disabled={savingChannel === "sms"}
+              onCheckedChange={(on) => (on ? setSmsDialogOpen(true) : autoSendOff("sms"))}
+              aria-label="Auto-send birthday SMS"
+            />
           </div>
-        </section>
-      )}
+        </div>
+      </section>
 
       {/* Notes */}
       <section className="mt-8">
@@ -204,6 +295,29 @@ export default function PersonProfilePage() {
           qc.invalidateQueries({ queryKey: ["person", id] });
           qc.invalidateQueries({ queryKey: ["upcoming"] });
         }}
+      />
+
+      <AutoSendDialog
+        channel="email"
+        open={emailDialogOpen}
+        onClose={() => setEmailDialogOpen(false)}
+        personName={person.fullName}
+        available={config ? !!config.gmailAutoSendAvailable : configFailed ? false : undefined}
+        initialRecipient={person.email ?? ""}
+        initialMessage={person.autoBirthdayEmail?.message ?? ""}
+        alreadyEnabled={!!person.autoBirthdayEmail?.enabled}
+        onConfirm={confirmAutoEmail}
+      />
+      <AutoSendDialog
+        channel="sms"
+        open={smsDialogOpen}
+        onClose={() => setSmsDialogOpen(false)}
+        personName={person.fullName}
+        available={config ? !!config.smsAutoSendAvailable : configFailed ? false : undefined}
+        initialRecipient={person.phone ?? ""}
+        initialMessage={person.autoBirthdaySms?.message ?? ""}
+        alreadyEnabled={!!person.autoBirthdaySms?.enabled}
+        onConfirm={confirmAutoSms}
       />
     </div>
   );

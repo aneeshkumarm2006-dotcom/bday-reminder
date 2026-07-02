@@ -6,17 +6,17 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { AddEventDialog } from "@/components/app/add-event-dialog";
+import { AutoSendDialog } from "@/components/app/auto-send-dialog";
 import { DatePartsField, type DatePartsValue } from "@/components/app/date-parts-field";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Chip } from "@/components/ui/chip";
-import { Input, TextField, Textarea } from "@/components/ui/input";
+import { Input, TextField } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { ToggleRow } from "@/components/ui/switch";
 import { useToast } from "@/components/ui/toast";
 import {
   configApi,
-  gmailApi,
   listsApi,
   peopleApi,
   uploadsApi,
@@ -30,25 +30,6 @@ import { eventTypeMeta } from "@/lib/event-style";
 import { useAuth } from "@/providers/auth-provider";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-/** Default auto-send greeting body - mirrors the server default (Stage 14). */
-function defaultBirthdayEmail(name: string): string {
-  const first = name.trim().split(/\s+/)[0] || "there";
-  return `Happy birthday, ${first}! Hope you have a wonderful day. 🎉`;
-}
-
-/** Cap for the auto-send SMS body - one GSM-7 segment (Stage 15). */
-const SMS_MAX = 160;
-
-/**
- * Default auto-send SMS body - mirrors the server's `birthdaySmsBody`. Short and
- * emoji-free (one segment) and signed with the sender's name, since the friend
- * sees an app-owned Twilio number, not the user's (Stage 15).
- */
-function defaultBirthdaySms(name: string, senderName: string): string {
-  const first = name.trim().split(/\s+/)[0] || "there";
-  return `Happy birthday, ${first}! Hope you have a great day. - ${senderName}`;
-}
 
 /** Short human date for a pending-event row, e.g. "Jun 12" or "Jun 12, 1990". */
 function formatEventDate(date: { month: number; day: number; year?: number | null }): string {
@@ -80,7 +61,7 @@ export function PersonForm({
 }) {
   const router = useRouter();
   const { toast } = useToast();
-  const { user, refreshUser } = useAuth();
+  const { user } = useAuth();
   const person = existing?.person;
 
   const birthday = existing?.events.find((e) => e.type === "birthday");
@@ -105,7 +86,8 @@ export function PersonForm({
   const [autoSendMessage, setAutoSendMessage] = useState(person?.autoBirthdayEmail?.message ?? "");
   const [autoSmsOn, setAutoSmsOn] = useState(person?.autoBirthdaySms?.enabled ?? false);
   const [autoSmsMessage, setAutoSmsMessage] = useState(person?.autoBirthdaySms?.message ?? "");
-  const [connectingGmail, setConnectingGmail] = useState(false);
+  const [emailDialogOpen, setEmailDialogOpen] = useState(false);
+  const [smsDialogOpen, setSmsDialogOpen] = useState(false);
   const [photoUrl, setPhotoUrl] = useState<string | null>(person?.photoUrl ?? null);
   const [selectedLists, setSelectedLists] = useState<string[]>(person?.lists ?? []);
   const [uploading, setUploading] = useState(false);
@@ -118,58 +100,21 @@ export function PersonForm({
   const [eventDialogOpen, setEventDialogOpen] = useState(false);
 
   const { data: listsData } = useQuery({ queryKey: ["lists"], queryFn: () => listsApi.list() });
-  const { data: config } = useQuery({ queryKey: ["config"], queryFn: () => configApi.get() });
+  const { data: config, isError: configFailed } = useQuery({
+    queryKey: ["config"],
+    queryFn: () => configApi.get(),
+  });
 
-  // Enabling auto-send needs a recipient email + a connected Gmail. If Gmail isn't
-  // linked yet we open the consent flow in a new tab (so this form isn't lost);
-  // once they connect there and come back, toggling again picks it up. The
-  // revealed message + Save is the one-time confirmation.
-  const onToggleAutoSend = async (on: boolean) => {
-    if (!on) {
-      setAutoSendOn(false);
+  // The greeting templates personalize with the person's first name, so ask for
+  // the name before opening the setup popup — otherwise "Happy birthday, there!"
+  // gets baked into the saved message.
+  const openAutoSendDialog = (channel: "email" | "sms") => {
+    if (!fullName.trim()) {
+      toast({ message: "Add their name first — the greeting uses it.", tone: "error" });
       return;
     }
-    if (!EMAIL_RE.test(email.trim())) {
-      toast({ message: "Add this person's email first.", tone: "error" });
-      return;
-    }
-    let connected = user?.gmailConnected ?? false;
-    if (!connected) {
-      const me = await refreshUser(); // maybe they connected in another tab
-      connected = me?.gmailConnected ?? false;
-    }
-    if (!connected) {
-      setConnectingGmail(true);
-      try {
-        const { url } = await gmailApi.connectUrl();
-        window.open(url, "_blank", "noopener,noreferrer");
-        toast({ message: "Connect your Gmail in the new tab, then switch this on.", tone: "success" });
-      } catch {
-        toast({ message: "Couldn't start the Gmail connection. Try again.", tone: "error" });
-      } finally {
-        setConnectingGmail(false);
-      }
-      return; // leave the toggle off until Gmail is connected
-    }
-    if (!autoSendMessage.trim()) setAutoSendMessage(defaultBirthdayEmail(fullName));
-    setAutoSendOn(true);
-  };
-
-  // Auto-send SMS is simpler than email: no per-user account to connect (one
-  // shared Twilio account), so we only need a recipient phone on the person.
-  const onToggleAutoSms = (on: boolean) => {
-    if (!on) {
-      setAutoSmsOn(false);
-      return;
-    }
-    if (!phone.trim()) {
-      toast({ message: "Add this person's phone first.", tone: "error" });
-      return;
-    }
-    if (!autoSmsMessage.trim()) {
-      setAutoSmsMessage(defaultBirthdaySms(fullName, user?.name || "me"));
-    }
-    setAutoSmsOn(true);
+    if (channel === "email") setEmailDialogOpen(true);
+    else setSmsDialogOpen(true);
   };
 
   const isLeapDay = date.month === 2 && date.day === 29;
@@ -408,74 +353,65 @@ export function PersonForm({
         onChange={(e) => setEmail(e.target.value)}
       />
 
-      {/* Auto-send birthday email (Stage 14) - only when provisioned. */}
-      {config?.gmailAutoSendAvailable && (
-        <div>
-          <ToggleRow
-            label="Auto-send birthday email"
-            description="Email a greeting on their birthday, sent from your Gmail as you."
-            checked={autoSendOn}
-            disabled={connectingGmail}
-            onCheckedChange={onToggleAutoSend}
-          />
-          {autoSendOn ? (
-            <div className="mt-2 border-l-2 border-border-subtle pl-3">
-              <label className="mb-1.5 block text-sm font-medium text-ink-secondary">Message</label>
-              <Textarea
-                value={autoSendMessage}
-                maxLength={2000}
-                placeholder={defaultBirthdayEmail(fullName)}
-                onChange={(e) => setAutoSendMessage(e.target.value)}
-              />
-              <p className="mt-1.5 text-xs text-ink-muted">
-                Sends automatically to {email.trim() || "their email"} every year
-                {user?.gmailEmail ? ` from ${user.gmailEmail}` : ""}. It arrives as a normal email
-                from you — no “sent via an app” tag.
-              </p>
-            </div>
-          ) : (
-            <p className="mt-1 text-xs text-ink-muted">
-              {user?.gmailConnected
-                ? "Off. Your Gmail is connected and ready."
-                : "Off. You'll connect your Gmail when you turn this on."}
-            </p>
-          )}
-        </div>
-      )}
+      {/* Auto-send birthday email (Stage 14) — turning it on opens the setup
+          popup (template, message, Gmail permission); the toggle only flips ON
+          once that's confirmed. */}
+      <div>
+        <ToggleRow
+          label="Auto-send birthday email"
+          description="Email a greeting on their birthday, sent from your Gmail as you."
+          checked={autoSendOn}
+          onCheckedChange={(on) => (on ? openAutoSendDialog("email") : setAutoSendOn(false))}
+        />
+        {autoSendOn ? (
+          <p className="mt-1 text-xs text-ink-muted">
+            To {email.trim() || "their email"}
+            {user?.gmailEmail ? ` from ${user.gmailEmail}` : ""}, every year.{" "}
+            <button
+              type="button"
+              aria-label="Edit the birthday email message"
+              className="font-medium text-biro hover:underline"
+              onClick={() => setEmailDialogOpen(true)}
+            >
+              Edit message
+            </button>
+          </p>
+        ) : (
+          <p className="mt-1 text-xs text-ink-muted">
+            {user?.gmailConnected
+              ? "Off. Your Gmail is connected and ready."
+              : "Off. You'll connect your Gmail when you turn this on."}
+          </p>
+        )}
+      </div>
 
-      {/* Auto-send birthday SMS (Stage 15) - only when Twilio is provisioned. */}
-      {config?.smsAutoSendAvailable && (
-        <div>
-          <ToggleRow
-            label="Auto-send birthday SMS"
-            description="Text a greeting on their birthday, signed with your name."
-            checked={autoSmsOn}
-            onCheckedChange={onToggleAutoSms}
-          />
-          {autoSmsOn ? (
-            <div className="mt-2 border-l-2 border-border-subtle pl-3">
-              <label className="mb-1.5 block text-sm font-medium text-ink-secondary">Message</label>
-              <Textarea
-                value={autoSmsMessage}
-                maxLength={SMS_MAX}
-                placeholder={defaultBirthdaySms(fullName, user?.name || "me")}
-                onChange={(e) => setAutoSmsMessage(e.target.value)}
-              />
-              <p className="mt-1.5 text-xs text-ink-muted">
-                <span className="tabular-nums">
-                  {autoSmsMessage.length}/{SMS_MAX}
-                </span>{" "}
-                · Texts automatically to {phone.trim() || "their phone"} every year. Keep it short —
-                one message. An emoji costs extra.
-              </p>
-            </div>
-          ) : (
-            <p className="mt-1 text-xs text-ink-muted">
-              Off. Sent from a shared number, signed with your name.
-            </p>
-          )}
-        </div>
-      )}
+      {/* Auto-send birthday SMS (Stage 15) — same popup flow, no per-user
+          account to connect (one shared Twilio number). */}
+      <div>
+        <ToggleRow
+          label="Auto-send birthday SMS"
+          description="Text a greeting on their birthday, signed with your name."
+          checked={autoSmsOn}
+          onCheckedChange={(on) => (on ? openAutoSendDialog("sms") : setAutoSmsOn(false))}
+        />
+        {autoSmsOn ? (
+          <p className="mt-1 text-xs text-ink-muted">
+            To {phone.trim() || "their phone"}, signed {user?.name || "you"}, every year.{" "}
+            <button
+              type="button"
+              aria-label="Edit the birthday SMS message"
+              className="font-medium text-biro hover:underline"
+              onClick={() => setSmsDialogOpen(true)}
+            >
+              Edit message
+            </button>
+          </p>
+        ) : (
+          <p className="mt-1 text-xs text-ink-muted">
+            Off. Sent from a shared number, signed with your name.
+          </p>
+        )}
+      </div>
 
       {/* Lists */}
       {listsData && listsData.lists.length > 0 && (
@@ -518,6 +454,40 @@ export function PersonForm({
           onAdd={(draft) => setPendingEvents((cur) => [...cur, draft])}
         />
       )}
+
+      {/* Auto-send setup popups (draft mode: confirm updates form state; the
+          person is saved on submit). Confirm also syncs the recipient back
+          into the Email/Phone field above. */}
+      <AutoSendDialog
+        channel="email"
+        open={emailDialogOpen}
+        onClose={() => setEmailDialogOpen(false)}
+        personName={fullName}
+        available={config ? !!config.gmailAutoSendAvailable : configFailed ? false : undefined}
+        initialRecipient={email}
+        initialMessage={autoSendMessage}
+        alreadyEnabled={autoSendOn}
+        onConfirm={({ recipient, message }) => {
+          setEmail(recipient);
+          setAutoSendMessage(message);
+          setAutoSendOn(true);
+        }}
+      />
+      <AutoSendDialog
+        channel="sms"
+        open={smsDialogOpen}
+        onClose={() => setSmsDialogOpen(false)}
+        personName={fullName}
+        available={config ? !!config.smsAutoSendAvailable : configFailed ? false : undefined}
+        initialRecipient={phone}
+        initialMessage={autoSmsMessage}
+        alreadyEnabled={autoSmsOn}
+        onConfirm={({ recipient, message }) => {
+          setPhone(recipient);
+          setAutoSmsMessage(message);
+          setAutoSmsOn(true);
+        }}
+      />
     </form>
   );
 }

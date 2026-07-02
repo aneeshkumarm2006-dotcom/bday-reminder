@@ -1,16 +1,18 @@
 import { Image } from 'expo-image';
 import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { CalendarPlus, ChevronLeft, Mail, MessageSquare, Pencil, Trash2 } from 'lucide-react-native';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native';
 
 import { AddEventSheet } from '@/components/add-event-sheet';
+import { AutoSendSheet, type AutoSendDraft } from '@/components/auto-send-sheet';
 import { DateRing, type RingState } from '@/components/date-ring';
 import { NotesSection } from '@/components/notes-section';
-import { Button, Card, Icon, Pill, Screen, Text, useConfirm, useToast } from '@/components/ui';
+import { Button, Card, Icon, Pill, Screen, Text, Toggle, useConfirm, useToast } from '@/components/ui';
 import { cn, focusRing } from '@/lib/cn';
 import {
   ApiError,
+  configApi,
   eventsApi,
   peopleApi,
   type EventItem,
@@ -25,6 +27,7 @@ import {
   nextOccurrence,
   ringStateForOccurrence,
 } from '@/lib/dates';
+import { formatNanp } from '@/lib/phone';
 import { useTokens } from '@/theme/theme-provider';
 
 /**
@@ -188,6 +191,77 @@ function ProfileBody({
   const [editingEvent, setEditingEvent] = useState<EventItem | null>(null);
   const [removingId, setRemovingId] = useState<string | null>(null);
 
+  // Auto-send greetings (Stage 14/15) - live mode: the toggles here persist
+  // immediately (unlike the add-person form's draft toggles). Availability
+  // flags gate the sheet's content, not the rows' visibility.
+  const [emailSheetOpen, setEmailSheetOpen] = useState(false);
+  const [smsSheetOpen, setSmsSheetOpen] = useState(false);
+  const [savingChannel, setSavingChannel] = useState<'email' | 'sms' | null>(null);
+  const [gmailAvailable, setGmailAvailable] = useState<boolean | undefined>(undefined);
+  const [smsAvailable, setSmsAvailable] = useState<boolean | undefined>(undefined);
+
+  useEffect(() => {
+    let active = true;
+    configApi
+      .get()
+      .then((c) => {
+        if (!active) return;
+        setGmailAvailable(!!c.gmailAutoSendAvailable);
+        setSmsAvailable(!!c.smsAutoSendAvailable);
+      })
+      .catch(() => {
+        // Treat a failed config fetch as "not available" rather than leaving
+        // the sheets stuck on their checking state.
+        if (!active) return;
+        setGmailAvailable(false);
+        setSmsAvailable(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  // Message omitted on toggle-off so the saved text survives an off/on cycle;
+  // never send null (it wipes the whole sub-doc server-side).
+  const autoSendOff = async (channel: 'email' | 'sms') => {
+    setSavingChannel(channel);
+    try {
+      await peopleApi.update(
+        person.id,
+        channel === 'email'
+          ? { autoBirthdayEmail: { enabled: false } }
+          : { autoBirthdaySms: { enabled: false } },
+      );
+      onReload();
+      toast.show(channel === 'email' ? 'Auto-send email off.' : 'Auto-send SMS off.');
+    } catch (e) {
+      toast.show(e instanceof ApiError ? e.message : "Couldn't save. Try again.");
+    } finally {
+      setSavingChannel(null);
+    }
+  };
+
+  // Confirm handlers for the sheets; a thrown ApiError (e.g. "connect Gmail
+  // first" for a shared person whose owner isn't connected) is surfaced by the
+  // sheet itself, which stays open.
+  const confirmAutoEmail = async ({ recipient, message }: AutoSendDraft) => {
+    await peopleApi.update(person.id, {
+      email: recipient,
+      autoBirthdayEmail: { enabled: true, message },
+    });
+    onReload();
+    toast.show('Auto-send email on.');
+  };
+
+  const confirmAutoSms = async ({ recipient, message }: AutoSendDraft) => {
+    await peopleApi.update(person.id, {
+      phone: recipient,
+      autoBirthdaySms: { enabled: true, message },
+    });
+    onReload();
+    toast.show('Auto-send SMS on.');
+  };
+
   // Remove an anniversary/custom event (the birthday has no delete - it lives
   // with the person). Cascades its reminders server-side (FR-16, §10).
   const onRemoveEvent = async (event: EventItem) => {
@@ -319,47 +393,72 @@ function ProfileBody({
         </Text>
       </Pressable>
 
-      {/* Auto-send birthday email status (Stage 14) - shown only when on. */}
-      {person.autoBirthdayEmail?.enabled && person.email ? (
-        <>
-          <Text variant="label" className="mb-2 mt-6 text-ink-muted">
-            Auto-send email
-          </Text>
-          <Card>
-            <View className="flex-row items-center gap-3">
-              <Icon icon={Mail} size={20} color={t.biro} />
-              <View className="flex-1">
-                <Text variant="body">On</Text>
-                <Text variant="caption" className="mt-0.5 text-ink-muted">
-                  A birthday greeting emails to {person.email} each year, sent from you. Edit to
-                  change the message or turn it off.
+      {/* Auto-send greetings (Stage 14/15) - interactive: the toggle opens the
+          setup sheet to turn on, and changes persist immediately. */}
+      <Text variant="label" className="mb-2 mt-6 text-ink-muted">
+        Auto-send
+      </Text>
+      <Card>
+        <View className="flex-row items-center gap-3">
+          <Icon icon={Mail} size={20} color={t.biro} />
+          <View className="flex-1">
+            <Text variant="body">Birthday email</Text>
+            <Text variant="caption" className="mt-0.5 text-ink-muted">
+              {person.autoBirthdayEmail?.enabled
+                ? `Emails ${person.email || 'their email'} each year, sent from your Gmail as you.`
+                : 'Off. Turn on to email a greeting from your Gmail, as you.'}
+            </Text>
+            {person.autoBirthdayEmail?.enabled ? (
+              <Pressable
+                onPress={() => setEmailSheetOpen(true)}
+                hitSlop={6}
+                accessibilityRole="button"
+                accessibilityLabel="Edit the birthday email message"
+                className={cn('mt-1 self-start rounded-sm', focusRing)}>
+                <Text variant="caption" className="font-body-medium text-biro">
+                  Edit message
                 </Text>
-              </View>
-            </View>
-          </Card>
-        </>
-      ) : null}
+              </Pressable>
+            ) : null}
+          </View>
+          <Toggle
+            value={!!person.autoBirthdayEmail?.enabled}
+            disabled={savingChannel === 'email'}
+            onValueChange={(on) => (on ? setEmailSheetOpen(true) : void autoSendOff('email'))}
+            accessibilityLabel="Auto-send birthday email"
+          />
+        </View>
 
-      {/* Auto-send birthday SMS status (Stage 15) - shown only when on. */}
-      {person.autoBirthdaySms?.enabled && person.phone ? (
-        <>
-          <Text variant="label" className="mb-2 mt-6 text-ink-muted">
-            Auto-send SMS
-          </Text>
-          <Card>
-            <View className="flex-row items-center gap-3">
-              <Icon icon={MessageSquare} size={20} color={t.biro} />
-              <View className="flex-1">
-                <Text variant="body">On</Text>
-                <Text variant="caption" className="mt-0.5 text-ink-muted">
-                  A birthday text goes to {person.phone} each year, signed with your name. Edit to
-                  change the message or turn it off.
+        <View className="mt-3 flex-row items-center gap-3 border-t border-border-subtle pt-3">
+          <Icon icon={MessageSquare} size={20} color={t.biro} />
+          <View className="flex-1">
+            <Text variant="body">Birthday SMS</Text>
+            <Text variant="caption" className="mt-0.5 text-ink-muted">
+              {person.autoBirthdaySms?.enabled
+                ? `Texts ${formatNanp(person.phone) || 'their phone'} each year, signed with your name.`
+                : 'Off. Turn on to text a greeting, signed with your name.'}
+            </Text>
+            {person.autoBirthdaySms?.enabled ? (
+              <Pressable
+                onPress={() => setSmsSheetOpen(true)}
+                hitSlop={6}
+                accessibilityRole="button"
+                accessibilityLabel="Edit the birthday SMS message"
+                className={cn('mt-1 self-start rounded-sm', focusRing)}>
+                <Text variant="caption" className="font-body-medium text-biro">
+                  Edit message
                 </Text>
-              </View>
-            </View>
-          </Card>
-        </>
-      ) : null}
+              </Pressable>
+            ) : null}
+          </View>
+          <Toggle
+            value={!!person.autoBirthdaySms?.enabled}
+            disabled={savingChannel === 'sms'}
+            onValueChange={(on) => (on ? setSmsSheetOpen(true) : void autoSendOff('sms'))}
+            accessibilityLabel="Auto-send birthday SMS"
+          />
+        </View>
+      </Card>
 
       {/* Gift notes (§8.6) - running, timestamped list. */}
       <NotesSection personId={person.id} />
@@ -396,6 +495,29 @@ function ProfileBody({
           setEditingEvent(null);
           onReload();
         }}
+      />
+
+      <AutoSendSheet
+        channel="email"
+        visible={emailSheetOpen}
+        onClose={() => setEmailSheetOpen(false)}
+        personName={person.fullName}
+        available={gmailAvailable}
+        initialRecipient={person.email ?? ''}
+        initialMessage={person.autoBirthdayEmail?.message ?? ''}
+        alreadyEnabled={!!person.autoBirthdayEmail?.enabled}
+        onConfirm={confirmAutoEmail}
+      />
+      <AutoSendSheet
+        channel="sms"
+        visible={smsSheetOpen}
+        onClose={() => setSmsSheetOpen(false)}
+        personName={person.fullName}
+        available={smsAvailable}
+        initialRecipient={formatNanp(person.phone)}
+        initialMessage={person.autoBirthdaySms?.message ?? ''}
+        alreadyEnabled={!!person.autoBirthdaySms?.enabled}
+        onConfirm={confirmAutoSms}
       />
     </ScrollView>
   );

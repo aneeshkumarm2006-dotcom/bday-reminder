@@ -178,10 +178,12 @@ export function AddEventDialog({
         </div>
 
         <div className="mt-1 flex justify-end gap-3">
-          <Button variant="secondary" onClick={onClose}>
+          {/* Explicit type: in draft mode this dialog renders inside the person
+              form's <form>, where a typeless button is an implicit submit. */}
+          <Button type="button" variant="secondary" onClick={onClose}>
             Cancel
           </Button>
-          <Button onClick={submit} disabled={busy}>
+          <Button type="button" onClick={submit} disabled={busy}>
             {isEdit ? "Save changes" : "Add event"}
           </Button>
         </div>

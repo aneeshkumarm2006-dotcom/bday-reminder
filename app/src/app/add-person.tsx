@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from 'react-native';
 
 import { AddEventSheet } from '@/components/add-event-sheet';
+import { AutoSendSheet } from '@/components/auto-send-sheet';
 import {
   ChannelToggles,
   DEFAULT_CHANNELS,
@@ -41,7 +42,6 @@ import {
   type SharedListView,
 } from '@/lib/api';
 import { eventTypeMeta } from '@/lib/event-style';
-import { connectGmail } from '@/lib/gmail-auth';
 import { formatNanp } from '@/lib/phone';
 import { pickAndUploadPhoto } from '@/lib/photo';
 import { useAuth } from '@/providers/auth-provider';
@@ -85,25 +85,6 @@ const CURRENT_YEAR = new Date().getFullYear();
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-/** Default auto-send greeting body - mirrors the server default (Stage 14). */
-function defaultBirthdayEmail(name: string): string {
-  const first = name.trim().split(/\s+/)[0] || 'there';
-  return `Happy birthday, ${first}! Hope you have a wonderful day. 🎉`;
-}
-
-/** Cap for the auto-send SMS body - one GSM-7 segment (Stage 15). */
-const SMS_MAX = 160;
-
-/**
- * Default auto-send SMS body - mirrors the server's `birthdaySmsBody`. Short and
- * emoji-free (one segment), signed with the sender's name since the friend sees
- * an app-owned Twilio number, not the user's (Stage 15).
- */
-function defaultBirthdaySms(name: string, senderName: string): string {
-  const first = name.trim().split(/\s+/)[0] || 'there';
-  return `Happy birthday, ${first}! Hope you have a great day. - ${senderName}`;
-}
-
 type Errors = { name?: string; dob?: string; year?: string; email?: string; phone?: string };
 
 /** A prefilled month/day param → the field's string value, or '' if out of range. */
@@ -141,7 +122,7 @@ export default function AddPersonScreen() {
   const router = useRouter();
   const toast = useToast();
   const t = useTokens();
-  const { user, refreshUser } = useAuth();
+  const { user } = useAuth();
   const { id, month: monthParam, day: dayParam } = useLocalSearchParams<{
     id?: string;
     month?: string;
@@ -174,21 +155,22 @@ export default function AddPersonScreen() {
   const [eventSheetOpen, setEventSheetOpen] = useState(false);
 
   // Auto-send birthday email (Stage 14). Sends a greeting to `email` on the
-  // birthday, from the user's connected Gmail. `gmailAvailable` gates the whole
-  // section (server-provisioned); `connecting` covers the OAuth round-trip.
+  // birthday, from the user's connected Gmail. Configured in the AutoSendSheet
+  // popup (template, message, Gmail permission); the toggle only flips ON once
+  // that's confirmed. `gmailAvailable` = server-provisioned (undefined while
+  // the config loads; when false the sheet shows a "not available" notice).
   const [autoSendOn, setAutoSendOn] = useState(false);
   const [autoSendMessage, setAutoSendMessage] = useState('');
-  const [autoSendSeeded, setAutoSendSeeded] = useState(false);
-  const [connecting, setConnecting] = useState(false);
-  const [gmailAvailable, setGmailAvailable] = useState(false);
+  const [emailSheetOpen, setEmailSheetOpen] = useState(false);
+  const [gmailAvailable, setGmailAvailable] = useState<boolean | undefined>(undefined);
 
   // Auto-send birthday SMS (Stage 15). Texts a greeting to `phone` on the
-  // birthday via one shared Twilio account - no per-user connect step, so it just
-  // needs a phone. `smsAutoSendAvailable` gates the whole section.
+  // birthday via one shared Twilio account - no per-user connect step, so it
+  // just needs a phone. Same popup flow.
   const [autoSmsOn, setAutoSmsOn] = useState(false);
   const [autoSmsMessage, setAutoSmsMessage] = useState('');
-  const [autoSmsSeeded, setAutoSmsSeeded] = useState(false);
-  const [smsAutoSendAvailable, setSmsAutoSendAvailable] = useState(false);
+  const [smsSheetOpen, setSmsSheetOpen] = useState(false);
+  const [smsAutoSendAvailable, setSmsAutoSendAvailable] = useState<boolean | undefined>(undefined);
 
   // Per-event reminder override (applies to this person's birthday event).
   const [birthdayEventId, setBirthdayEventId] = useState<string | null>(null);
@@ -224,11 +206,29 @@ export default function AddPersonScreen() {
         setGmailAvailable(!!c.gmailAutoSendAvailable);
         setSmsAutoSendAvailable(!!c.smsAutoSendAvailable);
       })
-      .catch(() => {});
+      .catch(() => {
+        // Treat a failed config fetch as "not available" rather than leaving
+        // the sheets stuck on their checking state.
+        if (!active) return;
+        setGmailAvailable(false);
+        setSmsAutoSendAvailable(false);
+      });
     return () => {
       active = false;
     };
   }, []);
+
+  // The greeting templates personalize with the person's first name, so ask for
+  // the name before opening the setup sheet — otherwise "Happy birthday, there!"
+  // gets baked into the saved message.
+  const openAutoSendSheet = (channel: 'email' | 'sms') => {
+    if (!name.trim()) {
+      toast.show('Add their name first — the greeting uses it.');
+      return;
+    }
+    if (channel === 'email') setEmailSheetOpen(true);
+    else setSmsSheetOpen(true);
+  };
 
   // When adding (not editing), load the lists the user can place people into.
   useEffect(() => {
@@ -270,15 +270,9 @@ export default function AddPersonScreen() {
         setPhone(formatNanp(person.phone));
         setEmail(person.email ?? '');
         setAutoSendOn(person.autoBirthdayEmail?.enabled ?? false);
-        if (person.autoBirthdayEmail?.message) {
-          setAutoSendMessage(person.autoBirthdayEmail.message);
-          setAutoSendSeeded(true);
-        }
+        setAutoSendMessage(person.autoBirthdayEmail?.message ?? '');
         setAutoSmsOn(person.autoBirthdaySms?.enabled ?? false);
-        if (person.autoBirthdaySms?.message) {
-          setAutoSmsMessage(person.autoBirthdaySms.message);
-          setAutoSmsSeeded(true);
-        }
+        setAutoSmsMessage(person.autoBirthdaySms?.message ?? '');
         setPhotoUrl(person.photoUrl ?? null);
         setFeb29Rule(person.feb29Rule);
 
@@ -409,61 +403,6 @@ export default function AddPersonScreen() {
       setOverrideSeeded(true);
     }
     setOverrideOn(on);
-  };
-
-  // Enabling auto-send needs a recipient email + a connected Gmail. We collect
-  // the email in-form and, if Gmail isn't linked yet, kick off the OAuth flow
-  // right here (the permission is only ever requested at this point, never at
-  // login). The revealed message field + Save is the one-time confirmation.
-  const onToggleAutoSend = async (on: boolean) => {
-    if (!on) {
-      setAutoSendOn(false);
-      return;
-    }
-    if (!EMAIL_RE.test(email.trim())) {
-      toast.show("Add this person's email first.");
-      return;
-    }
-    if (!user?.gmailConnected) {
-      setConnecting(true);
-      try {
-        const result = await connectGmail();
-        if (result === 'connected') {
-          await refreshUser();
-        } else {
-          if (result === 'error') toast.show("Couldn't connect Gmail. Please try again.");
-          return; // dismissed / error → leave the toggle off
-        }
-      } catch {
-        toast.show("Couldn't connect Gmail. Please try again.");
-        return;
-      } finally {
-        setConnecting(false);
-      }
-    }
-    if (!autoSendSeeded) {
-      setAutoSendMessage(defaultBirthdayEmail(name));
-      setAutoSendSeeded(true);
-    }
-    setAutoSendOn(true);
-  };
-
-  // Auto-send SMS is simpler than email: one shared Twilio account, so there's no
-  // per-user connect step - it only needs a recipient phone on the person.
-  const onToggleAutoSms = (on: boolean) => {
-    if (!on) {
-      setAutoSmsOn(false);
-      return;
-    }
-    if (!phone.trim()) {
-      toast.show("Add this person's phone first.");
-      return;
-    }
-    if (!autoSmsSeeded) {
-      setAutoSmsMessage(defaultBirthdaySms(name, user?.name || 'me'));
-      setAutoSmsSeeded(true);
-    }
-    setAutoSmsOn(true);
   };
 
   // Push the override onto the birthday event (or clear it → use defaults).
@@ -741,85 +680,74 @@ export default function AddPersonScreen() {
               hint="Where an auto-sent birthday greeting would go."
             />
 
-            {/* Auto-send birthday email (Stage 14) - only when provisioned. */}
-            {gmailAvailable ? (
-              <View>
-                <ToggleRow
-                  title="Auto-send birthday email"
-                  helper="Email a greeting on their birthday, sent from your Gmail as you."
-                  value={autoSendOn}
-                  disabled={connecting}
-                  onValueChange={onToggleAutoSend}
-                />
-                {connecting ? (
-                  <View className="mt-2 flex-row items-center gap-2">
-                    <ActivityIndicator color={t.biro} />
-                    <Text variant="caption" className="text-ink-muted">
-                      Connecting your Gmail…
-                    </Text>
-                  </View>
-                ) : autoSendOn ? (
-                  <View className="mt-1 gap-2 border-l-2 border-border-subtle pl-3">
-                    <TextField
-                      label="Message"
-                      value={autoSendMessage}
-                      onChangeText={setAutoSendMessage}
-                      placeholder={defaultBirthdayEmail(name)}
-                      multiline
-                      numberOfLines={3}
-                      maxLength={2000}
-                      autoCapitalize="sentences"
-                    />
-                    <Text variant="caption" className="text-ink-muted">
-                      {`Sends automatically to ${email.trim() || 'their email'} every year${
-                        user?.gmailEmail ? ` from ${user.gmailEmail}` : ''
-                      }. It arrives as a normal email from you — no “sent via an app” tag.`}
-                    </Text>
-                  </View>
-                ) : (
-                  <Text variant="caption" className="mt-1 text-ink-muted">
-                    {user?.gmailConnected
-                      ? 'Off. Your Gmail is connected and ready.'
-                      : "Off. You'll connect your Gmail when you turn this on."}
+            {/* Auto-send birthday email (Stage 14) — turning it on opens the
+                setup sheet (template, message, Gmail permission); the toggle
+                only flips ON once that's confirmed there. */}
+            <View>
+              <ToggleRow
+                title="Auto-send birthday email"
+                helper="Email a greeting on their birthday, sent from your Gmail as you."
+                value={autoSendOn}
+                onValueChange={(on) => (on ? openAutoSendSheet('email') : setAutoSendOn(false))}
+              />
+              {autoSendOn ? (
+                <View className="mt-1 flex-row flex-wrap items-center gap-x-1">
+                  <Text variant="caption" className="text-ink-muted">
+                    {`To ${email.trim() || 'their email'}${
+                      user?.gmailEmail ? ` from ${user.gmailEmail}` : ''
+                    }, every year.`}
                   </Text>
-                )}
-              </View>
-            ) : null}
+                  <Pressable
+                    onPress={() => setEmailSheetOpen(true)}
+                    hitSlop={6}
+                    accessibilityRole="button"
+                    accessibilityLabel="Edit the birthday email message"
+                    className={cn('rounded-sm', focusRing)}>
+                    <Text variant="caption" className="font-body-medium text-biro">
+                      Edit message
+                    </Text>
+                  </Pressable>
+                </View>
+              ) : (
+                <Text variant="caption" className="mt-1 text-ink-muted">
+                  {user?.gmailConnected
+                    ? 'Off. Your Gmail is connected and ready.'
+                    : "Off. You'll connect your Gmail when you turn this on."}
+                </Text>
+              )}
+            </View>
 
-            {/* Auto-send birthday SMS (Stage 15) - only when Twilio is provisioned. */}
-            {smsAutoSendAvailable ? (
-              <View>
-                <ToggleRow
-                  title="Auto-send birthday SMS"
-                  helper="Text a greeting on their birthday, signed with your name."
-                  value={autoSmsOn}
-                  onValueChange={onToggleAutoSms}
-                />
-                {autoSmsOn ? (
-                  <View className="mt-1 gap-2 border-l-2 border-border-subtle pl-3">
-                    <TextField
-                      label="Message"
-                      value={autoSmsMessage}
-                      onChangeText={setAutoSmsMessage}
-                      placeholder={defaultBirthdaySms(name, user?.name || 'me')}
-                      multiline
-                      numberOfLines={2}
-                      maxLength={SMS_MAX}
-                      autoCapitalize="sentences"
-                    />
-                    <Text variant="caption" className="text-ink-muted">
-                      {`${autoSmsMessage.length}/${SMS_MAX} · Texts automatically to ${
-                        phone.trim() || 'their phone'
-                      } every year. Keep it short — one message. An emoji costs extra.`}
-                    </Text>
-                  </View>
-                ) : (
-                  <Text variant="caption" className="mt-1 text-ink-muted">
-                    Off. Sent from a shared number, signed with your name.
+            {/* Auto-send birthday SMS (Stage 15) — same sheet flow, no per-user
+                account to connect (one shared Twilio number). */}
+            <View>
+              <ToggleRow
+                title="Auto-send birthday SMS"
+                helper="Text a greeting on their birthday, signed with your name."
+                value={autoSmsOn}
+                onValueChange={(on) => (on ? openAutoSendSheet('sms') : setAutoSmsOn(false))}
+              />
+              {autoSmsOn ? (
+                <View className="mt-1 flex-row flex-wrap items-center gap-x-1">
+                  <Text variant="caption" className="text-ink-muted">
+                    {`To ${phone.trim() || 'their phone'}, signed ${user?.name || 'you'}, every year.`}
                   </Text>
-                )}
-              </View>
-            ) : null}
+                  <Pressable
+                    onPress={() => setSmsSheetOpen(true)}
+                    hitSlop={6}
+                    accessibilityRole="button"
+                    accessibilityLabel="Edit the birthday SMS message"
+                    className={cn('rounded-sm', focusRing)}>
+                    <Text variant="caption" className="font-body-medium text-biro">
+                      Edit message
+                    </Text>
+                  </Pressable>
+                </View>
+              ) : (
+                <Text variant="caption" className="mt-1 text-ink-muted">
+                  Off. Sent from a shared number, signed with your name.
+                </Text>
+              )}
+            </View>
 
             {/* Shared with - add to shared lists the user can edit (Stage 8). */}
             {availableLists.length > 0 ? (
@@ -898,6 +826,40 @@ export default function AddPersonScreen() {
             onAdd={(draft) => setPendingEvents((cur) => [...cur, draft])}
           />
         ) : null}
+
+        {/* Auto-send setup sheets (draft mode: confirm updates form state; the
+            person is saved on submit). Confirm also syncs the recipient back
+            into the Email/Phone field above. */}
+        <AutoSendSheet
+          channel="email"
+          visible={emailSheetOpen}
+          onClose={() => setEmailSheetOpen(false)}
+          personName={name}
+          available={gmailAvailable}
+          initialRecipient={email}
+          initialMessage={autoSendMessage}
+          alreadyEnabled={autoSendOn}
+          onConfirm={({ recipient, message }) => {
+            setEmail(recipient);
+            setAutoSendMessage(message);
+            setAutoSendOn(true);
+          }}
+        />
+        <AutoSendSheet
+          channel="sms"
+          visible={smsSheetOpen}
+          onClose={() => setSmsSheetOpen(false)}
+          personName={name}
+          available={smsAutoSendAvailable}
+          initialRecipient={phone}
+          initialMessage={autoSmsMessage}
+          alreadyEnabled={autoSmsOn}
+          onConfirm={({ recipient, message }) => {
+            setPhone(recipient);
+            setAutoSmsMessage(message);
+            setAutoSmsOn(true);
+          }}
+        />
         </>
       )}
     </Screen>
