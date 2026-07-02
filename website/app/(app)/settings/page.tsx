@@ -149,7 +149,7 @@ export default function SettingsPage() {
       {config?.gmailAutoSendAvailable && (
         <Section
           title="Auto-send email"
-          subtitle="Send birthday greetings to friends from your own Gmail — they arrive as a normal email from you."
+          subtitle="Send birthday greetings to friends from your own Gmail — your note arrives as a designed birthday card, sent as you."
         >
           <div className="flex items-center justify-between gap-4 rounded-lg border border-border-subtle bg-surface p-4">
             <div className="flex min-w-0 items-center gap-3">

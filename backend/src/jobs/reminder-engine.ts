@@ -25,6 +25,10 @@ import {
   incrementAutoSmsUsage,
   twilioMonthlyCap,
 } from '../lib/auto-sms-usage';
+import {
+  birthdayEmailText,
+  renderBirthdayEmailHtml,
+} from '../lib/birthday-email-template';
 import { sendGmailAs, type GmailSender } from '../lib/gmail-send';
 import { logger } from '../lib/logger';
 import {
@@ -380,10 +384,15 @@ export async function dispatchBirthdayGreetings(
       );
       if (claim.modifiedCount !== 1) continue;
 
+      // The greeting the user wrote/picked (plain text); default copy otherwise.
+      const greeting = person.autoBirthdayEmail?.message?.trim() || birthdayEmailBody(person.fullName);
       const result = await send(user, {
         to: person.email,
         subject: birthdayEmailSubject(person.fullName),
-        text: person.autoBirthdayEmail?.message?.trim() || birthdayEmailBody(person.fullName),
+        // Wrap the greeting in the designed HTML card; keep a plain-text fallback.
+        // Both carry the "Sent with Circle the date" footer at the very end.
+        text: birthdayEmailText(greeting),
+        html: renderBirthdayEmailHtml(greeting),
       });
 
       if (result.outcome === 'sent') {

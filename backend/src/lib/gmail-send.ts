@@ -1,3 +1,5 @@
+import { randomBytes } from 'node:crypto';
+
 import { gmailOAuthConfigured, refreshAccessToken } from './google-oauth';
 import { logger } from './logger';
 import { isTransientStatus, retryAfterMs, TransientError, withRetry } from './retry';
@@ -21,7 +23,10 @@ const SEND_URL = 'https://gmail.googleapis.com/gmail/v1/users/me/messages/send';
 export interface GreetingMessage {
   to: string;
   subject: string;
+  /** Plain-text body (the fallback part when `html` is set). */
   text: string;
+  /** Optional HTML body; when present the mail is sent as multipart/alternative. */
+  html?: string;
 }
 
 export interface GmailSendResult {
@@ -45,17 +50,56 @@ function encodeHeader(value: string): string {
   return `=?UTF-8?B?${Buffer.from(value, 'utf8').toString('base64')}?=`;
 }
 
-/** Build a base64url-encoded RFC 822 plain-text message for the Gmail send API. */
+/** base64-encode a UTF-8 body wrapped at 76 chars per line (RFC 2045). */
+function encodeBase64Body(text: string): string {
+  return Buffer.from(text, 'utf8')
+    .toString('base64')
+    .replace(/(.{76})/g, '$1\r\n');
+}
+
+/**
+ * Build a base64url-encoded RFC 822 message for the Gmail send API. With `html`
+ * set it's a multipart/alternative (text part first, HTML last so clients prefer
+ * the card); otherwise a plain-text message, matching the original behaviour.
+ */
 function buildRawMessage(from: { name: string; email: string }, msg: GreetingMessage): string {
   const headers = [
     `From: ${encodeHeader(from.name)} <${from.email}>`,
     `To: ${msg.to}`,
     `Subject: ${encodeHeader(msg.subject)}`,
     'MIME-Version: 1.0',
-    'Content-Type: text/plain; charset="UTF-8"',
-    'Content-Transfer-Encoding: 8bit',
   ];
-  const mime = `${headers.join('\r\n')}\r\n\r\n${msg.text}`;
+
+  let mime: string;
+  if (msg.html) {
+    // A random boundary can never collide with the base64-encoded part bodies.
+    const boundary = `=_ctd_${randomBytes(12).toString('hex')}`;
+    mime = [
+      ...headers,
+      `Content-Type: multipart/alternative; boundary="${boundary}"`,
+      '',
+      `--${boundary}`,
+      'Content-Type: text/plain; charset="UTF-8"',
+      'Content-Transfer-Encoding: base64',
+      '',
+      encodeBase64Body(msg.text),
+      `--${boundary}`,
+      'Content-Type: text/html; charset="UTF-8"',
+      'Content-Transfer-Encoding: base64',
+      '',
+      encodeBase64Body(msg.html),
+      `--${boundary}--`,
+      '',
+    ].join('\r\n');
+  } else {
+    mime = [
+      ...headers,
+      'Content-Type: text/plain; charset="UTF-8"',
+      'Content-Transfer-Encoding: 8bit',
+      '',
+      msg.text,
+    ].join('\r\n');
+  }
   return Buffer.from(mime, 'utf8').toString('base64url');
 }
 

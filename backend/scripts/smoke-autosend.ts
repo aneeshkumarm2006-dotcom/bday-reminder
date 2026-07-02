@@ -74,11 +74,14 @@ async function main(): Promise<void> {
   const thisYear = todayUTC.getUTCFullYear();
 
   // Injectable Gmail stubs (record calls, no network).
-  type Sent = { to: string; subject: string; text: string; from: string };
+  type Sent = { to: string; subject: string; text: string; html?: string; from: string };
   const makeStub = (outcome: 'sent' | 'failed') => {
     const calls: Sent[] = [];
-    const send = async (user: { email: string }, msg: { to: string; subject: string; text: string }) => {
-      calls.push({ to: msg.to, subject: msg.subject, text: msg.text, from: user.email });
+    const send = async (
+      user: { email: string },
+      msg: { to: string; subject: string; text: string; html?: string },
+    ) => {
+      calls.push({ to: msg.to, subject: msg.subject, text: msg.text, html: msg.html, from: user.email });
       return { outcome } as { outcome: 'sent' | 'failed' };
     };
     return { calls, send };
@@ -171,7 +174,17 @@ async function main(): Promise<void> {
     check(summary.sent === 1 && s1.calls.length === 1, 'dispatch sends exactly one greeting');
     check(s1.calls[0].to === 'ben@example.com', 'greeting goes to the friend’s email');
     check(s1.calls[0].subject.includes('Ben'), 'subject is personalised with the first name');
-    check(s1.calls[0].text === 'Have the best day, buddy!', 'custom message body is used when set');
+    check(s1.calls[0].text.startsWith('Have the best day, buddy!'), 'custom message body is used when set');
+    check(
+      typeof s1.calls[0].html === 'string' &&
+        s1.calls[0].html.includes('Have the best day, buddy!') &&
+        s1.calls[0].html.toLowerCase().includes('<html'),
+      'a designed HTML card is sent containing the greeting',
+    );
+    check(
+      s1.calls[0].html!.includes('Circle the date') && s1.calls[0].text.includes('Circle the date'),
+      'both HTML and text carry the "Sent with Circle the date" footer',
+    );
     const benDoc = await Person.findById(ben.id);
     check(benDoc?.autoBirthdayEmail?.lastSentYear === thisYear, 'lastSentYear stamped to this year after send');
 

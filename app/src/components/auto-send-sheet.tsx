@@ -201,7 +201,7 @@ export function AutoSendSheet({
                 autoCapitalize="sentences"
                 hint={
                   isEmail
-                    ? `Subject will be "Happy Birthday, ${firstName(personName)}!"`
+                    ? `Subject will be "Happy Birthday, ${firstName(personName)}!" · sent as a designed birthday card`
                     : `${message.length}/${SMS_MAX} · Keep it short — one message. An emoji costs extra.`
                 }
               />
@@ -212,7 +212,7 @@ export function AutoSendSheet({
                     <View className="flex-row items-start gap-2.5">
                       <Icon icon={CheckCircle2} size={18} color={t.okFg} />
                       <Text variant="caption" className="flex-1 text-ink-secondary">
-                        {`Sends from ${user?.gmailEmail ?? 'your Gmail'} — as you, once a year on their birthday. It arrives as a normal email from you, no “sent via an app” tag.`}
+                        {`Sends from ${user?.gmailEmail ?? 'your Gmail'} — as you, once a year on their birthday. Your note arrives as a designed birthday card, with a small “Sent with Circle the date” line at the bottom.`}
                       </Text>
                     </View>
                   ) : connecting ? (

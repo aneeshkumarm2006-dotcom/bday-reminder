@@ -231,7 +231,10 @@ export function AutoSendDialog({
             />
             <p className="mt-1.5 text-xs text-ink-muted">
               {isEmail ? (
-                <>Subject will be &ldquo;Happy Birthday, {firstName(personName)}!&rdquo;</>
+                <>
+                  Subject will be &ldquo;Happy Birthday, {firstName(personName)}!&rdquo; · sent as a
+                  designed birthday card
+                </>
               ) : (
                 <>
                   <span
@@ -254,8 +257,8 @@ export function AutoSendDialog({
                   <CheckCircle2 size={18} className="mt-0.5 shrink-0 text-ok-fg" aria-hidden="true" />
                   <p className="text-sm text-ink-secondary">
                     Sends from <span className="font-medium text-ink">{user?.gmailEmail}</span> — as
-                    you, once a year on their birthday. It arrives as a normal email from you, no
-                    &ldquo;sent via an app&rdquo; tag.
+                    you, once a year on their birthday. Your note arrives as a designed birthday
+                    card, with a small &ldquo;Sent with Circle the date&rdquo; line at the bottom.
                   </p>
                 </div>
               ) : (
