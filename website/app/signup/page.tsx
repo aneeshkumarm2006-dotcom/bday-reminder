@@ -22,7 +22,7 @@ export default function SignupPage() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (status === "authenticated") router.replace("/reminders");
+    if (status === "authenticated") router.replace("/calendar");
   }, [status, router]);
 
   const submit = async (e: React.FormEvent) => {
@@ -35,7 +35,7 @@ export default function SignupPage() {
     setBusy(true);
     try {
       await signUp({ name: name.trim(), email: email.trim(), password });
-      router.replace("/reminders");
+      router.replace("/calendar");
     } catch (err) {
       setError(
         err instanceof ApiError && err.status === 409

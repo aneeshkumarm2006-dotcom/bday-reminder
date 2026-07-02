@@ -64,8 +64,9 @@ function RootNavigator() {
     if (status === 'unauthenticated' && !inAuthGroup) {
       router.replace('/(auth)/login');
     } else if (status === 'authenticated' && inAuthGroup) {
-      // Signed in - drop straight into the app (no onboarding step).
-      router.replace('/(tabs)/reminders');
+      // Signed in - drop straight into the app (no onboarding step) on the
+      // Calendar home tab.
+      router.replace('/(tabs)');
     }
   }, [status, segments, router]);
 

@@ -3,9 +3,9 @@ import { Bell, CalendarDays, Settings, Users } from 'lucide-react-native';
 
 import { useTokens } from '@/theme/theme-provider';
 
-// Reminders is the home tab - focus it first on mount even though `index`
-// (Calendar) is the route that `/` resolves to.
-export const unstable_settings = { initialRouteName: 'reminders' };
+// Calendar (`index`, the route `/` resolves to) is the home tab - listed first
+// in the tab bar and focused on mount.
+export const unstable_settings = { initialRouteName: 'index' };
 
 export default function TabsLayout() {
   const t = useTokens();
@@ -20,19 +20,19 @@ export default function TabsLayout() {
         sceneStyle: { backgroundColor: t.paper },
       }}>
       <Tabs.Screen
-        name="reminders"
-        options={{
-          title: 'Reminders',
-          tabBarIcon: ({ color, size }) => <Bell color={color} size={size} strokeWidth={1.75} />,
-        }}
-      />
-      <Tabs.Screen
         name="index"
         options={{
           title: 'Calendar',
           tabBarIcon: ({ color, size }) => (
             <CalendarDays color={color} size={size} strokeWidth={1.75} />
           ),
+        }}
+      />
+      <Tabs.Screen
+        name="reminders"
+        options={{
+          title: 'Reminders',
+          tabBarIcon: ({ color, size }) => <Bell color={color} size={size} strokeWidth={1.75} />,
         }}
       />
       <Tabs.Screen

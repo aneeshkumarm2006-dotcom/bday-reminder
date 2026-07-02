@@ -36,7 +36,7 @@ export function SiteHeader() {
           <Link href="/login" className={buttonVariants({ variant: "ghost", size: "sm" })}>
             Log in
           </Link>
-          <Link href="/reminders" className={buttonVariants({ size: "sm" })}>
+          <Link href="/calendar" className={buttonVariants({ size: "sm" })}>
             Open the app
           </Link>
           <MobileNav />

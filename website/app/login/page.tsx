@@ -32,7 +32,7 @@ function LoginForm() {
 
   // Already signed in (e.g. opened /login with a live session) → into the app.
   useEffect(() => {
-    if (status === "authenticated") router.replace("/reminders");
+    if (status === "authenticated") router.replace("/calendar");
   }, [status, router]);
 
   const submit = async (e: React.FormEvent) => {
@@ -41,7 +41,7 @@ function LoginForm() {
     setBusy(true);
     try {
       await signIn(email.trim(), password);
-      router.replace("/reminders");
+      router.replace("/calendar");
     } catch (err) {
       setError(
         err instanceof ApiError && err.status === 401

@@ -30,7 +30,7 @@ function GoogleCallback() {
       return;
     }
     completeGoogleSession(handoff)
-      .then(() => router.replace("/reminders"))
+      .then(() => router.replace("/calendar"))
       .catch(() => {
         setFailed(true);
         router.replace("/login?google=error");

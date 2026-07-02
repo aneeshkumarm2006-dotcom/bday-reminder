@@ -16,13 +16,14 @@ import { cn } from "@/lib/utils";
 /**
  * The app shell's navigation (DESIGN.md §7 chrome). A persistent left sidebar on
  * desktop; a top bar + slide-in drawer on mobile. Mirrors the app's bottom-tab
- * set (Reminders · Calendar · Lists · Settings) plus a People browse view and a
- * prominent "Add person" action. Reminders is the home, listed first.
+ * set (Calendar · Reminders · Lists · Settings) plus a People browse view and a
+ * prominent "Add person" action. Calendar is listed first; Reminders is the home
+ * route (post-login landing).
  */
 
 const NAV: { href: string; label: string; icon: LucideIcon }[] = [
-  { href: "/reminders", label: "Reminders", icon: Bell },
   { href: "/calendar", label: "Calendar", icon: CalendarDays },
+  { href: "/reminders", label: "Reminders", icon: Bell },
   { href: "/people", label: "People", icon: Users },
   { href: "/lists", label: "Lists", icon: Users },
   { href: "/settings", label: "Settings", icon: Settings },
