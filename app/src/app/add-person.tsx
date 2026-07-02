@@ -161,6 +161,7 @@ export default function AddPersonScreen() {
   // the config loads; when false the sheet shows a "not available" notice).
   const [autoSendOn, setAutoSendOn] = useState(false);
   const [autoSendMessage, setAutoSendMessage] = useState('');
+  const [autoSendTime, setAutoSendTime] = useState('');
   const [emailSheetOpen, setEmailSheetOpen] = useState(false);
   const [gmailAvailable, setGmailAvailable] = useState<boolean | undefined>(undefined);
 
@@ -169,6 +170,7 @@ export default function AddPersonScreen() {
   // just needs a phone. Same popup flow.
   const [autoSmsOn, setAutoSmsOn] = useState(false);
   const [autoSmsMessage, setAutoSmsMessage] = useState('');
+  const [autoSmsTime, setAutoSmsTime] = useState('');
   const [smsSheetOpen, setSmsSheetOpen] = useState(false);
   const [smsAutoSendAvailable, setSmsAutoSendAvailable] = useState<boolean | undefined>(undefined);
 
@@ -271,8 +273,10 @@ export default function AddPersonScreen() {
         setEmail(person.email ?? '');
         setAutoSendOn(person.autoBirthdayEmail?.enabled ?? false);
         setAutoSendMessage(person.autoBirthdayEmail?.message ?? '');
+        setAutoSendTime(person.autoBirthdayEmail?.sendTime ?? '');
         setAutoSmsOn(person.autoBirthdaySms?.enabled ?? false);
         setAutoSmsMessage(person.autoBirthdaySms?.message ?? '');
+        setAutoSmsTime(person.autoBirthdaySms?.sendTime ?? '');
         setPhotoUrl(person.photoUrl ?? null);
         setFeb29Rule(person.feb29Rule);
 
@@ -357,10 +361,12 @@ export default function AddPersonScreen() {
         autoBirthdayEmail: {
           enabled: autoSendOn,
           message: autoSendMessage.trim() ? autoSendMessage.trim() : null,
+          sendTime: autoSendTime || null,
         },
         autoBirthdaySms: {
           enabled: autoSmsOn,
           message: autoSmsMessage.trim() ? autoSmsMessage.trim() : null,
+          sendTime: autoSmsTime || null,
         },
         photoUrl: photoUrl ?? null,
         feb29Rule: isLeapDay ? feb29Rule : 'feb28',
@@ -838,10 +844,12 @@ export default function AddPersonScreen() {
           available={gmailAvailable}
           initialRecipient={email}
           initialMessage={autoSendMessage}
+          initialSendTime={autoSendTime}
           alreadyEnabled={autoSendOn}
-          onConfirm={({ recipient, message }) => {
+          onConfirm={({ recipient, message, sendTime }) => {
             setEmail(recipient);
             setAutoSendMessage(message);
+            setAutoSendTime(sendTime);
             setAutoSendOn(true);
           }}
         />
@@ -853,10 +861,12 @@ export default function AddPersonScreen() {
           available={smsAutoSendAvailable}
           initialRecipient={phone}
           initialMessage={autoSmsMessage}
+          initialSendTime={autoSmsTime}
           alreadyEnabled={autoSmsOn}
-          onConfirm={({ recipient, message }) => {
+          onConfirm={({ recipient, message, sendTime }) => {
             setPhone(recipient);
             setAutoSmsMessage(message);
+            setAutoSmsTime(sendTime);
             setAutoSmsOn(true);
           }}
         />

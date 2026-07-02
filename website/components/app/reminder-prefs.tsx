@@ -185,15 +185,20 @@ export function ReminderTimePicker({
   );
 }
 
+/** Bare 12-hour label for an "HH:mm" (e.g. "9:00 AM"), for use in prose. Falls back to 9:00 AM. */
+export function friendlyTimeLabel(hhmm: string | undefined): string {
+  const m = /^(\d{2}):(\d{2})$/.exec(hhmm ?? "09:00");
+  const hour = m ? Number(m[1]) : 9;
+  const minute = m ? Number(m[2]) : 0;
+  return timeLabel(hour, minute);
+}
+
 /**
  * Label for the per-event "use my default" option, e.g. "Default (9:00 AM)",
  * built from the user's global `defaultReminderTime` so it stays accurate.
  */
 export function defaultTimeInheritLabel(hhmm: string | undefined): string {
-  const m = /^(\d{2}):(\d{2})$/.exec(hhmm ?? "09:00");
-  const hour = m ? Number(m[1]) : 9;
-  const minute = m ? Number(m[2]) : 0;
-  return `Default (${timeLabel(hour, minute)})`;
+  return `Default (${friendlyTimeLabel(hhmm)})`;
 }
 
 export const DEFAULT_CHANNELS: ChannelPreferences = {

@@ -76,23 +76,34 @@ const emailSchema = z
   .nullable()
   .optional();
 
-// Auto-send toggle + editable greeting body (Stage 14). `null` clears the whole
-// config; `lastSentYear` is server-managed and never accepted from the client.
+// A 24-hour "HH:mm" send time. `null`/omitted means "inherit the owner's default
+// reminder time" at dispatch (see reminder-engine). Shared by both auto-send channels.
+const sendTimeSchema = z
+  .string()
+  .regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Use a 24-hour time like 09:00.')
+  .nullable()
+  .optional();
+
+// Auto-send toggle + editable greeting body + per-person send time (Stage 14).
+// `null` clears the whole config; `lastSentYear` is server-managed and never
+// accepted from the client.
 const autoBirthdayEmailSchema = z
   .object({
     enabled: z.boolean(),
     message: z.string().trim().max(2000).nullable().optional(),
+    sendTime: sendTimeSchema,
   })
   .strict()
   .nullable()
   .optional();
 
-// Auto-send birthday SMS toggle + editable body (Stage 15). Same shape as email
-// but the message is capped at 160 chars to keep it within one SMS segment.
+// Auto-send birthday SMS toggle + editable body + send time (Stage 15). Same shape
+// as email but the message is capped at 160 chars to keep it within one SMS segment.
 const autoBirthdaySmsSchema = z
   .object({
     enabled: z.boolean(),
     message: z.string().trim().max(160).nullable().optional(),
+    sendTime: sendTimeSchema,
   })
   .strict()
   .nullable()
@@ -271,11 +282,19 @@ peopleRouter.post(
       autoBirthdayEmail:
         body.autoBirthdayEmail == null
           ? undefined
-          : { enabled, message: body.autoBirthdayEmail.message?.trim() || undefined },
+          : {
+              enabled,
+              message: body.autoBirthdayEmail.message?.trim() || undefined,
+              sendTime: body.autoBirthdayEmail.sendTime ?? undefined,
+            },
       autoBirthdaySms:
         body.autoBirthdaySms == null
           ? undefined
-          : { enabled: smsEnabled, message: body.autoBirthdaySms.message?.trim() || undefined },
+          : {
+              enabled: smsEnabled,
+              message: body.autoBirthdaySms.message?.trim() || undefined,
+              sendTime: body.autoBirthdaySms.sendTime ?? undefined,
+            },
       createdBy: userId,
       updatedBy: userId,
     });
@@ -403,16 +422,22 @@ peopleRouter.patch(
       if (patch.autoBirthdayEmail === null) {
         person.autoBirthdayEmail = undefined;
       } else {
-        // Preserve the server-managed lastSentYear; only `message` undefined means
-        // "leave as-is" (null/'' clears it → the default copy is used at send time).
+        // Preserve the server-managed lastSentYear; only `message`/`sendTime`
+        // undefined means "leave as-is" (null/'' clears the message → default copy;
+        // null sendTime clears it → inherit the owner's default reminder time).
         const prev = person.autoBirthdayEmail;
         const nextMessage =
           patch.autoBirthdayEmail.message === undefined
             ? prev?.message
             : patch.autoBirthdayEmail.message?.trim() || undefined;
+        const nextSendTime =
+          patch.autoBirthdayEmail.sendTime === undefined
+            ? prev?.sendTime
+            : (patch.autoBirthdayEmail.sendTime ?? undefined);
         person.autoBirthdayEmail = {
           enabled: patch.autoBirthdayEmail.enabled,
           message: nextMessage,
+          sendTime: nextSendTime,
           lastSentYear: prev?.lastSentYear,
         };
       }
@@ -421,16 +446,22 @@ peopleRouter.patch(
       if (patch.autoBirthdaySms === null) {
         person.autoBirthdaySms = undefined;
       } else {
-        // Preserve the server-managed lastSentYear; only `message` undefined means
-        // "leave as-is" (null/'' clears it → the default copy is used at send time).
+        // Preserve the server-managed lastSentYear; only `message`/`sendTime`
+        // undefined means "leave as-is" (null/'' clears the message → default copy;
+        // null sendTime clears it → inherit the owner's default reminder time).
         const prev = person.autoBirthdaySms;
         const nextMessage =
           patch.autoBirthdaySms.message === undefined
             ? prev?.message
             : patch.autoBirthdaySms.message?.trim() || undefined;
+        const nextSendTime =
+          patch.autoBirthdaySms.sendTime === undefined
+            ? prev?.sendTime
+            : (patch.autoBirthdaySms.sendTime ?? undefined);
         person.autoBirthdaySms = {
           enabled: patch.autoBirthdaySms.enabled,
           message: nextMessage,
+          sendTime: nextSendTime,
           lastSentYear: prev?.lastSentYear,
         };
       }

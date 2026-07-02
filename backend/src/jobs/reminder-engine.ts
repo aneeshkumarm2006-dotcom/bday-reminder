@@ -366,9 +366,11 @@ export async function dispatchBirthdayGreetings(
     for (const person of people) {
       if (!person.email) continue;
       const { occurrence } = resolveOccurrence(person.dob, person.feb29Rule, today);
-      // Only on the birthday itself, once the owner's reminder time has arrived.
+      // Only on the birthday itself, once the send time has arrived. The person's
+      // per-greeting sendTime wins; unset falls back to the owner's default time.
       if (daysUntil(occurrence, today) !== 0) continue;
-      if (now.getTime() < fireInstant(occurrence, 0, user.timezone, user.defaultReminderTime).getTime()) {
+      const sendTime = person.autoBirthdayEmail?.sendTime ?? user.defaultReminderTime;
+      if (now.getTime() < fireInstant(occurrence, 0, user.timezone, sendTime).getTime()) {
         continue;
       }
 
@@ -474,12 +476,11 @@ export async function dispatchBirthdaySms(
 
     const today = todayInTimeZone(owner.timezone);
     const { occurrence } = resolveOccurrence(person.dob, person.feb29Rule, today);
-    // Only on the birthday itself, once the owner's reminder time has arrived.
+    // Only on the birthday itself, once the send time has arrived. The person's
+    // per-greeting sendTime wins; unset falls back to the owner's default time.
     if (daysUntil(occurrence, today) !== 0) continue;
-    if (
-      now.getTime() <
-      fireInstant(occurrence, 0, owner.timezone, owner.defaultReminderTime).getTime()
-    ) {
+    const sendTime = person.autoBirthdaySms?.sendTime ?? owner.defaultReminderTime;
+    if (now.getTime() < fireInstant(occurrence, 0, owner.timezone, sendTime).getTime()) {
       continue;
     }
 

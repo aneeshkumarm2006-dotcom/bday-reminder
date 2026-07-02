@@ -223,11 +223,12 @@ export type ChannelOverride = {
   inApp?: boolean;
 };
 
-/** Auto-send birthday greeting config for a person (Stage 14). */
-export type AutoBirthdayEmail = { enabled: boolean; message: string | null };
+/** Auto-send birthday greeting config for a person (Stage 14). `sendTime` is the
+ * "HH:mm" the greeting goes out at on the birthday; null = inherit the user's default. */
+export type AutoBirthdayEmail = { enabled: boolean; message: string | null; sendTime: string | null };
 
 /** Auto-send birthday SMS config for a person (Stage 15). */
-export type AutoBirthdaySms = { enabled: boolean; message: string | null };
+export type AutoBirthdaySms = { enabled: boolean; message: string | null; sendTime: string | null };
 
 export type Person = {
   id: string;
@@ -314,9 +315,9 @@ export type CreatePersonInput = {
   feb29Rule?: Feb29Rule;
   /** The friend's email + auto-send birthday greeting (Stage 14). */
   email?: string | null;
-  autoBirthdayEmail?: { enabled: boolean; message?: string | null } | null;
+  autoBirthdayEmail?: { enabled: boolean; message?: string | null; sendTime?: string | null } | null;
   /** Auto-send birthday SMS config, texted to `phone` (Stage 15). */
-  autoBirthdaySms?: { enabled: boolean; message?: string | null } | null;
+  autoBirthdaySms?: { enabled: boolean; message?: string | null; sendTime?: string | null } | null;
   /** Shared lists to add this person to (Stage 8; caller must own or belong to them). */
   lists?: string[];
   /** Extra anniversary/custom dates to create alongside the person (FR-16). */

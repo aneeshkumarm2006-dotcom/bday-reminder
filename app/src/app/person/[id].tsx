@@ -244,19 +244,19 @@ function ProfileBody({
   // Confirm handlers for the sheets; a thrown ApiError (e.g. "connect Gmail
   // first" for a shared person whose owner isn't connected) is surfaced by the
   // sheet itself, which stays open.
-  const confirmAutoEmail = async ({ recipient, message }: AutoSendDraft) => {
+  const confirmAutoEmail = async ({ recipient, message, sendTime }: AutoSendDraft) => {
     await peopleApi.update(person.id, {
       email: recipient,
-      autoBirthdayEmail: { enabled: true, message },
+      autoBirthdayEmail: { enabled: true, message, sendTime: sendTime || null },
     });
     onReload();
     toast.show('Auto-send email on.');
   };
 
-  const confirmAutoSms = async ({ recipient, message }: AutoSendDraft) => {
+  const confirmAutoSms = async ({ recipient, message, sendTime }: AutoSendDraft) => {
     await peopleApi.update(person.id, {
       phone: recipient,
-      autoBirthdaySms: { enabled: true, message },
+      autoBirthdaySms: { enabled: true, message, sendTime: sendTime || null },
     });
     onReload();
     toast.show('Auto-send SMS on.');
@@ -505,6 +505,7 @@ function ProfileBody({
         available={gmailAvailable}
         initialRecipient={person.email ?? ''}
         initialMessage={person.autoBirthdayEmail?.message ?? ''}
+        initialSendTime={person.autoBirthdayEmail?.sendTime ?? ''}
         alreadyEnabled={!!person.autoBirthdayEmail?.enabled}
         onConfirm={confirmAutoEmail}
       />
@@ -516,6 +517,7 @@ function ProfileBody({
         available={smsAvailable}
         initialRecipient={formatNanp(person.phone)}
         initialMessage={person.autoBirthdaySms?.message ?? ''}
+        initialSendTime={person.autoBirthdaySms?.sendTime ?? ''}
         alreadyEnabled={!!person.autoBirthdaySms?.enabled}
         onConfirm={confirmAutoSms}
       />

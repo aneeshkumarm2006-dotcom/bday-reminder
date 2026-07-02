@@ -197,6 +197,47 @@ async function main(): Promise<void> {
     summary = await dispatchBirthdaySms(now, { send: sSkip.send });
     check(summary.considered === 0 && sSkip.calls.length === 0, 'disabled + not-today people are skipped');
 
+    // --- Per-person send time (sendTime) gating -------------------------------
+    // Two friends with a birthday today: one whose send time (09:00) has passed
+    // by noon, one whose (18:00) hasn't. A fixed noon/evening "now" makes the gate
+    // deterministic. (Ben & Cara above had NO sendTime and fired at the owner
+    // default 00:00 - the backwards-compatible fallback.)
+    const atUTC = (h: number) => new Date(Date.UTC(thisYear, todayUTC.getUTCMonth(), todayUTC.getUTCDate(), h, 0, 0));
+    res = await post(
+      '/people',
+      { fullName: 'Early Bird', dob: { ...md(todayUTC), year: 1990 }, phone: '5551230010', autoBirthdaySms: { enabled: true, sendTime: '09:00' } },
+      token,
+    );
+    const early = (await res.json()).person;
+    check(early.autoBirthdaySms.sendTime === '09:00', 'sendTime round-trips through create + serialize');
+    res = await post(
+      '/people',
+      { fullName: 'Night Owl', dob: { ...md(todayUTC), year: 1990 }, phone: '5551230011', autoBirthdaySms: { enabled: true, sendTime: '18:00' } },
+      token,
+    );
+    const owl = (await res.json()).person;
+
+    const sNoon = makeStub('sent');
+    summary = await dispatchBirthdaySms(atUTC(12), { send: sNoon.send });
+    check(
+      summary.sent === 1 && sNoon.calls.length === 1 && sNoon.calls[0].to === '+15551230010',
+      'at noon only the person whose sendTime (09:00) has passed is texted',
+    );
+    const owlBefore = await Person.findById(owl.id);
+    check(owlBefore?.autoBirthdaySms?.lastSentYear == null, 'the 18:00 person is not claimed before their send time');
+
+    const sEve = makeStub('sent');
+    summary = await dispatchBirthdaySms(atUTC(19), { send: sEve.send });
+    check(summary.sent === 1 && sEve.calls[0].to === '+15551230011', 'once 18:00 passes the night-owl text sends');
+
+    // PATCH updates the time, clears it (→ inherit default), rejects bad input.
+    res = await patch(`/people/${owl.id}`, { autoBirthdaySms: { enabled: true, sendTime: '07:30' } }, token);
+    check((await res.json()).person.autoBirthdaySms.sendTime === '07:30', 'PATCH updates sendTime');
+    res = await patch(`/people/${owl.id}`, { autoBirthdaySms: { enabled: true, sendTime: null } }, token);
+    check((await res.json()).person.autoBirthdaySms.sendTime === null, 'PATCH sendTime:null clears it (inherit default)');
+    res = await patch(`/people/${owl.id}`, { autoBirthdaySms: { enabled: true, sendTime: '99:99' } }, token);
+    check(res.status === 400, 'an out-of-range sendTime is rejected (400)');
+
     // --- PATCH enable then disable preserves the server-managed lastSentYear ---
     res = await post('/people', { fullName: 'Dee Kim', dob: { ...md(plusDays(todayUTC, 5)), year: 1990 }, phone: '5551230005' }, token);
     const dee = (await res.json()).person;

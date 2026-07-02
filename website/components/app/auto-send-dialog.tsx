@@ -3,6 +3,11 @@
 import { CheckCircle2 } from "lucide-react";
 import { useEffect, useId, useState } from "react";
 
+import {
+  defaultTimeInheritLabel,
+  friendlyTimeLabel,
+  ReminderTimePicker,
+} from "@/components/app/reminder-prefs";
 import { Button } from "@/components/ui/button";
 import { Chip } from "@/components/ui/chip";
 import { Dialog } from "@/components/ui/dialog";
@@ -23,7 +28,7 @@ import { useAuth } from "@/providers/auth-provider";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-export type AutoSendDraft = { recipient: string; message: string };
+export type AutoSendDraft = { recipient: string; message: string; sendTime: string };
 
 /**
  * Auto-send setup popup (Stage 14/15) — opened by the auto-send toggles instead
@@ -45,6 +50,7 @@ export function AutoSendDialog({
   available,
   initialRecipient,
   initialMessage,
+  initialSendTime,
   alreadyEnabled,
   onConfirm,
 }: {
@@ -57,6 +63,8 @@ export function AutoSendDialog({
   available: boolean | undefined;
   initialRecipient: string;
   initialMessage: string;
+  /** Stored "HH:mm" send time; "" = inherit the user's default reminder time. */
+  initialSendTime: string;
   /** true → editing an existing setup ("Save"); false → enabling ("Turn on"). */
   alreadyEnabled: boolean;
   onConfirm: (draft: AutoSendDraft) => void | Promise<void>;
@@ -70,6 +78,7 @@ export function AutoSendDialog({
 
   const [recipient, setRecipient] = useState("");
   const [message, setMessage] = useState("");
+  const [sendTime, setSendTime] = useState("");
   const [customPicked, setCustomPicked] = useState(false);
   const [busy, setBusy] = useState(false);
   const [connectWaiting, setConnectWaiting] = useState(false);
@@ -82,6 +91,7 @@ export function AutoSendDialog({
     if (open) {
       setRecipient(initialRecipient);
       setMessage(initialMessage.trim() || defaultGreeting(channel, fillOpts));
+      setSendTime(initialSendTime);
       setCustomPicked(false);
       setBusy(false);
       setConnectWaiting(false);
@@ -89,6 +99,9 @@ export function AutoSendDialog({
   }
 
   const gmailReady = !!user?.gmailConnected;
+  // The time the greeting actually goes out at: the chosen slot, or the user's
+  // default reminder time when left on inherit ("").
+  const effectiveTime = friendlyTimeLabel(sendTime || user?.defaultReminderTime);
 
   // While the OAuth tab is open, re-check the connection whenever the user
   // comes back to this tab — no interval polling needed.
@@ -144,7 +157,7 @@ export function AutoSendDialog({
     if (!canConfirm) return;
     setBusy(true);
     try {
-      await onConfirm({ recipient: recipient.trim(), message: message.trim() });
+      await onConfirm({ recipient: recipient.trim(), message: message.trim(), sendTime });
       onClose();
     } catch (e) {
       toast({
@@ -250,6 +263,15 @@ export function AutoSendDialog({
             </p>
           </div>
 
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-ink-secondary">Send time</label>
+            <ReminderTimePicker
+              value={sendTime}
+              onChange={setSendTime}
+              inheritLabel={defaultTimeInheritLabel(user?.defaultReminderTime)}
+            />
+          </div>
+
           {isEmail ? (
             <div className="rounded-lg border border-border-subtle bg-surface-sunken p-4">
               {gmailReady ? (
@@ -257,8 +279,9 @@ export function AutoSendDialog({
                   <CheckCircle2 size={18} className="mt-0.5 shrink-0 text-ok-fg" aria-hidden="true" />
                   <p className="text-sm text-ink-secondary">
                     Sends from <span className="font-medium text-ink">{user?.gmailEmail}</span> — as
-                    you, once a year on their birthday. Your note arrives as a designed birthday
-                    card, with a small &ldquo;Sent with Circle the date&rdquo; line at the bottom.
+                    you, once a year on their birthday at {effectiveTime}. Your note arrives as a
+                    designed birthday card, with a small &ldquo;Sent with Circle the date&rdquo; line
+                    at the bottom.
                   </p>
                 </div>
               ) : (
@@ -294,7 +317,8 @@ export function AutoSendDialog({
             <div className="rounded-lg border border-border-subtle bg-surface-sunken p-4">
               <p className="text-sm text-ink-secondary">
                 The text comes from a shared number — not yours — and is signed with your name
-                {user?.name ? ` (${user.name})` : ""}, once a year on their birthday.
+                {user?.name ? ` (${user.name})` : ""}, once a year on their birthday at{" "}
+                {effectiveTime}.
               </p>
             </div>
           )}

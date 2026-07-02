@@ -84,8 +84,10 @@ export function PersonForm({
   const [email, setEmail] = useState(person?.email ?? "");
   const [autoSendOn, setAutoSendOn] = useState(person?.autoBirthdayEmail?.enabled ?? false);
   const [autoSendMessage, setAutoSendMessage] = useState(person?.autoBirthdayEmail?.message ?? "");
+  const [autoSendTime, setAutoSendTime] = useState(person?.autoBirthdayEmail?.sendTime ?? "");
   const [autoSmsOn, setAutoSmsOn] = useState(person?.autoBirthdaySms?.enabled ?? false);
   const [autoSmsMessage, setAutoSmsMessage] = useState(person?.autoBirthdaySms?.message ?? "");
+  const [autoSmsTime, setAutoSmsTime] = useState(person?.autoBirthdaySms?.sendTime ?? "");
   const [emailDialogOpen, setEmailDialogOpen] = useState(false);
   const [smsDialogOpen, setSmsDialogOpen] = useState(false);
   const [photoUrl, setPhotoUrl] = useState<string | null>(person?.photoUrl ?? null);
@@ -168,10 +170,12 @@ export function PersonForm({
       autoBirthdayEmail: {
         enabled: autoSendOn,
         message: autoSendMessage.trim() || null,
+        sendTime: autoSendTime || null,
       },
       autoBirthdaySms: {
         enabled: autoSmsOn,
         message: autoSmsMessage.trim() || null,
+        sendTime: autoSmsTime || null,
       },
       photoUrl,
       lists: selectedLists,
@@ -466,10 +470,12 @@ export function PersonForm({
         available={config ? !!config.gmailAutoSendAvailable : configFailed ? false : undefined}
         initialRecipient={email}
         initialMessage={autoSendMessage}
+        initialSendTime={autoSendTime}
         alreadyEnabled={autoSendOn}
-        onConfirm={({ recipient, message }) => {
+        onConfirm={({ recipient, message, sendTime }) => {
           setEmail(recipient);
           setAutoSendMessage(message);
+          setAutoSendTime(sendTime);
           setAutoSendOn(true);
         }}
       />
@@ -481,10 +487,12 @@ export function PersonForm({
         available={config ? !!config.smsAutoSendAvailable : configFailed ? false : undefined}
         initialRecipient={phone}
         initialMessage={autoSmsMessage}
+        initialSendTime={autoSmsTime}
         alreadyEnabled={autoSmsOn}
-        onConfirm={({ recipient, message }) => {
+        onConfirm={({ recipient, message, sendTime }) => {
           setPhone(recipient);
           setAutoSmsMessage(message);
+          setAutoSmsTime(sendTime);
           setAutoSmsOn(true);
         }}
       />

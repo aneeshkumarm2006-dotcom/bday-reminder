@@ -10,6 +10,11 @@ import {
 } from 'react-native';
 
 import { Button, Chip, Icon, Label, Sheet, Text, TextField, useToast } from '@/components/ui';
+import {
+  defaultTimeInheritLabel,
+  friendlyTimeLabel,
+  ReminderTimePicker,
+} from '@/components/reminder-prefs';
 import { ApiError } from '@/lib/api';
 import { connectGmail } from '@/lib/gmail-auth';
 import {
@@ -27,7 +32,7 @@ import { useTokens } from '@/theme/theme-provider';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-export type AutoSendDraft = { recipient: string; message: string };
+export type AutoSendDraft = { recipient: string; message: string; sendTime: string };
 
 /**
  * Auto-send setup sheet (Stage 14/15) — opened by the auto-send toggles instead
@@ -48,6 +53,7 @@ export function AutoSendSheet({
   available,
   initialRecipient,
   initialMessage,
+  initialSendTime,
   alreadyEnabled,
   onConfirm,
 }: {
@@ -60,6 +66,8 @@ export function AutoSendSheet({
   available: boolean | undefined;
   initialRecipient: string;
   initialMessage: string;
+  /** Stored "HH:mm" send time; "" = inherit the user's default reminder time. */
+  initialSendTime: string;
   /** true → editing an existing setup ("Save"); false → enabling ("Turn on"). */
   alreadyEnabled: boolean;
   onConfirm: (draft: AutoSendDraft) => void | Promise<void>;
@@ -74,6 +82,7 @@ export function AutoSendSheet({
 
   const [recipient, setRecipient] = useState('');
   const [message, setMessage] = useState('');
+  const [sendTime, setSendTime] = useState('');
   const [customPicked, setCustomPicked] = useState(false);
   const [busy, setBusy] = useState(false);
   const [connecting, setConnecting] = useState(false);
@@ -86,6 +95,7 @@ export function AutoSendSheet({
     if (visible) {
       setRecipient(initialRecipient);
       setMessage(initialMessage.trim() || defaultGreeting(channel, fillOpts));
+      setSendTime(initialSendTime);
       setCustomPicked(false);
       setBusy(false);
       setConnecting(false);
@@ -93,6 +103,9 @@ export function AutoSendSheet({
   }
 
   const gmailReady = !!user?.gmailConnected;
+  // The time the greeting actually goes out at: the chosen slot, or the user's
+  // default reminder time when left on inherit ("").
+  const effectiveTime = friendlyTimeLabel(sendTime || user?.defaultReminderTime);
   const matched = matchTemplateId(message, channel, fillOpts);
   const activeTemplate = customPicked ? null : matched;
 
@@ -119,7 +132,7 @@ export function AutoSendSheet({
     if (!canConfirm) return;
     setBusy(true);
     try {
-      await onConfirm({ recipient: recipient.trim(), message: message.trim() });
+      await onConfirm({ recipient: recipient.trim(), message: message.trim(), sendTime });
       onClose();
     } catch (e) {
       toast.show(e instanceof ApiError ? e.message : "Couldn't save. Try again.");
@@ -206,13 +219,22 @@ export function AutoSendSheet({
                 }
               />
 
+              <View>
+                <Label>Send time</Label>
+                <ReminderTimePicker
+                  value={sendTime}
+                  onChange={setSendTime}
+                  inheritLabel={defaultTimeInheritLabel(user?.defaultReminderTime)}
+                />
+              </View>
+
               {isEmail ? (
                 <View className="rounded-md bg-surface-sunken p-3">
                   {gmailReady ? (
                     <View className="flex-row items-start gap-2.5">
                       <Icon icon={CheckCircle2} size={18} color={t.okFg} />
                       <Text variant="caption" className="flex-1 text-ink-secondary">
-                        {`Sends from ${user?.gmailEmail ?? 'your Gmail'} — as you, once a year on their birthday. Your note arrives as a designed birthday card, with a small “Sent with Circle the date” line at the bottom.`}
+                        {`Sends from ${user?.gmailEmail ?? 'your Gmail'} — as you, once a year on their birthday at ${effectiveTime}. Your note arrives as a designed birthday card, with a small “Sent with Circle the date” line at the bottom.`}
                       </Text>
                     </View>
                   ) : connecting ? (
@@ -238,7 +260,7 @@ export function AutoSendSheet({
                   <Text variant="caption" className="text-ink-secondary">
                     {`The text comes from a shared number — not yours — and is signed with your name${
                       user?.name ? ` (${user.name})` : ''
-                    }, once a year on their birthday.`}
+                    }, once a year on their birthday at ${effectiveTime}.`}
                   </Text>
                 </View>
               )}

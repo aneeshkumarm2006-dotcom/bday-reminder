@@ -7,24 +7,29 @@ import { dateParts, FEB29_RULES, type DateParts, type Feb29Rule } from './common
  * emails this person (at `Person.email`) on their birthday, sent AS the person's
  * owner through the owner's connected Gmail (see `User.gmailIntegration`).
  * `message` is the editable greeting body (confirmed once when enabling);
+ * `sendTime` is the wall-clock "HH:mm" (in the owner's timezone) the greeting goes
+ * out at on the birthday - unset means inherit the owner's `defaultReminderTime`;
  * `lastSentYear` guards against double-sending - the dispatch only fires when the
  * occurrence's year differs from it, then stamps it (idempotent per year).
  */
 export interface AutoBirthdayEmail {
   enabled: boolean;
   message?: string;
+  sendTime?: string;
   lastSentYear?: number;
 }
 
 /**
- * Auto-send birthday SMS (Stage 15). Same shape and once-per-year `lastSentYear`
- * guard as {@link AutoBirthdayEmail}, but the greeting is texted to `Person.phone`
- * via one shared Twilio account (there is no per-user carrier account, so the
- * message is signed with the owner's name to read as coming from them).
+ * Auto-send birthday SMS (Stage 15). Same shape (incl. per-person `sendTime` and
+ * the once-per-year `lastSentYear` guard) as {@link AutoBirthdayEmail}, but the
+ * greeting is texted to `Person.phone` via one shared Twilio account (there is no
+ * per-user carrier account, so the message is signed with the owner's name to
+ * read as coming from them).
  */
 export interface AutoBirthdaySms {
   enabled: boolean;
   message?: string;
+  sendTime?: string;
   lastSentYear?: number;
 }
 
@@ -58,6 +63,7 @@ const autoBirthdayEmailSchema = new Schema<AutoBirthdayEmail>(
   {
     enabled: { type: Boolean, default: false },
     message: { type: String, trim: true },
+    sendTime: { type: String, trim: true },
     lastSentYear: { type: Number },
   },
   { _id: false },
@@ -67,6 +73,7 @@ const autoBirthdaySmsSchema = new Schema<AutoBirthdaySms>(
   {
     enabled: { type: Boolean, default: false },
     message: { type: String, trim: true },
+    sendTime: { type: String, trim: true },
     lastSentYear: { type: Number },
   },
   { _id: false },
