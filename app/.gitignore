@@ -4,3 +4,10 @@
 
 expo-env.d.ts
 # @end expo-cli
+
+# Firebase / FCM secrets — never commit these
+google-services.json
+GoogleService-Info.plist
+# Firebase service-account private key (used for EAS push credentials)
+*-firebase-adminsdk-*.json
+bday-reminder-*.json
