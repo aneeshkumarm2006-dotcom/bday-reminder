@@ -7,8 +7,10 @@ import { useMemo, useState } from "react";
 
 import { SeoTeamHeader } from "@/components/seoteam/seoteam-header";
 import { SeoCheckList } from "@/components/seoteam/seo-check-list";
-import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input, Label, TextField, Textarea } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/components/ui/toast";
 import {
   createPostRequest,
@@ -23,16 +25,18 @@ import type {
   Keyword,
   LinkOccurrences,
   Post,
-  PostStatus,
   TemplateKey,
 } from "@/lib/blog/types";
+import { deriveVisibility, type Visibility } from "@/lib/blog/visibility";
 import { cn } from "@/lib/utils";
 
 import { CoverImageField } from "./cover-image-field";
 import { KeywordManager } from "./keyword-manager";
 import { PostPreview } from "./post-preview";
+import { SearchListingPreview } from "./search-listing-preview";
 import { TemplatePicker } from "./template-picker";
 import { TiptapEditor } from "./tiptap-editor";
+import { VisibilityCard } from "./visibility-card";
 
 function CharCount({
   value,
@@ -57,12 +61,21 @@ function CharCount({
   );
 }
 
+const VIS_META: Record<Visibility, { label: string; tone: string }> = {
+  draft: { label: "Draft", tone: "neutral" },
+  visible: { label: "Visible", tone: "ok" },
+  scheduled: { label: "Scheduled", tone: "snooze" },
+};
+
 export function PostEditor({
   mode,
   initial,
+  initialVisibility,
 }: {
   mode: "new" | "edit";
   initial?: Post;
+  /** Derived server-side so the client doesn't need `new Date()` at first render. */
+  initialVisibility?: Visibility;
 }) {
   const router = useRouter();
   const { toast } = useToast();
@@ -85,9 +98,14 @@ export function PostEditor({
   const [linkOccurrences, setLinkOccurrences] = useState<LinkOccurrences>(
     initial?.linkOccurrences ?? "first",
   );
-  const [status, setStatus] = useState<PostStatus>(initial?.status ?? "draft");
+  const [visibility, setVisibility] = useState<Visibility>(
+    initialVisibility ?? (initial?.status === "published" ? "visible" : "draft"),
+  );
+  const [publishedAt, setPublishedAt] = useState<string>(
+    initial?.publishedAt ?? "",
+  );
 
-  const [preview, setPreview] = useState(false);
+  const [tab, setTab] = useState<"edit" | "preview">("edit");
   const [busy, setBusy] = useState(false);
 
   const effectiveMetaTitle = metaTitle.trim() || title;
@@ -129,11 +147,11 @@ export function PostEditor({
   };
   const onSlugBlur = () => setSlug((current) => slugify(current));
 
-  const buildPayload = (nextStatus: PostStatus) => {
+  const buildPayload = () => {
     const cleanedKeywords = keywords
       .map((k) => ({ ...k, keyword: k.keyword.trim(), url: k.url.trim() }))
       .filter((k) => k.keyword && k.url);
-    return {
+    const base = {
       title: title.trim(),
       ...(slug.trim() ? { slug: slug.trim() } : {}),
       template: (template ?? "generic") as TemplateKey,
@@ -145,39 +163,49 @@ export function PostEditor({
       keywords: cleanedKeywords,
       linkOccurrences,
       author: author.trim(),
-      status: nextStatus,
+    };
+    if (visibility === "draft") {
+      return { ...base, status: "draft" as const };
+    }
+    return {
+      ...base,
+      status: "published" as const,
+      // Visible → null = "publish/keep visible now"; Scheduled → the future ISO.
+      publishedAt: visibility === "scheduled" ? publishedAt || null : null,
     };
   };
 
-  const save = async (nextStatus: PostStatus) => {
+  const savedMessage = () =>
+    visibility === "draft"
+      ? "Draft saved."
+      : visibility === "scheduled"
+        ? "Scheduled."
+        : mode === "edit" && initial?.status === "published"
+          ? "Saved."
+          : "Published.";
+
+  const save = async () => {
     if (!title.trim()) {
       toast({ message: "Add a title before saving.", tone: "error" });
       return;
     }
+    if (visibility === "scheduled" && !publishedAt) {
+      toast({ message: "Pick a publish date, or choose Visible.", tone: "error" });
+      return;
+    }
     setBusy(true);
     try {
-      const payload = buildPayload(nextStatus);
+      const payload = buildPayload();
       if (mode === "edit" && initial) {
         const updated = await updatePostRequest(initial.id, payload);
-        setStatus(updated.status);
         setSlug(updated.slug);
-        toast({
-          message:
-            nextStatus === "published"
-              ? "Saved and published."
-              : nextStatus === "draft" && status === "published"
-                ? "Unpublished — now a draft."
-                : "Draft saved.",
-          tone: "success",
-        });
+        setPublishedAt(updated.publishedAt ?? "");
+        setVisibility(deriveVisibility(updated.status, updated.publishedAt));
+        toast({ message: savedMessage(), tone: "success" });
         router.refresh();
       } else {
         const created = await createPostRequest(payload);
-        toast({
-          message:
-            nextStatus === "published" ? "Published." : "Draft saved.",
-          tone: "success",
-        });
+        toast({ message: savedMessage(), tone: "success" });
         router.replace(`/seoteam/posts/${created.id}/edit`);
       }
     } catch (err) {
@@ -189,6 +217,15 @@ export function PostEditor({
       setBusy(false);
     }
   };
+
+  const saveLabel =
+    visibility === "draft"
+      ? "Save draft"
+      : visibility === "scheduled"
+        ? "Schedule"
+        : mode === "edit" && initial?.status === "published"
+          ? "Save changes"
+          : "Publish";
 
   // ── Template picker step (new posts only) ─────────────────────────────────
   if (mode === "new" && !template) {
@@ -208,7 +245,7 @@ export function PostEditor({
     );
   }
 
-  const isPublished = status === "published";
+  const vis = VIS_META[visibility];
 
   return (
     <>
@@ -224,41 +261,19 @@ export function PostEditor({
             <ArrowLeft size={16} aria-hidden="true" /> Posts
           </Link>
           <div className="flex flex-wrap items-center gap-2">
-            <span
-              className={cn(
-                "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium",
-                isPublished
-                  ? "bg-ok-bg text-ok-fg"
-                  : "bg-surface-sunken text-ink-secondary",
-              )}
-            >
-              {isPublished ? "Published" : "Draft"}
-            </span>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => setPreview((p) => !p)}
-            >
-              {preview ? (
-                <>
-                  <Pencil size={16} aria-hidden="true" /> Edit
-                </>
-              ) : (
-                <>
-                  <Eye size={16} aria-hidden="true" /> Preview
-                </>
-              )}
-            </Button>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => save("draft")}
-              disabled={busy}
-            >
-              {isPublished ? "Unpublish" : "Save draft"}
-            </Button>
-            <Button size="sm" onClick={() => save("published")} disabled={busy}>
-              {isPublished ? "Save changes" : "Publish"}
+            <Badge tone={vis.tone}>{vis.label}</Badge>
+            {mode === "edit" && initial && (
+              <a
+                href={`/seoteam/preview/${initial.id}`}
+                target="_blank"
+                rel="noreferrer"
+                className={buttonVariants({ variant: "secondary", size: "sm" })}
+              >
+                <Eye size={16} aria-hidden="true" /> Preview
+              </a>
+            )}
+            <Button size="sm" onClick={save} disabled={busy}>
+              {saveLabel}
             </Button>
           </div>
         </div>
@@ -268,17 +283,17 @@ export function PostEditor({
         <div className="grid gap-8 lg:grid-cols-3">
           {/* Main column */}
           <div className="flex flex-col gap-5 lg:col-span-2">
-            {preview ? (
-              <PostPreview
-                title={title}
-                coverImage={coverImage}
-                coverImageAlt={coverImageAlt}
-                body={body}
-                keywords={keywords}
-                linkOccurrences={linkOccurrences}
-              />
-            ) : (
-              <>
+            <Tabs value={tab} onValueChange={(v) => setTab(v as "edit" | "preview")}>
+              <TabsList aria-label="Editor view" className="mb-4">
+                <TabsTrigger value="edit">
+                  <Pencil size={15} aria-hidden="true" /> Edit
+                </TabsTrigger>
+                <TabsTrigger value="preview">
+                  <Eye size={15} aria-hidden="true" /> Preview
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="edit" className="flex flex-col gap-5">
                 <div>
                   <Label htmlFor="post-title">Title</Label>
                   <Input
@@ -316,12 +331,37 @@ export function PostEditor({
                     onError={(message) => toast({ message, tone: "error" })}
                   />
                 </div>
-              </>
-            )}
+              </TabsContent>
+
+              <TabsContent value="preview">
+                <PostPreview
+                  title={title}
+                  author={author}
+                  publishedAt={publishedAt}
+                  coverImage={coverImage}
+                  coverImageAlt={coverImageAlt}
+                  body={body}
+                  keywords={keywords}
+                  linkOccurrences={linkOccurrences}
+                />
+              </TabsContent>
+            </Tabs>
           </div>
 
           {/* Sidebar */}
           <aside className="flex flex-col gap-6">
+            <section className="rounded-lg border border-border-subtle bg-surface p-5">
+              <h2 className="mb-3 font-display text-base font-semibold text-ink">
+                Visibility
+              </h2>
+              <VisibilityCard
+                visibility={visibility}
+                onVisibilityChange={setVisibility}
+                publishedAt={publishedAt}
+                onPublishedAtChange={setPublishedAt}
+              />
+            </section>
+
             <section className="rounded-lg border border-border-subtle bg-surface p-5">
               <h2 className="mb-3 font-display text-base font-semibold text-ink">
                 SEO checks
@@ -334,6 +374,12 @@ export function PostEditor({
                 Search appearance
               </h2>
               <div className="flex flex-col gap-4">
+                <SearchListingPreview
+                  title={title}
+                  metaTitle={metaTitle}
+                  excerpt={excerpt}
+                  slug={slug}
+                />
                 <div>
                   <div className="flex items-center justify-between">
                     <Label htmlFor="meta-title">Meta title</Label>

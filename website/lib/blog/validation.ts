@@ -18,6 +18,18 @@ const httpUrl = z
     { message: "Enter a valid http(s) URL." },
   );
 
+/**
+ * Publish date. A parseable date string, or `null` to mean "publish/keep visible
+ * now". Hand-rolled (like `httpUrl` below) to avoid zod's version-variable
+ * `.datetime()`. `.nullable()` matters: the update route uses an explicit `null`
+ * as the "make visible now" signal, so it must survive parsing.
+ */
+const publishedAtSchema = z
+  .string()
+  .trim()
+  .refine((v) => !Number.isNaN(Date.parse(v)), { message: "Enter a valid date." })
+  .nullable();
+
 /** Cover/inline image URL: empty, an http(s) URL, or a data: image URI. */
 const imageUrl = z
   .string()
@@ -51,6 +63,7 @@ const baseShape = {
   linkOccurrences: z.enum(["first", "all"]).default("first"),
   author: z.string().trim().max(120).default(""),
   status: z.enum(["draft", "published"]).default("draft"),
+  publishedAt: publishedAtSchema.optional(),
 };
 
 export const createPostSchema = z.object(baseShape);
@@ -70,6 +83,7 @@ export const updatePostSchema = z
     linkOccurrences: z.enum(["first", "all"]),
     author: z.string().trim().max(120),
     status: z.enum(["draft", "published"]),
+    publishedAt: publishedAtSchema,
   })
   .partial();
 

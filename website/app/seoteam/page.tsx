@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
-import { PostsTable } from "@/components/seoteam/posts-table";
+import { PostsTable, type PostRow } from "@/components/seoteam/posts-table";
 import { SeoTeamHeader } from "@/components/seoteam/seoteam-header";
 import { isDbConfigured } from "@/lib/blog/db";
 import { getAllPosts } from "@/lib/blog/posts";
 import type { Post } from "@/lib/blog/types";
+import { isScheduled } from "@/lib/blog/visibility";
 import { isSeoAuthenticated } from "@/lib/seo-auth/server";
 import { getAutoSmsStats, type AutoSmsStats } from "@/lib/sms/stats";
 
@@ -26,6 +27,17 @@ export default async function SeoDashboardPage() {
       dbReady = false;
     }
   }
+
+  // Compute "scheduled" with the server clock (a published post with a future
+  // publishedAt) so the client never needs new Date() at first render. isScheduled
+  // reads its own `now` default, keeping this render free of impure calls.
+  const rows: PostRow[] = posts.map((p) => ({
+    ...p,
+    scheduled: isScheduled(p.status, p.publishedAt),
+  }));
+  const liveCount = rows.filter((r) => r.status === "published" && !r.scheduled).length;
+  const scheduledCount = rows.filter((r) => r.scheduled).length;
+  const draftCount = rows.filter((r) => r.status === "draft").length;
 
   // Auto-send SMS spend snapshot (Stage 15) - best-effort; never breaks the page.
   let smsStats: AutoSmsStats | null = null;
@@ -59,10 +71,38 @@ export default async function SeoDashboardPage() {
             </p>
           </div>
         ) : (
-          <PostsTable initialPosts={posts} />
+          <>
+            {rows.length > 0 && (
+              <div className="mb-6 grid grid-cols-3 gap-3">
+                <StatCard label="Published" value={liveCount} hint="Live now" />
+                <StatCard label="Scheduled" value={scheduledCount} hint="Future auto-publish" />
+                <StatCard label="Drafts" value={draftCount} hint="Not published" />
+              </div>
+            )}
+            <PostsTable initialPosts={rows} />
+          </>
         )}
       </main>
     </>
+  );
+}
+
+/** Small headline metric card for the posts overview. */
+function StatCard({
+  label,
+  value,
+  hint,
+}: {
+  label: string;
+  value: number;
+  hint: string;
+}) {
+  return (
+    <div className="rounded-lg border border-border-subtle bg-surface p-4">
+      <p className="text-2xl font-semibold tabular-nums text-ink">{value}</p>
+      <p className="text-sm font-medium text-ink">{label}</p>
+      <p className="text-xs text-ink-muted">{hint}</p>
+    </div>
   );
 }
 

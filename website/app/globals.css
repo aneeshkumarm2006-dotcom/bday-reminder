@@ -180,6 +180,22 @@ body {
 .prose-blog a:hover {
   color: var(--biro-hover);
 }
+/* Inline marks (underline is now insertable from the editor). */
+.prose-blog u {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.prose-blog sub,
+.prose-blog sup {
+  font-size: 0.75em;
+  line-height: 0;
+}
+.prose-blog mark {
+  background: var(--snz-bg);
+  color: var(--snz-fg);
+  padding: 0 0.15em;
+  border-radius: 3px;
+}
 .prose-blog ul,
 .prose-blog ol {
   margin: 0 0 1.1rem;

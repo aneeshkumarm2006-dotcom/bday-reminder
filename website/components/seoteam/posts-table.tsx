@@ -5,6 +5,7 @@ import {
   ExternalLink,
   FileText,
   Pencil,
+  ScanEye,
   Send,
   Trash2,
 } from "lucide-react";
@@ -13,6 +14,7 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 
 import { SeoReadinessPill } from "@/components/seoteam/seo-check-list";
+import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -23,11 +25,20 @@ import { deletePostRequest, updatePostRequest } from "@/lib/blog/dashboard-api";
 import { formatDate } from "@/lib/blog/format";
 import { analyzeSeo } from "@/lib/blog/seo-checks";
 import type { Post } from "@/lib/blog/types";
+import { isScheduled } from "@/lib/blog/visibility";
 import { cn } from "@/lib/utils";
 
-type StatusFilter = "all" | "published" | "draft";
+/** A post row with its (server-computed) scheduled state for display. */
+export type PostRow = Post & { scheduled: boolean };
 
-export function PostsTable({ initialPosts }: { initialPosts: Post[] }) {
+type StatusFilter = "all" | "published" | "scheduled" | "draft";
+
+/** Re-stamp a mutated post's scheduled flag client-side (post-mount = safe). */
+function toRow(post: Post): PostRow {
+  return { ...post, scheduled: isScheduled(post.status, post.publishedAt) };
+}
+
+export function PostsTable({ initialPosts }: { initialPosts: PostRow[] }) {
   const router = useRouter();
   const { toast } = useToast();
   const confirm = useConfirm();
@@ -40,7 +51,10 @@ export function PostsTable({ initialPosts }: { initialPosts: Post[] }) {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return posts.filter((post) => {
-      if (statusFilter !== "all" && post.status !== statusFilter) return false;
+      if (statusFilter === "published" && !(post.status === "published" && !post.scheduled))
+        return false;
+      if (statusFilter === "scheduled" && !post.scheduled) return false;
+      if (statusFilter === "draft" && post.status !== "draft") return false;
       if (q && !post.title.toLowerCase().includes(q)) return false;
       return true;
     });
@@ -65,12 +79,12 @@ export function PostsTable({ initialPosts }: { initialPosts: Post[] }) {
     return map;
   }, [posts]);
 
-  const toggleStatus = async (post: Post) => {
+  const toggleStatus = async (post: PostRow) => {
     const next = post.status === "published" ? "draft" : "published";
     setBusyId(post.id);
     try {
       const updated = await updatePostRequest(post.id, { status: next });
-      setPosts((prev) => prev.map((p) => (p.id === post.id ? updated : p)));
+      setPosts((prev) => prev.map((p) => (p.id === post.id ? toRow(updated) : p)));
       toast({
         message: next === "published" ? "Published." : "Moved to draft.",
         tone: "success",
@@ -86,7 +100,7 @@ export function PostsTable({ initialPosts }: { initialPosts: Post[] }) {
     }
   };
 
-  const remove = async (post: Post) => {
+  const remove = async (post: PostRow) => {
     const ok = await confirm({
       title: "Delete this post?",
       message: `“${post.title}” will be permanently deleted. This can't be undone.`,
@@ -142,6 +156,7 @@ export function PostsTable({ initialPosts }: { initialPosts: Post[] }) {
         >
           <option value="all">All statuses</option>
           <option value="published">Published</option>
+          <option value="scheduled">Scheduled</option>
           <option value="draft">Drafts</option>
         </Select>
       </div>
@@ -161,7 +176,7 @@ export function PostsTable({ initialPosts }: { initialPosts: Post[] }) {
           <tbody>
             {filtered.map((post) => {
               const analysis = seoByPost.get(post.id)!;
-              const isPublished = post.status === "published";
+              const isLive = post.status === "published" && !post.scheduled;
               const date = post.publishedAt ?? post.updatedAt;
               const rowBusy = busyId === post.id;
               return (
@@ -182,16 +197,13 @@ export function PostsTable({ initialPosts }: { initialPosts: Post[] }) {
                     <SeoReadinessPill analysis={analysis} />
                   </td>
                   <td className="px-4 py-3">
-                    <span
-                      className={cn(
-                        "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium",
-                        isPublished
-                          ? "bg-ok-bg text-ok-fg"
-                          : "bg-surface-sunken text-ink-secondary",
-                      )}
-                    >
-                      {isPublished ? "Published" : "Draft"}
-                    </span>
+                    {post.scheduled ? (
+                      <Badge tone="snooze">Scheduled</Badge>
+                    ) : isLive ? (
+                      <Badge tone="ok">Published</Badge>
+                    ) : (
+                      <Badge tone="neutral">Draft</Badge>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-ink-secondary">
                     {formatDate(date)}
@@ -201,15 +213,25 @@ export function PostsTable({ initialPosts }: { initialPosts: Post[] }) {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-1">
-                      {isPublished && (
+                      {isLive ? (
                         <Link
                           href={`/blog/${post.slug}`}
                           target="_blank"
-                          aria-label="View post"
-                          title="View"
+                          aria-label="View public post"
+                          title="View public"
                           className="inline-flex h-9 w-9 items-center justify-center rounded-md text-ink-muted hover:bg-surface-sunken hover:text-ink"
                         >
                           <ExternalLink size={18} aria-hidden="true" />
+                        </Link>
+                      ) : (
+                        <Link
+                          href={`/seoteam/preview/${post.id}`}
+                          target="_blank"
+                          aria-label="Preview post"
+                          title="Preview"
+                          className="inline-flex h-9 w-9 items-center justify-center rounded-md text-ink-muted hover:bg-surface-sunken hover:text-ink"
+                        >
+                          <ScanEye size={18} aria-hidden="true" />
                         </Link>
                       )}
                       <Link
@@ -224,11 +246,11 @@ export function PostsTable({ initialPosts }: { initialPosts: Post[] }) {
                         type="button"
                         onClick={() => toggleStatus(post)}
                         disabled={rowBusy}
-                        aria-label={isPublished ? "Unpublish" : "Publish"}
-                        title={isPublished ? "Unpublish" : "Publish"}
+                        aria-label={post.status === "published" ? "Unpublish" : "Publish"}
+                        title={post.status === "published" ? "Unpublish" : "Publish"}
                         className="inline-flex h-9 w-9 items-center justify-center rounded-md text-ink-muted hover:bg-surface-sunken hover:text-ink disabled:opacity-50"
                       >
-                        {isPublished ? (
+                        {post.status === "published" ? (
                           <EyeOff size={18} aria-hidden="true" />
                         ) : (
                           <Send size={18} aria-hidden="true" />

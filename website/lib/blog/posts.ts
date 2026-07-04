@@ -25,9 +25,35 @@ export interface CreatePostInput {
   linkOccurrences: LinkOccurrences;
   author: string;
   status: PostStatus;
+  /**
+   * ISO date. When publishing: a future value schedules the post (hidden until
+   * then — see `publishedFilter`); a past value backdates it. `null` means
+   * "publish/keep visible now". Ignored while a draft. Omit to keep as-is.
+   */
+  publishedAt?: string | null;
 }
 
 export type UpdatePostInput = Partial<CreatePostInput>;
+
+/**
+ * Match filter for posts that are publicly visible *right now*. A post is
+ * "scheduled" when it is published with a future `publishedAt`; it stays hidden
+ * on the public site until that moment, then appears automatically (the blog
+ * routes are force-dynamic, so there's no cron and no ISR lag). The `$or` also
+ * keeps legacy published posts that never got a `publishedAt` visible.
+ *
+ * Returns a fresh object each call so `new Date()` is evaluated at query time.
+ */
+export function publishedFilter() {
+  return {
+    status: "published" as const,
+    $or: [
+      { publishedAt: { $lte: new Date() } },
+      { publishedAt: { $exists: false } },
+      { publishedAt: null },
+    ],
+  };
+}
 
 export interface PaginatedPosts {
   posts: PostT[];
@@ -67,7 +93,7 @@ export async function getPublishedPosts(
   pageSize = 9,
 ): Promise<PaginatedPosts> {
   await connectDb();
-  const filter = { status: "published" as const };
+  const filter = publishedFilter();
   const total = await Post.countDocuments(filter);
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const safePage = Math.min(Math.max(1, page), totalPages);
@@ -93,7 +119,7 @@ export async function getPublishedSlugs(): Promise<
   { slug: string; updatedAt: string }[]
 > {
   await connectDb();
-  const docs = await Post.find({ status: "published" })
+  const docs = await Post.find(publishedFilter())
     .select("slug updatedAt")
     .sort({ publishedAt: -1 })
     .lean();
@@ -107,7 +133,10 @@ export async function getPublishedPostBySlug(
   slug: string,
 ): Promise<PostT | null> {
   await connectDb();
-  const doc = await Post.findOne({ slug: slug.toLowerCase(), status: "published" }).lean();
+  const doc = await Post.findOne({
+    slug: slug.toLowerCase(),
+    ...publishedFilter(),
+  }).lean();
   return doc ? serializePost(doc as unknown as PostDoc) : null;
 }
 
@@ -140,7 +169,13 @@ export async function createPost(input: CreatePostInput): Promise<PostT> {
     linkOccurrences: input.linkOccurrences,
     author: input.author,
     status: input.status,
-    publishedAt: input.status === "published" ? new Date() : null,
+    // Honor an explicit date (so a post can be created already-scheduled), else
+    // stamp now when publishing, else null while a draft.
+    publishedAt: input.publishedAt
+      ? new Date(input.publishedAt)
+      : input.status === "published"
+        ? new Date()
+        : null,
   };
 
   // The slug check (read) and insert (write) aren't atomic, so two posts with the
@@ -188,13 +223,28 @@ export async function updatePost(
     doc.linkOccurrences = input.linkOccurrences;
   }
   if (input.author !== undefined) doc.author = input.author;
-  if (input.status !== undefined) {
-    // Stamp publishedAt the first time a post goes live; keep it on unpublish.
-    if (input.status === "published" && !doc.publishedAt) {
-      doc.publishedAt = new Date();
+
+  // Resolve publishedAt against the *resulting* status. Splitting the date logic
+  // from the status assignment is what fixes the scheduled→visible bug: when the
+  // team flips a scheduled post to Visible (status:"published", publishedAt:null),
+  // a still-future stored date is not <= now, so it collapses to now and the post
+  // goes live immediately instead of staying hidden behind its old future date.
+  const now = new Date();
+  const nextStatus = input.status ?? doc.status;
+  if (nextStatus === "published") {
+    if (input.publishedAt != null) {
+      // Explicit date → schedule (future) or backdate (past).
+      doc.publishedAt = new Date(input.publishedAt);
+    } else if (input.status === "published" || input.publishedAt === null) {
+      // "Make/keep visible now": keep an existing PAST date (preserves the
+      // canonical publish time on plain edits), else stamp now.
+      doc.publishedAt =
+        doc.publishedAt && doc.publishedAt <= now ? doc.publishedAt : now;
     }
-    doc.status = input.status;
+    // else: already published, nothing about the date sent → leave it as-is.
   }
+  // nextStatus === "draft": leave publishedAt untouched (keep the original date).
+  if (input.status !== undefined) doc.status = input.status;
 
   // Retry on a slug-collision race (see createPost) by re-deriving a free slug.
   let lastErr: unknown;
@@ -223,7 +273,7 @@ export async function incrementViews(slug: string): Promise<void> {
   try {
     await connectDb();
     await Post.updateOne(
-      { slug: slug.toLowerCase(), status: "published" },
+      { slug: slug.toLowerCase(), ...publishedFilter() },
       { $inc: { views: 1 } },
     );
   } catch {
