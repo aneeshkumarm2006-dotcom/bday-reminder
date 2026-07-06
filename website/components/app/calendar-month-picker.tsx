@@ -36,6 +36,7 @@ export function CalendarMonthPicker({
   // time the dialog opens so it always starts where the user is.
   const [pickerYear, setPickerYear] = useState(year);
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (open) setPickerYear(year);
   }, [open, year]);
 
