@@ -1,3 +1,14 @@
+// Opt this whole file out of the React Compiler. The app enables it
+// (app.json → experiments.reactCompiler), which rewrites components to call
+// `useMemoCache`. But react-native-android-widget's `buildWidgetTree` invokes
+// these components as plain functions *outside* React's renderer, so a compiled
+// component crashes with "Cannot read properties of null (reading
+// 'useMemoCache')". That crash makes every widget render fail, leaving the
+// home-screen widget an invisible/transparent bitmap (its click regions, cached
+// in the RemoteViews, still fire - hence tapping it opens the app). The library
+// itself documents this exact fix. Must stay at the very top of the file.
+'use no memo';
+
 import {
   FlexWidget,
   OverlapWidget,
