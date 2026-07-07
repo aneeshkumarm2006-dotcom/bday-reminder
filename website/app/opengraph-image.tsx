@@ -9,11 +9,22 @@ import { siteConfig } from "@/lib/site";
 export const alt = `${siteConfig.name} - ${siteConfig.tagline}`;
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
+// Regenerate so the ring keeps circling today's date rather than the build day.
+export const revalidate = 3600;
 
 const RING_PATH =
   "M33 8 C49 7 58 19 57 32 C56 47 41 57 26 55 C12 53 6 39 9 25 C12 13 22 8 36 9";
 
+const MONTH_ABBR = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+];
+
 export default function OpengraphImage() {
+  const now = new Date();
+  const day = String(now.getDate());
+  const month = MONTH_ABBR[now.getMonth()];
+
   return new ImageResponse(
     (
       <div
@@ -51,10 +62,10 @@ export default function OpengraphImage() {
               }}
             >
               <div style={{ fontSize: 52, fontWeight: 700, color: "#FCFBF8", lineHeight: 1 }}>
-                12
+                {day}
               </div>
               <div style={{ fontSize: 18, color: "#FCFBF8", opacity: 0.85, marginTop: 2 }}>
-                Jun
+                {month}
               </div>
             </div>
           </div>

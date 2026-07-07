@@ -1,7 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
-  <rect width="64" height="64" rx="14" fill="#FCFBF8"/>
-  <g transform="rotate(-4 32 32)">
-    <path d="M33 12 C46 11 53 21 52 32 C51 44 39 52 27 50 C16 48 11 37 13 26 C15 16 23 12 35 13" fill="#2C4BD8"/>
-  </g>
-  <text x="32" y="33" text-anchor="middle" dominant-baseline="central" font-family="Hanken Grotesk, Inter, system-ui, sans-serif" font-weight="600" font-size="26" fill="#FCFBF8">12</text>
-</svg>

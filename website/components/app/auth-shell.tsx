@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { Ring } from "@/components/ring";
+import { BrandRing } from "@/components/brand-ring";
 import { siteConfig } from "@/lib/site";
 
 /** Centered card used by the login + signup pages. Brand ring up top, no chrome. */
@@ -19,7 +19,7 @@ export function AuthShell({
     <div className="flex min-h-dvh flex-col items-center justify-center px-5 py-12">
       <div className="w-full max-w-sm">
         <Link href="/" className="mb-8 flex flex-col items-center gap-3" aria-label={`${siteConfig.name} — home`}>
-          <Ring day={12} month="Jun" size="lg" />
+          <BrandRing size="lg" />
           <span className="font-display text-lg font-semibold text-ink">{siteConfig.name}</span>
         </Link>
 

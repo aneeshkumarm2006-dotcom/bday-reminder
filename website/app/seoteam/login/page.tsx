@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-import { Ring } from "@/components/ring";
+import { BrandRing } from "@/components/brand-ring";
 import { Button } from "@/components/ui/button";
 import { TextField } from "@/components/ui/input";
 import { loginRequest } from "@/lib/blog/dashboard-api";
@@ -36,7 +36,7 @@ export default function SeoLoginPage() {
     <div className="flex min-h-dvh flex-col items-center justify-center px-5 py-12">
       <div className="w-full max-w-sm">
         <div className="mb-8 flex flex-col items-center gap-3">
-          <Ring day={12} month="Jun" size="lg" />
+          <BrandRing size="lg" />
           <span className="font-display text-lg font-semibold text-ink">
             {siteConfig.name} · SEO
           </span>

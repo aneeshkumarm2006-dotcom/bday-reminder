@@ -11,26 +11,17 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 
-import { AnimatedRing } from "@/components/animated-ring";
 import { AppPreview, ReminderPreview, WidgetPreview } from "@/components/app-preview";
-import { TappableRing } from "@/components/interactive-ring";
 import { Reveal } from "@/components/reveal";
 import { SmoothScroll } from "@/components/smooth-scroll";
+import { HeroTodayRing, StepRing } from "@/components/today-rings";
 import { buttonVariants } from "@/components/ui/button";
 
-const MONTHS = [
-  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-];
-
 export default function Home() {
-  const now = new Date();
-  const today = { day: now.getDate(), month: MONTHS[now.getMonth()] };
-
   return (
     <>
       <SmoothScroll />
-      <Hero today={today} />
+      <Hero />
       <ValueProp />
       <Features />
       <HowItWorks />
@@ -39,7 +30,7 @@ export default function Home() {
   );
 }
 
-function Hero({ today }: { today: { day: number; month: string } }) {
+function Hero() {
   return (
     <section className="relative overflow-hidden">
       {/* A single, quiet biro-tint wash - no second accent (DESIGN.md §1). */}
@@ -58,7 +49,7 @@ function Hero({ today }: { today: { day: number; month: string } }) {
         </span>
 
         <div className="mt-8">
-          <AnimatedRing day={today.day} month={today.month} size="xl" />
+          <HeroTodayRing size="xl" />
         </div>
 
         <h1 className="mt-8 max-w-2xl font-display text-4xl font-semibold leading-[1.1] tracking-[-0.02em] text-ink sm:text-6xl">
@@ -292,19 +283,21 @@ function FeatureCard({
 }
 
 function HowItWorks() {
+  // Dates are relative to the viewer's today so the flow always leads up to
+  // "today" on the final step (rather than a frozen Jun calendar).
   const steps = [
     {
-      day: 5,
+      offset: -7,
       title: "Add the people who matter",
       body: "Type a name and a date, or import from your contacts or a spreadsheet. Year is optional.",
     },
     {
-      day: 11,
+      offset: -1,
       title: "Get reminded in time",
       body: "Choose how far ahead and which channels. Reminders arrive at your time, in your timezone.",
     },
     {
-      day: 12,
+      offset: 0,
       title: "Send a greeting",
       body: "On the day, open your messages with a ready-to-send note, then mark it done.",
     },
@@ -322,9 +315,8 @@ function HowItWorks() {
             <Reveal key={step.title} delay={i * 0.05}>
               <div className="group flex flex-col items-center text-center sm:items-start sm:text-left">
                 <div className="transition-transform duration-300 ease-out group-hover:-translate-y-1 group-hover:rotate-3">
-                  <TappableRing
-                    day={step.day}
-                    month="Jun"
+                  <StepRing
+                    offset={step.offset}
                     size="lg"
                     state={i === 2 ? "today" : "upcoming"}
                   />

@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { Ring } from "@/components/ring";
+import { BrandRing } from "@/components/brand-ring";
 import { cn } from "@/lib/utils";
 import { siteConfig } from "@/lib/site";
 
@@ -16,7 +16,7 @@ export function Brand({ className }: { className?: string }) {
       className={cn("flex items-center gap-2.5 rounded-md", className)}
       aria-label={`${siteConfig.name} - home`}
     >
-      <Ring day={12} month="Jun" size="sm" />
+      <BrandRing size="sm" />
       <span className="font-display text-[17px] font-semibold tracking-[-0.01em] text-ink">
         {siteConfig.name}
       </span>

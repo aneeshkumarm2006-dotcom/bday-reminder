@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { InteractiveRing } from "@/components/interactive-ring";
 import type { RingState } from "@/components/ring";
+import { dayCaption, useToday } from "@/lib/use-today";
 import { cn } from "@/lib/utils";
 
 /**
@@ -136,6 +137,7 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 
 /** The Upcoming feed - grouped + sorted, each row tappable (§8.2). */
 export function AppPreview({ className }: { className?: string }) {
+  const today = useToday();
   return (
     <div
       className={cn(
@@ -153,19 +155,17 @@ export function AppPreview({ className }: { className?: string }) {
       <div className="flex flex-col gap-2">
         <SectionLabel>This week</SectionLabel>
         <MockPersonCard
-          day={12}
-          month="Jun"
+          {...dayCaption(today)}
           state="today"
           today
           name="Michael Brooks"
           sub="Brother · turns 29"
           count="Today"
         />
-        <MockPersonCard day={15} month="Jun" name="Mochi" pet sub="Pet" count="in 3 days" />
+        <MockPersonCard {...dayCaption(today, 3)} name="Mochi" pet sub="Pet" count="in 3 days" />
         <SectionLabel>This month</SectionLabel>
         <MockPersonCard
-          day={28}
-          month="Jun"
+          {...dayCaption(today, 16)}
           name="Aunt Mae"
           sub="Family · turns 61"
           count="in 16 days"
@@ -186,6 +186,7 @@ const GREETING = "Happy birthday, Michael! 🎉";
  */
 export function ReminderPreview({ className }: { className?: string }) {
   const reduced = useReducedMotion();
+  const today = useToday();
   const [phase, setPhase] = useState<ReminderPhase>("idle");
   const [done, setDone] = useState(false);
 
@@ -206,7 +207,7 @@ export function ReminderPreview({ className }: { className?: string }) {
       aria-label="Interactive reminder - send a greeting or mark it done"
     >
       <div className="flex items-start gap-3.5">
-        <InteractiveRing day={12} month="Jun" size="md" state={done ? "done" : "today"} />
+        <InteractiveRing {...dayCaption(today)} size="md" state={done ? "done" : "today"} />
         <div className="flex-1">
           <p
             className={cn(
@@ -324,6 +325,7 @@ export function ReminderPreview({ className }: { className?: string }) {
 /** The mobile home-screen widget - next 3, each row taps through to a profile (§8.13). */
 export function WidgetPreview({ className }: { className?: string }) {
   const reduced = useReducedMotion();
+  const today = useToday();
   const [opening, setOpening] = useState<string | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -338,9 +340,9 @@ export function WidgetPreview({ className }: { className?: string }) {
   };
 
   const rows = [
-    { day: 12, month: "Jun", name: "Michael Brooks", count: "Today", today: true },
-    { day: 15, month: "Jun", name: "Mochi", count: "in 3 days", today: false, pet: true },
-    { day: 28, month: "Jun", name: "Aunt Mae", count: "in 16 days", today: false },
+    { ...dayCaption(today), name: "Michael Brooks", count: "Today", today: true, pet: false },
+    { ...dayCaption(today, 3), name: "Mochi", count: "in 3 days", today: false, pet: true },
+    { ...dayCaption(today, 16), name: "Aunt Mae", count: "in 16 days", today: false, pet: false },
   ];
 
   return (
