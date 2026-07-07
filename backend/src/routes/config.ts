@@ -1,6 +1,10 @@
 import { Router } from 'express';
 
-import { gmailOAuthConfigured, googleLoginConfigured } from '../lib/google-oauth';
+import {
+  gmailOAuthConfigured,
+  googleImportConfigured,
+  googleLoginConfigured,
+} from '../lib/google-oauth';
 import { smsMonthlyCap } from '../lib/sms-usage';
 import { twilioConfigured } from '../lib/twilio-send';
 
@@ -22,5 +26,8 @@ configRouter.get('/', (_req, res) => {
     // Whether "Sign in with Google" is provisioned (so the login page can hide
     // the button when it isn't).
     googleAuthAvailable: googleLoginConfigured(),
+    // Whether Google Calendar + Contacts bulk import is provisioned (Stage 16), so
+    // the app/website hide the "Import from Google" option when it isn't.
+    googleImportAvailable: googleImportConfigured(),
   });
 });

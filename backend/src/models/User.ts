@@ -43,6 +43,21 @@ export interface GmailIntegration {
   connectedAt: Date;
 }
 
+/**
+ * Google Calendar + Contacts import connection (Stage 16). Present once the user
+ * grants the just-in-time `calendar.readonly` + `contacts.readonly` scopes to bulk-
+ * import birthdays/anniversaries. Same encrypted-refresh-token shape as
+ * {@link GmailIntegration} (kept as a SEPARATE subdoc so disconnecting import never
+ * touches Gmail send-as); persisted so the user can re-sync later without re-granting.
+ * Absent/unset means "not connected".
+ */
+export interface GoogleImportIntegration {
+  email: string;
+  refreshTokenEnc: string;
+  scope?: string;
+  connectedAt: Date;
+}
+
 export interface UserDoc {
   _id: Types.ObjectId;
   name: string;
@@ -70,6 +85,8 @@ export interface UserDoc {
   calendarSync: CalendarSync;
   /** Connected Gmail for send-as birthday greetings (Stage 14); unset until connected. */
   gmailIntegration?: GmailIntegration;
+  /** Connected Google Calendar + Contacts for bulk import (Stage 16); unset until connected. */
+  googleImport?: GoogleImportIntegration;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -108,6 +125,17 @@ const gmailIntegrationSchema = new Schema<GmailIntegration>(
   { _id: false },
 );
 
+const googleImportSchema = new Schema<GoogleImportIntegration>(
+  {
+    email: { type: String, required: true, trim: true, lowercase: true },
+    // The encrypted refresh token is a credential - never serialize it by default.
+    refreshTokenEnc: { type: String, required: true, select: false },
+    scope: { type: String },
+    connectedAt: { type: Date, default: () => new Date() },
+  },
+  { _id: false },
+);
+
 const userSchema = new Schema<UserDoc>(
   {
     name: { type: String, required: true, trim: true },
@@ -129,6 +157,7 @@ const userSchema = new Schema<UserDoc>(
     pushTokens: { type: [String], default: () => [] },
     calendarSync: { type: calendarSyncSchema, default: () => ({}) },
     gmailIntegration: { type: gmailIntegrationSchema, default: undefined },
+    googleImport: { type: googleImportSchema, default: undefined },
   },
   { timestamps: true },
 );

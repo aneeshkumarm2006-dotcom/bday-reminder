@@ -11,11 +11,25 @@ import { maxDayInMonth } from './dates';
 
 const CURRENT_YEAR = new Date().getUTCFullYear();
 
+/** Hard cap on rows a single import can carry (matches the preview/commit Zod max). */
+export const MAX_IMPORT_ROWS = 2000;
+
 /** A parsed date of birth - month/day required, year optional (FR-14). */
 export interface ParsedDob {
   month: number;
   day: number;
   year: number | null;
+}
+
+/**
+ * An extra dated event (anniversary/custom) to attach to an imported person, on
+ * top of their birthday. Sourced from Google Contacts/Calendar; the CSV path
+ * never sets these. `date` is already validated (month/day required, year optional).
+ */
+export interface ParsedEventItem {
+  type: 'anniversary' | 'custom';
+  customName: string | null;
+  date: ParsedDob;
 }
 
 /** A normalized import candidate, before validation/duplicate annotation. */
@@ -25,6 +39,10 @@ export interface RawCandidate {
   phone: string | null;
   photoUrl: string | null;
   dob: ParsedDob | null;
+  /** The person's own email (Google Contacts import only); CSV leaves this null. */
+  email: string | null;
+  /** Extra anniversary/custom events (Google import only); CSV leaves this empty. */
+  events: ParsedEventItem[];
   /** The original DOB text (CSV only), kept to explain an unparseable date. */
   rawDob: string | null;
 }
@@ -178,6 +196,8 @@ export function mapCsvToCandidates(rows: string[][]): RawCandidate[] {
       phone: cell('phone') || null,
       photoUrl: null,
       dob: parseDob(rawDob),
+      email: null,
+      events: [],
       rawDob: rawDob || null,
     };
   });
@@ -191,4 +211,105 @@ export function normalizeName(name: string): string {
 /** Exact-duplicate key: same name + same DOB (FR-11). Year-unknown matches year-unknown. */
 export function dedupeKey(name: string, dob: ParsedDob): string {
   return `${normalizeName(name)}|${dob.month}-${dob.day}-${dob.year ?? 'x'}`;
+}
+
+/** An existing person to check candidates against, in dedupe-key terms. */
+export interface ExistingPerson {
+  id: string;
+  fullName: string;
+  dob: ParsedDob;
+}
+
+/** Counts by status for the preview response. */
+export interface ImportSummary {
+  total: number;
+  ready: number;
+  duplicates: number;
+  invalid: number;
+}
+
+/** One annotated candidate the client renders + sends back with a resolution. */
+export interface PreviewRow {
+  id: string;
+  name: string;
+  relationshipTag: string | null;
+  phone: string | null;
+  photoUrl: string | null;
+  dob: ParsedDob | null;
+  email: string | null;
+  events: ParsedEventItem[];
+  status: 'ready' | 'duplicate' | 'invalid';
+  error: string | null;
+  duplicate: { kind: 'existing' | 'batch'; personId: string | null; fullName: string } | null;
+}
+
+/**
+ * Annotate every candidate as `ready`, `invalid` (no name / unreadable date), or
+ * `duplicate` (same name + DOB as an existing person, or an earlier row in the same
+ * batch - FR-11). Pure + side-effect-free so both the CSV/contacts preview and the
+ * Google-import preview share identical duplicate logic. Writes nothing.
+ */
+export function annotateCandidates(
+  candidates: RawCandidate[],
+  existing: ExistingPerson[],
+): { rows: PreviewRow[]; summary: ImportSummary } {
+  const existingByKey = new Map<string, { id: string; fullName: string }>();
+  for (const p of existing) {
+    const key = dedupeKey(p.fullName, p.dob);
+    if (!existingByKey.has(key)) existingByKey.set(key, { id: p.id, fullName: p.fullName });
+  }
+
+  const seenInBatch = new Map<string, string>();
+  const rows: PreviewRow[] = candidates.map((c, i) => {
+    const base = {
+      id: `row-${i}`,
+      name: c.name,
+      relationshipTag: c.relationshipTag,
+      phone: c.phone,
+      photoUrl: c.photoUrl,
+      dob: c.dob,
+      email: c.email,
+      events: c.events,
+    };
+    if (!c.name.trim()) {
+      return { ...base, status: 'invalid' as const, error: 'Add a name for this row.', duplicate: null };
+    }
+    if (!c.dob) {
+      const error = c.rawDob
+        ? `Couldn't read the date "${c.rawDob}".`
+        : 'Add a date of birth (month and day).';
+      return { ...base, status: 'invalid' as const, error, duplicate: null };
+    }
+    const key = dedupeKey(c.name, c.dob);
+    const existingMatch = existingByKey.get(key);
+    if (existingMatch) {
+      return {
+        ...base,
+        status: 'duplicate' as const,
+        error: null,
+        duplicate: { kind: 'existing' as const, personId: existingMatch.id, fullName: existingMatch.fullName },
+      };
+    }
+    const batchMatch = seenInBatch.get(key);
+    if (batchMatch) {
+      return {
+        ...base,
+        status: 'duplicate' as const,
+        error: null,
+        duplicate: { kind: 'batch' as const, personId: null, fullName: batchMatch },
+      };
+    }
+    seenInBatch.set(key, c.name.trim());
+    return { ...base, status: 'ready' as const, error: null, duplicate: null };
+  });
+
+  return {
+    rows,
+    summary: {
+      total: rows.length,
+      ready: rows.filter((r) => r.status === 'ready').length,
+      duplicates: rows.filter((r) => r.status === 'duplicate').length,
+      invalid: rows.filter((r) => r.status === 'invalid').length,
+    },
+  };
 }

@@ -2,6 +2,7 @@ import { useRouter } from 'expo-router';
 import {
   CalendarPlus,
   ChevronRight,
+  CloudDownload,
   LayoutGrid,
   Mail,
   Sparkles,
@@ -27,8 +28,15 @@ import {
   useConfirm,
   useToast,
 } from '@/components/ui';
-import { configApi, gmailApi, type ChannelPreferences, type UpdateMeInput } from '@/lib/api';
+import {
+  configApi,
+  gmailApi,
+  googleImportApi,
+  type ChannelPreferences,
+  type UpdateMeInput,
+} from '@/lib/api';
 import { connectGmail } from '@/lib/gmail-auth';
+import { connectGoogleImport } from '@/lib/google-import-auth';
 import { formatNanp } from '@/lib/phone';
 import { useAuth } from '@/providers/auth-provider';
 import { useThemePreference, type ThemePreference } from '@/theme/theme-provider';
@@ -63,6 +71,8 @@ export default function SettingsScreen() {
   const [smsCap, setSmsCap] = useState<number | null>(null);
   const [gmailAvailable, setGmailAvailable] = useState(false);
   const [connectingGmail, setConnectingGmail] = useState(false);
+  const [googleImportAvailable, setGoogleImportAvailable] = useState(false);
+  const [connectingGoogleImport, setConnectingGoogleImport] = useState(false);
 
   // Editable profile (name signs auto-send SMS and shows to shared-list
   // members). Fields are local drafts, seeded once the user hydrates - unlike
@@ -109,6 +119,7 @@ export default function SettingsScreen() {
         if (!active) return;
         setSmsCap(c.smsWhatsappMonthlyCap);
         setGmailAvailable(!!c.gmailAutoSendAvailable);
+        setGoogleImportAvailable(!!c.googleImportAvailable);
       })
       .catch(() => {
         /* note falls back to number-free copy */
@@ -158,6 +169,41 @@ export default function SettingsScreen() {
       await gmailApi.disconnect();
       await refreshUser();
       toast.show('Gmail disconnected.');
+    } catch {
+      toast.show("Couldn't disconnect. Please try again.");
+    }
+  };
+
+  const onConnectGoogleImport = async () => {
+    setConnectingGoogleImport(true);
+    try {
+      const result = await connectGoogleImport();
+      if (result === 'connected') {
+        await refreshUser();
+        toast.show('Google connected. Import from the Import people screen.');
+      } else if (result === 'error') {
+        toast.show("Couldn't connect Google. Please try again.");
+      }
+    } catch {
+      toast.show("Couldn't connect Google. Please try again.");
+    } finally {
+      setConnectingGoogleImport(false);
+    }
+  };
+
+  const onDisconnectGoogleImport = async () => {
+    const ok = await confirm({
+      title: 'Disconnect Google?',
+      message: 'You can reconnect any time you want to import again.',
+      confirmLabel: 'Disconnect',
+      cancelLabel: 'Keep',
+      destructive: true,
+    });
+    if (!ok) return;
+    try {
+      await googleImportApi.disconnect();
+      await refreshUser();
+      toast.show('Google disconnected.');
     } catch {
       toast.show("Couldn't disconnect. Please try again.");
     }
@@ -309,6 +355,40 @@ export default function SettingsScreen() {
           </View>
           <Icon icon={ChevronRight} size={20} />
         </Card>
+
+        {googleImportAvailable ? (
+          <>
+            <Card className="mt-3">
+              <View className="flex-row items-center gap-3">
+                <Icon icon={CloudDownload} size={20} />
+                <View className="flex-1">
+                  <Text variant="body">Google import</Text>
+                  <Text variant="caption" className="mt-0.5 text-ink-muted">
+                    {user?.googleImportConnected
+                      ? `Connected as ${user.googleImportEmail}`
+                      : 'Not connected'}
+                  </Text>
+                </View>
+                {user?.googleImportConnected ? (
+                  <Button variant="ghost" onPress={onDisconnectGoogleImport}>
+                    Disconnect
+                  </Button>
+                ) : (
+                  <Button
+                    variant="secondary"
+                    loading={connectingGoogleImport}
+                    onPress={onConnectGoogleImport}>
+                    Connect
+                  </Button>
+                )}
+              </View>
+            </Card>
+            <Text variant="caption" className="mt-2 text-ink-muted">
+              Bulk-import birthdays + anniversaries from Google Calendar and Contacts. We only ask
+              for access when you import, and you review everything first.
+            </Text>
+          </>
+        ) : null}
 
         <SectionLabel>Home screen</SectionLabel>
         <Card

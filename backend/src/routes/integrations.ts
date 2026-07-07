@@ -2,9 +2,13 @@ import { Router } from 'express';
 
 import {
   buildConsentUrl,
+  buildImportConsentUrl,
   exchangeCode,
   gmailOAuthConfigured,
+  googleImportConfigured,
+  importRedirectUri,
   revokeToken,
+  verifyImportState,
   verifyState,
   type OAuthPlatform,
 } from '../lib/google-oauth';
@@ -31,12 +35,20 @@ function websiteOrigin(): string {
   return loadEnv().WEBSITE_ORIGIN.split(',')[0].trim().replace(/\/+$/, '');
 }
 
-/** Where to send the browser after the callback, per originating platform. */
+/** Where to send the browser after the Gmail callback, per originating platform. */
 function returnUrl(platform: OAuthPlatform, status: 'connected' | 'error'): string {
   if (platform === 'web') {
     return `${websiteOrigin()}/settings?gmail=${status}`;
   }
   return `circlethedate://gmail-connected?status=${status === 'connected' ? 'ok' : 'error'}`;
+}
+
+/** Where to send the browser after the Google-import callback (returns to the import screen). */
+function importReturnUrl(platform: OAuthPlatform, status: 'connected' | 'error'): string {
+  if (platform === 'web') {
+    return `${websiteOrigin()}/import?google=${status}`;
+  }
+  return `circlethedate://google-import-connected?status=${status === 'connected' ? 'ok' : 'error'}`;
 }
 
 /**
@@ -140,6 +152,117 @@ integrationsRouter.delete(
       }
     }
     await User.updateOne({ _id: req.userId! }, { $unset: { gmailIntegration: '' } });
+    res.status(204).end();
+  }),
+);
+
+// ── Google Calendar + Contacts import (Stage 16) ─────────────────────────────
+// Same backend-driven OAuth shape as Gmail above, but requests the read-only
+// calendar + contacts scopes JUST-IN-TIME (only when the user starts an import) and
+// stores the refresh token in `User.googleImport` (kept separate from Gmail so
+// disconnecting one never affects the other). The actual read happens later in
+// POST /import/google/preview.
+
+/**
+ * GET /integrations/google-import/connect - returns the Google consent URL to open.
+ * `?platform=app|web` decides where the callback returns the user (the import screen).
+ */
+integrationsRouter.get(
+  '/google-import/connect',
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    if (!googleImportConfigured()) {
+      throw new HttpError(503, 'Google import isn’t configured on this server yet.', {
+        code: 'google_import_not_configured',
+      });
+    }
+    const platform: OAuthPlatform = req.query.platform === 'web' ? 'web' : 'app';
+    const url = buildImportConsentUrl({
+      userId: req.userId!,
+      platform,
+      loginHint: req.user!.email,
+    });
+    res.json({ url });
+  }),
+);
+
+/**
+ * GET /integrations/google-import/callback - Google's redirect. Exchanges the code,
+ * stores the encrypted refresh token on `User.googleImport`, and 302s back to the
+ * import screen. Errors redirect with an error status rather than a raw JSON error.
+ */
+integrationsRouter.get(
+  '/google-import/callback',
+  asyncHandler(async (req, res) => {
+    const { code, state, error } = req.query as {
+      code?: string;
+      state?: string;
+      error?: string;
+    };
+
+    let platform: OAuthPlatform = 'app';
+    let userId: string | null = null;
+    if (state) {
+      try {
+        const parsed = verifyImportState(state);
+        platform = parsed.platform;
+        userId = parsed.userId;
+      } catch {
+        userId = null;
+      }
+    }
+
+    if (error || !code || !userId) {
+      logger.warn(`google-import callback failed: ${error ?? (!code ? 'no code' : 'bad state')}`);
+      res.redirect(importReturnUrl(platform, 'error'));
+      return;
+    }
+
+    try {
+      // Import uses its OWN redirect URI, which must match the consent request.
+      const { refreshToken, email, scope } = await exchangeCode(code, importRedirectUri());
+      await User.updateOne(
+        { _id: userId },
+        {
+          $set: {
+            googleImport: {
+              email,
+              refreshTokenEnc: encryptToken(refreshToken),
+              scope,
+              connectedAt: new Date(),
+            },
+          },
+        },
+      );
+      logger.info(`google import connected for user ${userId} (${email})`);
+      res.redirect(importReturnUrl(platform, 'connected'));
+    } catch (err) {
+      logger.error('google-import token exchange failed', err instanceof Error ? err.message : err);
+      res.redirect(importReturnUrl(platform, 'error'));
+    }
+  }),
+);
+
+/**
+ * DELETE /integrations/google-import - disconnect. Drops the stored token so re-sync
+ * stops. Only network-revokes with Google when Gmail send-as ISN'T also connected:
+ * `include_granted_scopes` links the two grants, so revoking here would also kill
+ * Gmail auto-send - in that case we just drop our copy.
+ */
+integrationsRouter.delete(
+  '/google-import',
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const withToken = await User.findById(req.userId!).select('+googleImport.refreshTokenEnc');
+    const enc = withToken?.googleImport?.refreshTokenEnc;
+    if (enc && !withToken?.gmailIntegration?.email) {
+      try {
+        await revokeToken(decryptToken(enc));
+      } catch {
+        // Revocation is best-effort; we still drop our copy below.
+      }
+    }
+    await User.updateOne({ _id: req.userId! }, { $unset: { googleImport: '' } });
     res.status(204).end();
   }),
 );

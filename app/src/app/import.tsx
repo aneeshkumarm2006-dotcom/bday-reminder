@@ -3,7 +3,9 @@ import { File as FsFile } from 'expo-file-system';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   AlertTriangle,
+  CalendarPlus,
   CheckCircle2,
+  Download,
   FileText,
   FileUp,
   Upload,
@@ -26,16 +28,21 @@ import {
 import { cn, focusRing } from '@/lib/cn';
 import {
   ApiError,
+  configApi,
+  googleImportApi,
   importApi,
   type DateParts,
   type ImportCandidate,
   type ImportCommitItem,
+  type ImportPreviewResponse,
   type ImportPreviewRow,
   type ImportResolution,
 } from '@/lib/api';
 import { importDeviceContacts } from '@/lib/contacts';
 import { MAX_IMPORT_ROWS, parseCsv } from '@/lib/csv';
 import { monthAbbr } from '@/lib/dates';
+import { connectGoogleImport } from '@/lib/google-import-auth';
+import { useAuth } from '@/providers/auth-provider';
 import { useTokens } from '@/theme/theme-provider';
 
 /**
@@ -65,10 +72,20 @@ function formatDob(dob: DateParts): string {
   return dob.year != null ? `${base}, ${dob.year}` : base;
 }
 
+/** A ready row's subtitle: the birthday, plus a count of extra dates (Google import). */
+function readySub(row: ImportPreviewRow): string {
+  const parts = [formatDob(row.dob!)];
+  if (row.events.length > 0) {
+    parts.push(`+${row.events.length} ${row.events.length === 1 ? 'other date' : 'other dates'}`);
+  }
+  return parts.join(' · ');
+}
+
 export default function ImportScreen() {
   const router = useRouter();
   const toast = useToast();
   const t = useTokens();
+  const { user, refreshUser } = useAuth();
   const { source } = useLocalSearchParams<{ source?: string }>();
 
   const [phase, setPhase] = useState<Phase>('input');
@@ -81,6 +98,38 @@ export default function ImportScreen() {
     null,
   );
   const [unreadable, setUnreadable] = useState(0);
+  const [googleAvailable, setGoogleAvailable] = useState(false);
+
+  // Is Google import provisioned on this server? (hides the card when it isn't).
+  useEffect(() => {
+    let active = true;
+    configApi
+      .get()
+      .then((c) => {
+        if (active) setGoogleAvailable(!!c.googleImportAvailable);
+      })
+      .catch(() => {
+        /* leave the card hidden if config can't be read */
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  // Move annotated rows into the review phase (shared by every source).
+  const applyPreview = useCallback((res: ImportPreviewResponse, emptyMessage: string): boolean => {
+    if (res.rows.length === 0) {
+      setError(emptyMessage);
+      return false;
+    }
+    // Duplicates default to "skip" - nothing is created or merged without a choice.
+    const init: Record<string, ImportResolution> = {};
+    for (const r of res.rows) if (r.status === 'duplicate') init[r.id] = 'skip';
+    setRows(res.rows);
+    setResolutions(init);
+    setPhase('preview');
+    return true;
+  }, []);
 
   const runPreview = useCallback(
     async (candidates: ImportCandidate[]) => {
@@ -88,16 +137,7 @@ export default function ImportScreen() {
       setError(null);
       try {
         const res = await importApi.preview({ candidates });
-        if (res.rows.length === 0) {
-          setError('There was nothing to import. Add at least one person with a birthday.');
-          return;
-        }
-        // Duplicates default to "skip" - nothing is created or merged without a choice.
-        const init: Record<string, ImportResolution> = {};
-        for (const r of res.rows) if (r.status === 'duplicate') init[r.id] = 'skip';
-        setRows(res.rows);
-        setResolutions(init);
-        setPhase('preview');
+        applyPreview(res, 'There was nothing to import. Add at least one person with a birthday.');
       } catch (e) {
         setError(
           e instanceof ApiError ? e.message : "Couldn't read that. Check the format and try again.",
@@ -106,8 +146,48 @@ export default function ImportScreen() {
         setBusy(false);
       }
     },
-    [],
+    [applyPreview],
   );
+
+  // Import from Google Calendar + Contacts. Requests the calendar/contacts scopes
+  // just-in-time (only here, never at login); on an expired grant, asks to reconnect.
+  const runGooglePreview = useCallback(async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      if (!user?.googleImportConnected) {
+        const result = await connectGoogleImport();
+        if (result === 'dismissed') return;
+        if (result !== 'connected') {
+          setError("Couldn't connect Google. Please try again.");
+          return;
+        }
+        await refreshUser();
+      }
+      const res = await googleImportApi.preview();
+      const ok = applyPreview(
+        res,
+        "We didn't find any birthdays in your Google Calendar or Contacts to import.",
+      );
+      if (ok && res.truncated) {
+        toast.show('Showing the first 2,000. Import them, then run it again for the rest.');
+      }
+    } catch (e) {
+      const code = e instanceof ApiError ? (e.data as { code?: string } | null)?.code : undefined;
+      if (code === 'google_import_disconnected') {
+        await refreshUser();
+        setError('Your Google connection expired. Tap "Import from Google" to reconnect.');
+        return;
+      }
+      setError(
+        e instanceof ApiError
+          ? e.message
+          : "Couldn't reach Google. Check your connection and try again.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }, [applyPreview, user, refreshUser, toast]);
 
   const scanContacts = useCallback(async () => {
     setBusy(true);
@@ -218,6 +298,8 @@ export default function ImportScreen() {
             phone: r.phone,
             photoUrl: r.photoUrl,
             dob: r.dob,
+            email: r.email,
+            events: r.events,
             resolution,
             mergeTargetId: resolution === 'merge' ? (r.duplicate?.personId ?? null) : null,
           };
@@ -266,6 +348,10 @@ export default function ImportScreen() {
           onChangeCsv={setCsvText}
           onParseCsv={() => void previewCsv(csvText)}
           onPickFile={() => void pickCsvFile()}
+          onImportGoogle={() => void runGooglePreview()}
+          googleAvailable={googleAvailable}
+          googleConnected={!!user?.googleImportConnected}
+          googleEmail={user?.googleImportEmail ?? null}
           busy={busy}
           error={error}
         />
@@ -307,6 +393,10 @@ function InputPhase({
   onChangeCsv,
   onParseCsv,
   onPickFile,
+  onImportGoogle,
+  googleAvailable,
+  googleConnected,
+  googleEmail,
   busy,
   error,
 }: {
@@ -315,6 +405,10 @@ function InputPhase({
   onChangeCsv: (text: string) => void;
   onParseCsv: () => void;
   onPickFile: () => void;
+  onImportGoogle: () => void;
+  googleAvailable: boolean;
+  googleConnected: boolean;
+  googleEmail: string | null;
   busy: boolean;
   error: string | null;
 }) {
@@ -323,6 +417,30 @@ function InputPhase({
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
       contentContainerStyle={{ paddingBottom: 32, gap: 20 }}>
+      {googleAvailable ? (
+        <Pressable
+          onPress={onImportGoogle}
+          disabled={busy}
+          accessibilityRole="button"
+          accessibilityLabel={googleConnected ? 'Sync birthdays from Google' : 'Connect Google to import'}
+          className={cn('rounded-lg', focusRing)}>
+          <Card className="flex-row items-center gap-3">
+            <View className="h-10 w-10 items-center justify-center rounded-full bg-surface-sunken">
+              <Icon icon={CalendarPlus} size={20} />
+            </View>
+            <View className="flex-1">
+              <Text variant="cardName">Import from Google</Text>
+              <Text variant="caption" className="mt-0.5 text-ink-secondary">
+                {googleConnected
+                  ? `Birthdays + anniversaries from Google. Connected as ${googleEmail}.`
+                  : 'Birthdays + anniversaries from your Google Calendar and Contacts. You review everything before it’s added.'}
+              </Text>
+            </View>
+            <Icon icon={Download} size={20} />
+          </Card>
+        </Pressable>
+      ) : null}
+
       {Platform.OS !== 'web' ? (
         <Pressable
           onPress={onScan}
@@ -423,7 +541,7 @@ function PreviewPhase({
         {ready.length > 0 ? (
           <Section label={`Ready to add · ${ready.length}`}>
             {ready.map((r) => (
-              <RowLine key={r.id} name={r.name} sub={formatDob(r.dob!)} />
+              <RowLine key={r.id} name={r.name} sub={readySub(r)} />
             ))}
           </Section>
         ) : null}

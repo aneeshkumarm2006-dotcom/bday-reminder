@@ -29,6 +29,11 @@ export function serializeUser(user: UserDoc) {
     // address, to gate the auto-send toggle and show the Settings card.
     gmailConnected: !!user.gmailIntegration?.email,
     gmailEmail: user.gmailIntegration?.email ?? null,
+    // Google Calendar + Contacts import connection (Stage 16). Same deal: the token
+    // is never exposed; the client only needs "connected?" + which account, to show
+    // the "Sync now / Connected as …" state on the import + settings screens.
+    googleImportConnected: !!user.googleImport?.email,
+    googleImportEmail: user.googleImport?.email ?? null,
   };
 }
 

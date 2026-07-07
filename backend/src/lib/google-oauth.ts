@@ -111,8 +111,16 @@ export interface ExchangedTokens {
   scope?: string;
 }
 
-/** Exchange an authorization code for tokens; returns the refresh token + connected email. */
-export async function exchangeCode(code: string): Promise<ExchangedTokens> {
+/**
+ * Exchange an authorization code for tokens; returns the refresh token + connected
+ * email. `redirectUriOverride` lets a different flow (e.g. Google import) reuse this
+ * exchange - Google requires the `redirect_uri` here to match the one in the consent
+ * request, so each flow passes its own. Defaults to the Gmail redirect URI.
+ */
+export async function exchangeCode(
+  code: string,
+  redirectUriOverride?: string,
+): Promise<ExchangedTokens> {
   const env = loadEnv();
   const res = await fetch(TOKEN_URL, {
     method: 'POST',
@@ -121,7 +129,7 @@ export async function exchangeCode(code: string): Promise<ExchangedTokens> {
       code,
       client_id: env.GOOGLE_CLIENT_ID!,
       client_secret: env.GOOGLE_CLIENT_SECRET!,
-      redirect_uri: redirectUri(),
+      redirect_uri: redirectUriOverride ?? redirectUri(),
       grant_type: 'authorization_code',
     }).toString(),
   });
@@ -181,6 +189,76 @@ export async function revokeToken(refreshToken: string): Promise<void> {
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({ token: refreshToken }).toString(),
   });
+}
+
+// ── Google Calendar + Contacts import (Stage 16) ─────────────────────────────
+// Bulk-import birthdays + anniversaries from the user's Google Calendar and
+// Contacts. Like the Gmail send-as flow, the heavier data scopes are requested
+// JUST-IN-TIME (only when the user starts an import) via Google's incremental-
+// authorization pattern - never at login. Reuses the SAME client id + secret with
+// a distinct redirect URI (register it on the Google OAuth client too). A refresh
+// token is stored (encrypted) so the user can re-sync later without re-granting,
+// so this - like Gmail - needs the token-encryption key.
+
+export const GOOGLE_IMPORT_SCOPE =
+  'openid email https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/contacts.readonly';
+
+/** True only when client id, secret, and the token-encryption key are all set. */
+export function googleImportConfigured(): boolean {
+  const env = loadEnv();
+  return !!env.GOOGLE_CLIENT_ID && !!env.GOOGLE_CLIENT_SECRET && tokenCryptoReady();
+}
+
+/** The redirect URI Google calls back for import; explicit env wins, else derived. */
+export function importRedirectUri(): string {
+  const env = loadEnv();
+  if (env.GOOGLE_IMPORT_REDIRECT_URL) return env.GOOGLE_IMPORT_REDIRECT_URL;
+  return `${env.API_PUBLIC_URL.replace(/\/+$/, '')}/integrations/google-import/callback`;
+}
+
+/** State payload for the import flow - binds the request to a user + return platform. */
+interface ImportStatePayload {
+  sub: string;
+  platform: OAuthPlatform;
+  type: 'google_import';
+}
+
+function signImportState(userId: string, platform: OAuthPlatform): string {
+  const env = loadEnv();
+  const payload: ImportStatePayload = { sub: userId, platform, type: 'google_import' };
+  return jwt.sign(payload, env.JWT_ACCESS_SECRET, { expiresIn: '10m' });
+}
+
+/** Verify + decode an import state token; throws on tamper/expiry/wrong type. */
+export function verifyImportState(state: string): { userId: string; platform: OAuthPlatform } {
+  const env = loadEnv();
+  const decoded = jwt.verify(state, env.JWT_ACCESS_SECRET) as ImportStatePayload;
+  if (decoded.type !== 'google_import') throw new Error('Not a google_import state token');
+  const platform: OAuthPlatform = decoded.platform === 'web' ? 'web' : 'app';
+  return { userId: decoded.sub, platform };
+}
+
+/** Build the Google consent URL for a Calendar + Contacts import (both scopes, one prompt). */
+export function buildImportConsentUrl(opts: {
+  userId: string;
+  platform: OAuthPlatform;
+  loginHint?: string;
+}): string {
+  const env = loadEnv();
+  const params = new URLSearchParams({
+    client_id: env.GOOGLE_CLIENT_ID!,
+    redirect_uri: importRedirectUri(),
+    response_type: 'code',
+    scope: GOOGLE_IMPORT_SCOPE,
+    // offline + consent guarantees a refresh_token so re-sync works without re-granting.
+    access_type: 'offline',
+    prompt: 'consent',
+    // Incremental auth: keep any scopes the user already granted (e.g. gmail.send).
+    include_granted_scopes: 'true',
+    state: signImportState(opts.userId, opts.platform),
+  });
+  if (opts.loginHint) params.set('login_hint', opts.loginHint);
+  return `${AUTH_URL}?${params.toString()}`;
 }
 
 // ── "Sign in with Google" (identity login) ───────────────────────────────────

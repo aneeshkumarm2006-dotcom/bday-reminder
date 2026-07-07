@@ -143,6 +143,9 @@ export type AuthUser = {
   /** Gmail send-as status for auto-send birthday emails (Stage 14). */
   gmailConnected?: boolean;
   gmailEmail?: string | null;
+  /** Google Calendar + Contacts import connection status (Stage 16). */
+  googleImportConnected?: boolean;
+  googleImportEmail?: string | null;
 };
 
 export type AuthResponse = {
@@ -215,6 +218,27 @@ export const gmailApi = {
   disconnect: () => apiFetch<void>('/integrations/gmail', { method: 'DELETE' }),
 };
 
+// --- Google Calendar + Contacts import (Stage 16) ---------------------------
+
+export const googleImportApi = {
+  /**
+   * Get the Google consent URL to open (JIT calendar + contacts scopes). `platform:
+   * 'web'` makes the backend callback redirect back to `/import?google=connected`.
+   */
+  connectUrl: () =>
+    apiFetch<{ url: string }>('/integrations/google-import/connect?platform=web'),
+
+  /**
+   * Fetch + preview birthdays/anniversaries from the connected Google account.
+   * 409 `google_import_not_connected`/`google_import_disconnected` → (re)connect.
+   */
+  preview: () =>
+    apiFetch<ImportPreviewResponse>('/import/google/preview', { method: 'POST' }),
+
+  /** Disconnect Google import (clears the stored token). */
+  disconnect: () => apiFetch<void>('/integrations/google-import', { method: 'DELETE' }),
+};
+
 // --- App config (Stage 5) ---------------------------------------------------
 
 export type AppConfig = {
@@ -225,6 +249,8 @@ export type AppConfig = {
   smsAutoSendAvailable?: boolean;
   /** Whether "Sign in with Google" is provisioned (gates the login button). */
   googleAuthAvailable?: boolean;
+  /** Whether Google Calendar + Contacts bulk import is provisioned (Stage 16). */
+  googleImportAvailable?: boolean;
 };
 
 export const configApi = {
@@ -443,6 +469,17 @@ export const uploadsApi = {
 
 // --- Bulk import: contacts + duplicates (Stage 7 contract; FR-6/11) --
 
+/**
+ * An extra dated event (anniversary/custom) attached to an imported person, on top
+ * of their birthday. Only the Google import produces these (Stage 16); CSV leaves
+ * the list empty.
+ */
+export type ImportEventItem = {
+  type: 'anniversary' | 'custom';
+  customName: string | null;
+  date: DateParts;
+};
+
 /** A structured import row (device contacts produce these directly). */
 export type ImportCandidate = {
   name: string;
@@ -451,6 +488,10 @@ export type ImportCandidate = {
   photoUrl?: string | null;
   /** Month + day required to be importable; year optional (FR-14). */
   dob?: { month: number; day: number; year?: number | null } | null;
+  /** The friend's email (Google import only). */
+  email?: string | null;
+  /** Extra anniversary/custom dates (Google import only). */
+  events?: ImportEventItem[];
 };
 
 /** One preview row, annotated by the server (ready / invalid / possible duplicate). */
@@ -461,6 +502,10 @@ export type ImportPreviewRow = {
   phone: string | null;
   photoUrl: string | null;
   dob: DateParts | null;
+  /** The friend's email (Google import only); null otherwise. */
+  email: string | null;
+  /** Extra anniversary/custom dates found for this person (Google import only). */
+  events: ImportEventItem[];
   status: 'ready' | 'duplicate' | 'invalid';
   /** Why a row is invalid, phrased as the fix (§10 voice). */
   error: string | null;
@@ -470,7 +515,12 @@ export type ImportPreviewRow = {
 
 export type ImportSummary = { total: number; ready: number; duplicates: number; invalid: number };
 
-export type ImportPreviewResponse = { rows: ImportPreviewRow[]; summary: ImportSummary };
+export type ImportPreviewResponse = {
+  rows: ImportPreviewRow[];
+  summary: ImportSummary;
+  /** Set by the Google import when the list hit the row cap and was cut short. */
+  truncated?: boolean;
+};
 
 /** How the user chose to resolve a row: keep both / merge / skip (FR-11). */
 export type ImportResolution = 'add' | 'merge' | 'skip';
@@ -481,6 +531,10 @@ export type ImportCommitItem = {
   phone?: string | null;
   photoUrl?: string | null;
   dob: { month: number; day: number; year?: number | null };
+  /** The friend's email (Google import only). */
+  email?: string | null;
+  /** Extra anniversary/custom dates to create alongside the person (Google import only). */
+  events?: ImportEventItem[];
   resolution: ImportResolution;
   /** Required when resolution is `merge`. */
   mergeTargetId?: string | null;

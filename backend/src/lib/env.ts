@@ -61,8 +61,14 @@ const EnvSchema = z.object({
   // Gmail one above - both must be registered on the Google OAuth client. Reuses
   // the same GOOGLE_CLIENT_ID/SECRET; login needs no token encryption key.
   GOOGLE_LOGIN_REDIRECT_URL: z.string().optional(),
-  // Encrypts the stored Gmail refresh token at rest (AES-256-GCM). Generate with
-  // `openssl rand -base64 32` → decodes to exactly 32 bytes.
+  // Redirect URI for the Google Calendar + Contacts bulk import (Stage 16);
+  // defaults to `<API_PUBLIC_URL>/integrations/google-import/callback`. A THIRD
+  // distinct URI (alongside the Gmail + login ones), all registered on the same
+  // Google OAuth client. Reuses GOOGLE_CLIENT_ID/SECRET + GMAIL_TOKEN_ENC_KEY (the
+  // import refresh token is stored encrypted for re-sync).
+  GOOGLE_IMPORT_REDIRECT_URL: z.string().optional(),
+  // Encrypts the stored Gmail + Google-import refresh tokens at rest (AES-256-GCM).
+  // Generate with `openssl rand -base64 32` → decodes to exactly 32 bytes.
   GMAIL_TOKEN_ENC_KEY: z.string().optional(),
 
   // --- Twilio auto-send SMS greeting (text a birthday message to a friend AS the

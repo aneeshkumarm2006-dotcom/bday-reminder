@@ -3,7 +3,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { useTheme } from "next-themes";
 import Link from "next/link";
-import { CalendarDays, ChevronRight, Mail, Upload } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { CalendarDays, ChevronRight, CloudDownload, Mail, Upload } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import {
@@ -18,7 +19,7 @@ import { Chip } from "@/components/ui/chip";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { TextField } from "@/components/ui/input";
 import { useToast } from "@/components/ui/toast";
-import { configApi, gmailApi, type ChannelPreferences } from "@/lib/api";
+import { configApi, gmailApi, googleImportApi, type ChannelPreferences } from "@/lib/api";
 import { useAuth } from "@/providers/auth-provider";
 
 /** Settings (FR-19-26) — profile, channels, lead times, reminder time, appearance. */
@@ -26,6 +27,7 @@ export default function SettingsPage() {
   const { user, updateProfile, signOut, refreshUser } = useAuth();
   const { toast } = useToast();
   const confirm = useConfirm();
+  const router = useRouter();
   const { theme, setTheme } = useTheme();
 
   const [name, setName] = useState(user?.name ?? "");
@@ -73,6 +75,23 @@ export default function SettingsPage() {
       await gmailApi.disconnect();
       await refreshUser();
       toast({ message: "Gmail disconnected.", tone: "success" });
+    } catch {
+      toast({ message: "Couldn't disconnect. Try again.", tone: "error" });
+    }
+  };
+
+  const onDisconnectGoogleImport = async () => {
+    const ok = await confirm({
+      title: "Disconnect Google?",
+      message: "You can reconnect any time you want to import again.",
+      confirmLabel: "Disconnect",
+      destructive: true,
+    });
+    if (!ok) return;
+    try {
+      await googleImportApi.disconnect();
+      await refreshUser();
+      toast({ message: "Google disconnected.", tone: "success" });
     } catch {
       toast({ message: "Couldn't disconnect. Try again.", tone: "error" });
     }
@@ -169,6 +188,34 @@ export default function SettingsPage() {
               <Button onClick={onConnectGmail} disabled={connectingGmail}>
                 Connect
               </Button>
+            )}
+          </div>
+        </Section>
+      )}
+
+      {config?.googleImportAvailable && (
+        <Section
+          title="Google import"
+          subtitle="Bulk-import birthdays + anniversaries from Google Calendar and Contacts. We only ask for access when you import, and you review everything first."
+        >
+          <div className="flex items-center justify-between gap-4 rounded-lg border border-border-subtle bg-surface p-4">
+            <div className="flex min-w-0 items-center gap-3">
+              <CloudDownload size={20} className="shrink-0 text-ink-muted" aria-hidden="true" />
+              <div className="min-w-0">
+                <p className="text-[15px] font-medium text-ink">Google account</p>
+                <p className="mt-0.5 truncate text-sm text-ink-muted">
+                  {user.googleImportConnected
+                    ? `Connected as ${user.googleImportEmail}`
+                    : "Not connected"}
+                </p>
+              </div>
+            </div>
+            {user.googleImportConnected ? (
+              <Button variant="secondary" onClick={onDisconnectGoogleImport}>
+                Disconnect
+              </Button>
+            ) : (
+              <Button onClick={() => router.push("/import")}>Import from Google</Button>
             )}
           </div>
         </Section>
