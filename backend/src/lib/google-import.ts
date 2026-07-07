@@ -14,6 +14,7 @@
 
 import {
   fetchCalendarSpecialDates,
+  fetchCalendarTitleSpecialDates,
   type CalendarSpecialDate,
 } from './google-calendar';
 import { fetchContacts, type NormalizedContact } from './google-contacts';
@@ -65,13 +66,33 @@ function dedupeEvents(list: ParsedEventItem[]): ParsedEventItem[] {
   return out;
 }
 
-/** Recover a display name from a calendar-only event title ("Jane's birthday" → "Jane"). */
+/**
+ * Recover a display name from a calendar-only event title. Handles the common
+ * hand-made forms — "Jane's birthday", "Daddy bday", "Mom Birthday", "Happy
+ * Birthday Sam", "Birthday of Dad", "Dad's Anniversary" — while leaving a plain
+ * "Jane Doe" (a linked special-date event's summary) untouched.
+ */
 function deriveNameFromSummary(summary: string | null): string | null {
   if (!summary) return null;
-  // Strip a trailing possessive event suffix; leave a plain "Jane Doe" untouched.
-  const stripped = summary.replace(/[’']s\s+(birthday|anniversary|bday)\b.*$/i, '').trim();
-  if (/^(birthday|anniversary|bday)$/i.test(stripped)) return null;
-  return stripped.length ? stripped : null;
+  const KEYWORD = String.raw`(?:birthdays?|b['’-]?days?|dob|born|anniversar(?:y|ies)|anniv)`;
+  let s = summary.trim();
+
+  s = s.replace(/[🎂🎈💍🥳🎉]/gu, ' '); // drop decorative emoji anywhere
+  s = s.replace(/^happy\s+/i, ''); // "Happy Birthday Sam" → "Birthday Sam"
+
+  if (new RegExp(`^${KEYWORD}\\b`, 'iu').test(s)) {
+    // Leading keyword: "Birthday Sam" / "Birthday of Dad" → the name after it.
+    s = s.replace(new RegExp(`^${KEYWORD}\\b\\s*(?:of|for)?\\s*`, 'iu'), '');
+  } else {
+    // Trailing keyword, optionally possessive: "Daddy's Birthday" / "Daddy bday" → "Daddy".
+    s = s.replace(new RegExp(`\\s*(?:[’']s)?\\s*${KEYWORD}\\b.*$`, 'iu'), '');
+  }
+
+  // Trim surrounding whitespace/punctuation (":", "-", "," …) but keep letters,
+  // digits, and name-internal apostrophes (O'Brien).
+  s = s.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, '').trim();
+  if (!s || new RegExp(`^${KEYWORD}$`, 'iu').test(s)) return null;
+  return s;
 }
 
 /** Turn a merged calendar special date into a ParsedEventItem (non-birthday types). */
@@ -180,7 +201,7 @@ export function mergeGoogleSources(
  * still imports even if the other was declined.
  */
 export async function buildGoogleCandidates(accessToken: string): Promise<GoogleImportResult> {
-  const [contacts, calDates] = await Promise.all([
+  const [contacts, calDates, titleDates] = await Promise.all([
     fetchContacts(accessToken).catch((err) => {
       logger.error('google contacts fetch failed', err instanceof Error ? err.message : err);
       return [] as NormalizedContact[];
@@ -189,7 +210,15 @@ export async function buildGoogleCandidates(accessToken: string): Promise<Google
       logger.error('google calendar fetch failed', err instanceof Error ? err.message : err);
       return [] as CalendarSpecialDate[];
     }),
+    // The user's own hand-made "Daddy bday"-style events, which the special-dates
+    // surface above never returns. Fails soft so a declined scope still imports the rest.
+    fetchCalendarTitleSpecialDates(accessToken).catch((err) => {
+      logger.error('google calendar title fetch failed', err instanceof Error ? err.message : err);
+      return [] as CalendarSpecialDate[];
+    }),
   ]);
 
-  return mergeGoogleSources(contacts, calDates);
+  // Special-dates first: a contact-linked date wins over a title-derived one for the
+  // same person (mergeGoogleSources dedupes calendar-only births by name + month/day).
+  return mergeGoogleSources(contacts, [...calDates, ...titleDates]);
 }

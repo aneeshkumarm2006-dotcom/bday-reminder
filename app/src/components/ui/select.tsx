@@ -24,16 +24,20 @@ export function Select({
   onChange,
   placeholder = 'Select…',
   label,
+  accessibilityLabel,
 }: {
   value?: string;
   options: SelectOption[];
   onChange: (value: string) => void;
   placeholder?: string;
   label?: string;
+  /** Screen-reader name + sheet title when no visible `label` is wanted. */
+  accessibilityLabel?: string;
 }) {
   const tokens = useTokens();
   const [open, setOpen] = useState(false);
   const selected = options.find((o) => o.value === value);
+  const a11yName = label ?? accessibilityLabel;
 
   return (
     <View>
@@ -41,7 +45,7 @@ export function Select({
       <Pressable
         onPress={() => setOpen(true)}
         accessibilityRole="button"
-        accessibilityLabel={label}
+        accessibilityLabel={a11yName}
         accessibilityValue={{ text: selected?.label ?? placeholder }}
         className={cn(
           'min-h-[44px] flex-row items-center justify-between rounded-md border border-border-strong bg-surface px-3',
@@ -53,7 +57,7 @@ export function Select({
         <Icon icon={ChevronDown} size={20} color={tokens.inkMuted} />
       </Pressable>
 
-      <Sheet visible={open} onClose={() => setOpen(false)} title={label ?? 'Select'}>
+      <Sheet visible={open} onClose={() => setOpen(false)} title={a11yName ?? 'Select'}>
         {/* Cap the height so long lists (e.g. the 48-slot time picker) scroll
             inside the sheet instead of overflowing the screen. */}
         <ScrollView style={{ maxHeight: 360 }} showsVerticalScrollIndicator={false}>

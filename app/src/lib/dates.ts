@@ -25,6 +25,15 @@ export function isLeapYear(year: number): boolean {
   return (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
 }
 
+/**
+ * Highest valid day for a 1-based month. Feb allows 29 (the birth year may be
+ * unknown), matching the backend's `maxDayInMonth` so client-side import
+ * validation agrees with what the commit endpoint will accept.
+ */
+export function maxDayInMonth(month: number): number {
+  return [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month - 1] ?? 31;
+}
+
 /** Local midnight for a date (strips the time component). */
 export function startOfDay(date: Date): Date {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate());

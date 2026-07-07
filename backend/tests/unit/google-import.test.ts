@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { fetchCalendarSpecialDates, type CalendarSpecialDate } from '../../src/lib/google-calendar';
+import {
+  fetchCalendarSpecialDates,
+  fetchCalendarTitleSpecialDates,
+  type CalendarSpecialDate,
+} from '../../src/lib/google-calendar';
 import { fetchContacts, type NormalizedContact } from '../../src/lib/google-contacts';
 import { mergeGoogleSources } from '../../src/lib/google-import';
 import { annotateCandidates, MAX_IMPORT_ROWS, type RawCandidate } from '../../src/lib/import';
@@ -63,6 +67,28 @@ describe('mergeGoogleSources: Contacts + Calendar → candidates', () => {
     expect(candidates).toHaveLength(1);
     expect(candidates[0].name).toBe('Bob');
     expect(candidates[0].dob).toEqual({ month: 7, day: 4, year: null });
+  });
+
+  it('recovers a name from hand-made title forms ("Daddy bday", "Happy Birthday Sam", "Birthday of Dad")', () => {
+    const cal: CalendarSpecialDate[] = [
+      { resourceName: null, type: 'birthday', month: 3, day: 21, customName: null, summary: 'Daddy bday' },
+      { resourceName: null, type: 'birthday', month: 4, day: 2, customName: null, summary: 'Happy Birthday Sam' },
+      { resourceName: null, type: 'birthday', month: 5, day: 9, customName: null, summary: 'Birthday of Dad' },
+      { resourceName: null, type: 'birthday', month: 6, day: 6, customName: null, summary: 'Mom Birthday' },
+    ];
+    const { candidates } = mergeGoogleSources([], cal);
+    expect(candidates.map((c) => c.name)).toEqual(['Daddy', 'Sam', 'Dad', 'Mom']);
+  });
+
+  it('recovers a name from the extended keyword/emoji title forms', () => {
+    const cal: CalendarSpecialDate[] = [
+      { resourceName: null, type: 'birthday', month: 1, day: 2, customName: null, summary: "Nana's b-day" },
+      { resourceName: null, type: 'birthday', month: 3, day: 4, customName: null, summary: '🎂 Grandpa' },
+      { resourceName: null, type: 'birthday', month: 5, day: 6, customName: null, summary: 'Priya born' },
+      { resourceName: null, type: 'birthday', month: 7, day: 8, customName: null, summary: 'DOB: Ravi' },
+    ];
+    const { candidates } = mergeGoogleSources([], cal);
+    expect(candidates.map((c) => c.name)).toEqual(['Nana', 'Grandpa', 'Priya', 'Ravi']);
   });
 
   it('drops a calendar-only event whose name can’t be recovered (import only what we can)', () => {
@@ -258,5 +284,44 @@ describe('fetchCalendarSpecialDates: Calendar API → CalendarSpecialDate', () =
   it('treats a 403 as a soft skip (returns empty, does not throw)', async () => {
     mockFetchOnce({ error: 'insufficient scope' }, 403);
     await expect(fetchCalendarSpecialDates('fake-token')).resolves.toEqual([]);
+  });
+});
+
+describe('fetchCalendarTitleSpecialDates: hand-made calendar events → CalendarSpecialDate', () => {
+  it('maps an all-day "Daddy bday", ignores timed and non-matching events, and dedupes across queries', async () => {
+    // The same payload is returned for each of the 3 keyword queries; dedupe must
+    // collapse the repeats to one entry per event.
+    mockFetchOnce({
+      items: [
+        { summary: 'Daddy bday', start: { date: '2026-03-21' } }, // all-day birthday ✓
+        { summary: 'Wedding anniversary', start: { date: '2026-06-02' } }, // all-day anniversary ✓
+        { summary: 'Birthday party at 3pm', start: { dateTime: '2026-07-04T15:00:00Z' } }, // timed → skipped
+        { summary: 'Ramzan Id', start: { date: '2026-03-21' } }, // no keyword → skipped
+      ],
+    });
+
+    const out = await fetchCalendarTitleSpecialDates('fake-token');
+    expect(out).toHaveLength(2);
+    expect(out).toContainEqual({
+      resourceName: null,
+      type: 'birthday',
+      month: 3,
+      day: 21,
+      customName: null,
+      summary: 'Daddy bday',
+    });
+    expect(out).toContainEqual({
+      resourceName: null,
+      type: 'anniversary',
+      month: 6,
+      day: 2,
+      customName: null,
+      summary: 'Wedding anniversary',
+    });
+  });
+
+  it('treats a 403 as a soft skip (returns empty, does not throw)', async () => {
+    mockFetchOnce({ error: 'insufficient scope' }, 403);
+    await expect(fetchCalendarTitleSpecialDates('fake-token')).resolves.toEqual([]);
   });
 });

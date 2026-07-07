@@ -8,11 +8,13 @@ import {
   Download,
   FileText,
   FileUp,
+  Plus,
+  Trash2,
   Upload,
   Users,
   X,
 } from 'lucide-react-native';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Platform, Pressable, ScrollView, View } from 'react-native';
 
 import {
@@ -22,6 +24,8 @@ import {
   Icon,
   Input,
   Screen,
+  Select,
+  type SelectOption,
   Text,
   useToast,
 } from '@/components/ui';
@@ -31,7 +35,6 @@ import {
   configApi,
   googleImportApi,
   importApi,
-  type DateParts,
   type ImportCandidate,
   type ImportCommitItem,
   type ImportPreviewResponse,
@@ -40,7 +43,7 @@ import {
 } from '@/lib/api';
 import { importDeviceContacts } from '@/lib/contacts';
 import { MAX_IMPORT_ROWS, parseCsv } from '@/lib/csv';
-import { monthAbbr } from '@/lib/dates';
+import { maxDayInMonth, monthAbbr } from '@/lib/dates';
 import { connectGoogleImport } from '@/lib/google-import-auth';
 import { useAuth } from '@/providers/auth-provider';
 import { useTokens } from '@/theme/theme-provider';
@@ -67,18 +70,26 @@ const CSV_PICKER_TYPES =
     ? ['text/csv', 'text/comma-separated-values', '.csv']
     : ['text/csv', 'text/comma-separated-values', 'text/plain', 'application/csv'];
 
-function formatDob(dob: DateParts): string {
-  const base = `${monthAbbr(dob.month)} ${dob.day}`;
-  return dob.year != null ? `${base}, ${dob.year}` : base;
-}
+const CURRENT_YEAR = new Date().getFullYear();
 
-/** A ready row's subtitle: the birthday, plus a count of extra dates (Google import). */
-function readySub(row: ImportPreviewRow): string {
-  const parts = [formatDob(row.dob!)];
-  if (row.events.length > 0) {
-    parts.push(`+${row.events.length} ${row.events.length === 1 ? 'other date' : 'other dates'}`);
-  }
-  return parts.join(' · ');
+const MONTH_OPTIONS: SelectOption[] = Array.from({ length: 12 }, (_, i) => ({
+  value: String(i + 1),
+  label: monthAbbr(i + 1),
+}));
+
+/**
+ * Local mirror of the commit validation, so the review list only offers to import
+ * what the server will accept. Returns the fix (§10 voice) or null when the row is
+ * good to go.
+ */
+function rowIssue(r: ImportPreviewRow): string | null {
+  if (!r.name.trim()) return 'Add a name.';
+  const d = r.dob;
+  if (!d || !d.month || !d.day) return 'Add a birthday (month + day).';
+  if (d.month < 1 || d.month > 12) return 'Pick a month.';
+  if (d.day < 1 || d.day > maxDayInMonth(d.month)) return "That day isn't in the month.";
+  if (d.year != null && (d.year < 1900 || d.year > CURRENT_YEAR)) return 'Check the year.';
+  return null;
 }
 
 export default function ImportScreen() {
@@ -284,34 +295,94 @@ export default function ImportScreen() {
   const setResolution = (id: string, resolution: ImportResolution) =>
     setResolutions((prev) => ({ ...prev, [id]: resolution }));
 
+  // --- Editable review list -------------------------------------------------
+  const newRowSeq = useRef(0);
+
+  const patchRow = useCallback((id: string, patch: Partial<ImportPreviewRow>) => {
+    setRows((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+  }, []);
+
+  // Update one part of a row's dob, tolerating partial/blank entry mid-edit.
+  const patchDob = useCallback((id: string, part: 'month' | 'day' | 'year', raw: string) => {
+    const digits = raw.replace(/[^0-9]/g, '');
+    setRows((prev) =>
+      prev.map((r) => {
+        if (r.id !== id) return r;
+        const base = r.dob ?? { month: 0, day: 0, year: null };
+        const n = digits === '' ? null : Number(digits);
+        return {
+          ...r,
+          dob: {
+            month: part === 'month' ? Number(raw) || 0 : base.month,
+            day: part === 'day' ? (n ?? 0) : base.day,
+            year: part === 'year' ? (n && n > 0 ? n : null) : base.year,
+          },
+        };
+      }),
+    );
+  }, []);
+
+  const removeRow = useCallback((id: string) => {
+    setRows((prev) => prev.filter((r) => r.id !== id));
+  }, []);
+
+  const addRow = useCallback(() => {
+    const id = `new-${newRowSeq.current++}`;
+    setRows((prev) => [
+      ...prev,
+      {
+        id,
+        name: '',
+        relationshipTag: null,
+        phone: null,
+        photoUrl: null,
+        dob: { month: new Date().getMonth() + 1, day: 0, year: null },
+        email: null,
+        events: [],
+        status: 'ready',
+        error: null,
+        duplicate: null,
+      },
+    ]);
+  }, []);
+
+  // Rows we'll actually send: valid, and not a duplicate the user chose to skip.
+  const importable = useMemo(
+    () =>
+      rows.filter((r) => {
+        if (rowIssue(r)) return false;
+        if (r.status === 'duplicate') return (resolutions[r.id] ?? 'skip') !== 'skip';
+        return true;
+      }),
+    [rows, resolutions],
+  );
+
   const commit = useCallback(async () => {
     setBusy(true);
     setError(null);
     try {
-      const items = rows
-        .map((r): ImportCommitItem | null => {
-          if (r.status === 'invalid' || !r.dob) return null;
-          const resolution = r.status === 'duplicate' ? (resolutions[r.id] ?? 'skip') : 'add';
-          return {
-            name: r.name,
-            relationshipTag: r.relationshipTag,
-            phone: r.phone,
-            photoUrl: r.photoUrl,
-            dob: r.dob,
-            email: r.email,
-            events: r.events,
-            resolution,
-            mergeTargetId: resolution === 'merge' ? (r.duplicate?.personId ?? null) : null,
-          };
-        })
-        .filter((x): x is ImportCommitItem => x !== null);
+      const items: ImportCommitItem[] = importable.map((r) => {
+        const resolution = r.status === 'duplicate' ? (resolutions[r.id] ?? 'skip') : 'add';
+        return {
+          name: r.name.trim(),
+          relationshipTag: r.relationshipTag,
+          phone: r.phone,
+          photoUrl: r.photoUrl,
+          dob: r.dob!,
+          email: r.email,
+          events: r.events,
+          resolution,
+          mergeTargetId: resolution === 'merge' ? (r.duplicate?.personId ?? null) : null,
+        };
+      });
 
       if (items.length === 0) {
-        setError('There was nothing to import.');
+        setError('Nothing to import yet. Add a name and birthday to a row.');
         return;
       }
       const res = await importApi.commit(items);
-      setUnreadable(rows.filter((r) => r.status === 'invalid').length);
+      // Rows left with a name/date problem (not sent) are surfaced in the summary.
+      setUnreadable(rows.filter((r) => rowIssue(r)).length);
       setSummary(res.summary);
       setPhase('summary');
     } catch (e) {
@@ -323,7 +394,7 @@ export default function ImportScreen() {
     } finally {
       setBusy(false);
     }
-  }, [rows, resolutions]);
+  }, [importable, rows, resolutions]);
 
   return (
     <Screen edges={['top', 'bottom']}>
@@ -359,7 +430,12 @@ export default function ImportScreen() {
         <PreviewPhase
           rows={rows}
           resolutions={resolutions}
+          importCount={importable.length}
           setResolution={setResolution}
+          onPatchRow={patchRow}
+          onPatchDob={patchDob}
+          onRemoveRow={removeRow}
+          onAddRow={addRow}
           onBack={() => setPhase('input')}
           onImport={commit}
           busy={busy}
@@ -512,7 +588,12 @@ function InputPhase({
 function PreviewPhase({
   rows,
   resolutions,
+  importCount,
   setResolution,
+  onPatchRow,
+  onPatchDob,
+  onRemoveRow,
+  onAddRow,
   onBack,
   onImport,
   busy,
@@ -520,60 +601,60 @@ function PreviewPhase({
 }: {
   rows: ImportPreviewRow[];
   resolutions: Record<string, ImportResolution>;
+  importCount: number;
   setResolution: (id: string, r: ImportResolution) => void;
+  onPatchRow: (id: string, patch: Partial<ImportPreviewRow>) => void;
+  onPatchDob: (id: string, part: 'month' | 'day' | 'year', raw: string) => void;
+  onRemoveRow: (id: string) => void;
+  onAddRow: () => void;
   onBack: () => void;
   onImport: () => void;
   busy: boolean;
   error: string | null;
 }) {
-  const ready = rows.filter((r) => r.status === 'ready');
-  const duplicates = rows.filter((r) => r.status === 'duplicate');
-  const invalid = rows.filter((r) => r.status === 'invalid');
-
-  const adds =
-    ready.length + duplicates.filter((r) => (resolutions[r.id] ?? 'skip') === 'add').length;
-  const merges = duplicates.filter((r) => (resolutions[r.id] ?? 'skip') === 'merge').length;
-  const skips = duplicates.filter((r) => (resolutions[r.id] ?? 'skip') === 'skip').length;
+  const incomplete = rows.filter((r) => rowIssue(r)).length;
 
   return (
     <View className="flex-1">
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 16, gap: 20 }}>
-        {ready.length > 0 ? (
-          <Section label={`Ready to add · ${ready.length}`}>
-            {ready.map((r) => (
-              <RowLine key={r.id} name={r.name} sub={readySub(r)} />
-            ))}
-          </Section>
-        ) : null}
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={{ paddingBottom: 16, gap: 12 }}>
+        <View className="gap-0.5">
+          <Text variant="body" className="text-ink-secondary">
+            Edit anyone, remove rows you don’t want, or add someone we missed — then import.
+          </Text>
+          <Text variant="caption" className="text-ink-muted">
+            {`${importCount} ready to import`}
+            {incomplete > 0 ? ` · ${incomplete} need${incomplete === 1 ? 's' : ''} a name or birthday` : ''}
+          </Text>
+        </View>
 
-        {duplicates.length > 0 ? (
-          <Section label={`Possible duplicates · ${duplicates.length}`}>
-            <Text variant="caption" className="mb-1 text-ink-muted">
-              We found these already saved. Choose what to do: nothing is merged without you.
-            </Text>
-            {duplicates.map((r) => (
-              <DuplicateRow
-                key={r.id}
-                row={r}
-                resolution={resolutions[r.id] ?? 'skip'}
-                onChange={(res) => setResolution(r.id, res)}
-              />
-            ))}
-          </Section>
-        ) : null}
+        {rows.map((r) => (
+          <EditableRow
+            key={r.id}
+            row={r}
+            resolution={resolutions[r.id] ?? 'skip'}
+            onPatch={(patch) => onPatchRow(r.id, patch)}
+            onPatchDob={(part, raw) => onPatchDob(r.id, part, raw)}
+            onRemove={() => onRemoveRow(r.id)}
+            onSetResolution={(res) => setResolution(r.id, res)}
+          />
+        ))}
 
-        {invalid.length > 0 ? (
-          <Section label={`Couldn't read · ${invalid.length}`}>
-            {invalid.map((r) => (
-              <RowLine
-                key={r.id}
-                name={r.name || 'Unnamed row'}
-                sub={r.error ?? 'This row was skipped.'}
-                muted
-              />
-            ))}
-          </Section>
-        ) : null}
+        <Pressable
+          onPress={onAddRow}
+          accessibilityRole="button"
+          accessibilityLabel="Add a person"
+          className={cn(
+            'flex-row items-center justify-center gap-2 rounded-lg border border-dashed border-border-strong px-3 py-3',
+            focusRing,
+          )}>
+          <Icon icon={Plus} size={18} />
+          <Text variant="cardName" className="text-ink-secondary">
+            Add a person
+          </Text>
+        </Pressable>
 
         {error ? (
           <Text variant="caption" className="text-danger-fg">
@@ -583,11 +664,10 @@ function PreviewPhase({
       </ScrollView>
 
       <View className="gap-2 border-t border-border-subtle pt-3">
-        <Text variant="caption" className="text-ink-muted">
-          {`Adding ${adds} · merging ${merges} · skipping ${skips}${invalid.length ? ` · ${invalid.length} unreadable` : ''}.`}
-        </Text>
-        <Button fullWidth loading={busy} disabled={adds + merges === 0} onPress={onImport}>
-          {adds + merges > 0 ? `Import ${adds + merges} ${adds + merges === 1 ? 'person' : 'people'}` : 'Nothing to import'}
+        <Button fullWidth loading={busy} disabled={importCount === 0} onPress={onImport}>
+          {importCount > 0
+            ? `Import ${importCount} ${importCount === 1 ? 'person' : 'people'}`
+            : 'Nothing to import'}
         </Button>
         <Button variant="ghost" fullWidth onPress={onBack}>
           Back
@@ -597,59 +677,110 @@ function PreviewPhase({
   );
 }
 
-function Section({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <View className="gap-2">
-      <Text variant="label" className="text-ink-muted">
-        {label}
-      </Text>
-      {children}
-    </View>
-  );
-}
-
-function RowLine({ name, sub, muted }: { name: string; sub: string; muted?: boolean }) {
-  return (
-    <View className="rounded-md bg-surface-sunken px-3 py-2">
-      <Text variant="cardName" className={muted ? 'text-ink-secondary' : undefined}>
-        {name}
-      </Text>
-      <Text variant="caption" className={muted ? 'text-danger-fg' : 'text-ink-secondary'}>
-        {sub}
-      </Text>
-    </View>
-  );
-}
-
-function DuplicateRow({
+/** One editable person in the review list: name, birthday, relationship, remove. */
+function EditableRow({
   row,
   resolution,
-  onChange,
+  onPatch,
+  onPatchDob,
+  onRemove,
+  onSetResolution,
 }: {
   row: ImportPreviewRow;
   resolution: ImportResolution;
-  onChange: (r: ImportResolution) => void;
+  onPatch: (patch: Partial<ImportPreviewRow>) => void;
+  onPatchDob: (part: 'month' | 'day' | 'year', raw: string) => void;
+  onRemove: () => void;
+  onSetResolution: (r: ImportResolution) => void;
 }) {
+  const issue = rowIssue(row);
+  const isDuplicate = row.status === 'duplicate';
   const canMerge = row.duplicate?.kind === 'existing';
-  const hint =
-    row.duplicate?.kind === 'existing'
-      ? `Looks like ${row.duplicate.fullName}, already saved.`
-      : 'Repeated earlier in this import.';
+
   return (
-    <Card className="gap-2">
-      <View>
-        <Text variant="cardName">{row.name}</Text>
-        <Text variant="caption" className="mt-0.5 text-ink-secondary">
-          {row.dob ? `${formatDob(row.dob)} · ${hint}` : hint}
-        </Text>
+    <Card className="gap-2.5">
+      <View className="flex-row items-start gap-2">
+        <View className="flex-1 gap-2.5">
+          <Input
+            value={row.name}
+            onChangeText={(text) => onPatch({ name: text })}
+            placeholder="Name"
+            accessibilityLabel="Name"
+            autoCapitalize="words"
+          />
+          <View className="flex-row gap-2">
+            <View className="flex-1">
+              <Select
+                value={row.dob?.month ? String(row.dob.month) : undefined}
+                options={MONTH_OPTIONS}
+                onChange={(v) => onPatchDob('month', v)}
+                placeholder="Month"
+                accessibilityLabel="Birthday month"
+              />
+            </View>
+            <Input
+              className="w-[64px] text-center"
+              value={row.dob?.day ? String(row.dob.day) : ''}
+              onChangeText={(text) => onPatchDob('day', text)}
+              keyboardType="number-pad"
+              maxLength={2}
+              placeholder="Day"
+              accessibilityLabel="Birthday day"
+            />
+            <Input
+              className="w-[80px] text-center"
+              value={row.dob?.year ? String(row.dob.year) : ''}
+              onChangeText={(text) => onPatchDob('year', text)}
+              keyboardType="number-pad"
+              maxLength={4}
+              placeholder="Year"
+              accessibilityLabel="Birth year, optional"
+            />
+          </View>
+          <Input
+            value={row.relationshipTag ?? ''}
+            onChangeText={(text) => onPatch({ relationshipTag: text.trim() ? text : null })}
+            placeholder="Relationship (optional)"
+            accessibilityLabel="Relationship, optional"
+          />
+          {row.events.length > 0 ? (
+            <Text variant="caption" className="text-ink-muted">
+              {`+${row.events.length} other ${row.events.length === 1 ? 'date' : 'dates'} (anniversary/custom) will be added too`}
+            </Text>
+          ) : null}
+          {issue ? (
+            <Text variant="caption" className="text-danger-fg">
+              {issue}
+            </Text>
+          ) : null}
+        </View>
+
+        <Pressable
+          onPress={onRemove}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel={`Remove ${row.name || 'row'}`}
+          className={cn('rounded-md p-2', focusRing)}>
+          <Icon icon={Trash2} size={20} />
+        </Pressable>
       </View>
-      <View className="flex-row flex-wrap gap-2">
-        <Chip label="Skip" selected={resolution === 'skip'} onPress={() => onChange('skip')} />
-        {canMerge ? (
-          <Chip label="Merge" selected={resolution === 'merge'} onPress={() => onChange('merge')} />
-        ) : null}
-        <Chip label="Keep both" selected={resolution === 'add'} onPress={() => onChange('add')} />
-      </View>
+
+      {isDuplicate ? (
+        <View className="gap-1.5 border-t border-border-subtle pt-2.5">
+          <Text variant="caption" className="text-ink-muted">
+            {row.duplicate?.kind === 'existing'
+              ? `Looks like ${row.duplicate.fullName}, already saved.`
+              : 'Repeated earlier in this import.'}
+          </Text>
+          <View className="flex-row flex-wrap gap-2">
+            <Chip label="Skip" selected={resolution === 'skip'} onPress={() => onSetResolution('skip')} />
+            {canMerge ? (
+              <Chip label="Merge" selected={resolution === 'merge'} onPress={() => onSetResolution('merge')} />
+            ) : null}
+            <Chip label="Keep both" selected={resolution === 'add'} onPress={() => onSetResolution('add')} />
+          </View>
+        </View>
+      ) : null}
     </Card>
   );
 }
