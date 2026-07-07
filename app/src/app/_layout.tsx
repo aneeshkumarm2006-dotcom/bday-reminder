@@ -61,7 +61,10 @@ function RootNavigator() {
     void SplashScreen.hideAsync();
 
     const inAuthGroup = segments[0] === '(auth)';
-    if (status === 'unauthenticated' && !inAuthGroup) {
+    // The Google sign-in deep-link return lands here still unauthenticated and
+    // finishes the sign-in itself - don't yank it to login mid-handoff.
+    const onGoogleReturn = (segments[0] as string) === 'google-login';
+    if (status === 'unauthenticated' && !inAuthGroup && !onGoogleReturn) {
       router.replace('/(auth)/login');
     } else if (status === 'authenticated' && inAuthGroup) {
       // Signed in - drop straight into the app (no onboarding step) on the
@@ -78,6 +81,7 @@ function RootNavigator() {
       }}>
       <Stack.Screen name="(auth)" />
       <Stack.Screen name="(tabs)" />
+      <Stack.Screen name="google-login" />
       <Stack.Screen name="add-person" options={{ presentation: 'modal' }} />
       <Stack.Screen name="import" options={{ presentation: 'modal' }} />
       <Stack.Screen name="person/[id]" />

@@ -44,6 +44,14 @@ type AuthContextValue = {
    * Non-ok statuses are returned (never thrown) for the screen to message.
    */
   signInWithGoogle: () => Promise<GoogleSignInStatus>;
+  /**
+   * Adopt a Google sign-in handoff directly (bypassing the in-app browser
+   * session). Used by the `google-login` deep-link route as a fallback for when
+   * Android dispatches the OAuth return as a fresh Intent instead of resolving
+   * `openAuthSessionAsync`. Resolves `true` on success. The handoff is
+   * single-use, so this and `signInWithGoogle` never both consume the same one.
+   */
+  completeGoogleSession: (handoff: string) => Promise<boolean>;
   signOut: () => Promise<void>;
   /**
    * Permanently delete the account and all its data, then clear the local
@@ -177,6 +185,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return result.status;
   }, []);
 
+  const completeGoogleSession = useCallback(async (handoff: string): Promise<boolean> => {
+    try {
+      const session = await authApi.googleSession(handoff);
+      await saveTokens({ accessToken: session.accessToken, refreshToken: session.refreshToken });
+      setUser(session.user);
+      setStatus('authenticated');
+      return true;
+    } catch {
+      // Expired/replayed handoff or a network failure - the route sends the user
+      // back to the login screen to try again.
+      return false;
+    }
+  }, []);
+
   const signUp = useCallback(
     async ({ name, email, password }: { name: string; email: string; password: string }) => {
       const res = await authApi.signup({ name, email, password, timezone: detectTimezone() });
@@ -247,12 +269,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signIn,
       signUp,
       signInWithGoogle,
+      completeGoogleSession,
       signOut,
       deleteAccount,
       updateProfile,
       refreshUser,
     }),
-    [status, user, signIn, signUp, signInWithGoogle, signOut, deleteAccount, updateProfile, refreshUser],
+    [
+      status,
+      user,
+      signIn,
+      signUp,
+      signInWithGoogle,
+      completeGoogleSession,
+      signOut,
+      deleteAccount,
+      updateProfile,
+      refreshUser,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
