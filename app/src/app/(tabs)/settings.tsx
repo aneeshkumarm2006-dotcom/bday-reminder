@@ -57,7 +57,7 @@ function SectionLabel({ children }: { children: string }) {
 
 export default function SettingsScreen() {
   const router = useRouter();
-  const { user, signOut, updateProfile, refreshUser } = useAuth();
+  const { user, signOut, deleteAccount, updateProfile, refreshUser } = useAuth();
   const { preference, setPreference } = useThemePreference();
   const confirm = useConfirm();
   const toast = useToast();
@@ -217,6 +217,28 @@ export default function SettingsScreen() {
       cancelLabel: 'Stay',
     });
     if (ok) await signOut();
+  };
+
+  const [deletingAccount, setDeletingAccount] = useState(false);
+  const onDeleteAccount = async () => {
+    const ok = await confirm({
+      title: 'Delete account?',
+      message:
+        'This permanently deletes your account and everything in it — people, reminders, notes, gift notes, shared lists, and connected accounts. This can’t be undone.',
+      confirmLabel: 'Delete everything',
+      cancelLabel: 'Keep my account',
+      destructive: true,
+    });
+    if (!ok) return;
+    setDeletingAccount(true);
+    try {
+      // On success the auth status flips to unauthenticated and the app routes
+      // back to sign-in, so this screen unmounts - no need to reset the flag.
+      await deleteAccount();
+    } catch {
+      setDeletingAccount(false);
+      toast.show("Couldn't delete your account. Check your connection and try again.");
+    }
   };
 
   return (
@@ -423,6 +445,23 @@ export default function SettingsScreen() {
             Log out
           </Button>
         </View>
+
+        <SectionLabel>Danger zone</SectionLabel>
+        <Card>
+          <Text variant="body">Delete account</Text>
+          <Text variant="caption" className="mt-1 text-ink-muted">
+            Permanently erase your account and all of its data. This can’t be undone.
+          </Text>
+          <View className="mt-3">
+            <Button
+              variant="destructive"
+              fullWidth
+              loading={deletingAccount}
+              onPress={onDeleteAccount}>
+              Delete account
+            </Button>
+          </View>
+        </Card>
       </ScrollView>
     </Screen>
   );

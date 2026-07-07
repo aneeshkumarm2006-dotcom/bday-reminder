@@ -74,3 +74,54 @@ export async function uploadImage(dataUri: string): Promise<UploadResult> {
   if (!url) throw new Error('Photo upload failed. Try again.');
   return { url, hosted: true };
 }
+
+/**
+ * Pull the `folder/name` public id out of a Cloudinary delivery URL, or return
+ * null for anything that isn't one (the data-URL fallback, a foreign host).
+ * Uploads here apply no transformations, so the path is just an optional version
+ * segment (`v123/`) followed by `folder/name.ext`.
+ */
+function cloudinaryPublicId(url: string): string | null {
+  if (!/^https?:\/\/res\.cloudinary\.com\//.test(url)) return null;
+  const marker = '/image/upload/';
+  const idx = url.indexOf(marker);
+  if (idx === -1) return null;
+  const rest = url
+    .slice(idx + marker.length)
+    .replace(/^v\d+\//, '') // drop the version segment
+    .replace(/\.[a-zA-Z0-9]+$/, ''); // drop the file extension
+  return rest || null;
+}
+
+/**
+ * Best-effort delete of a previously-uploaded person photo by its URL. No-ops
+ * when Cloudinary isn't configured or the URL isn't a hosted Cloudinary asset,
+ * so callers (account deletion) can fire it per photo without it ever failing
+ * the wider operation. A non-2xx response is logged, not thrown.
+ */
+export async function destroyImage(url: string): Promise<void> {
+  const env = loadEnv();
+  if (!isCloudinaryConfigured()) return;
+  const publicId = cloudinaryPublicId(url);
+  if (!publicId) return;
+
+  const timestamp = Math.floor(Date.now() / 1000).toString();
+  const signature = sign({ public_id: publicId, timestamp }, env.CLOUDINARY_API_SECRET as string);
+
+  const form = new URLSearchParams();
+  form.set('public_id', publicId);
+  form.set('api_key', env.CLOUDINARY_API_KEY as string);
+  form.set('timestamp', timestamp);
+  form.set('signature', signature);
+
+  const res = await fetch(`https://api.cloudinary.com/v1_1/${env.CLOUDINARY_CLOUD_NAME}/image/destroy`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: form.toString(),
+  });
+
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '');
+    logger.warn('cloudinary destroy failed', res.status, detail.slice(0, 200));
+  }
+}

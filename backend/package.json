@@ -35,7 +35,8 @@
     "smoke:autosend": "tsx scripts/smoke-autosend.ts",
     "smoke:autosms": "tsx scripts/smoke-autosms.ts",
     "smoke:googleauth": "tsx scripts/smoke-googleauth.ts",
-    "smoke:google-import": "tsx scripts/smoke-google-import.ts"
+    "smoke:google-import": "tsx scripts/smoke-google-import.ts",
+    "smoke:delete-account": "tsx scripts/smoke-delete-account.ts"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

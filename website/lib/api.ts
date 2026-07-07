@@ -193,6 +193,13 @@ export const authApi = {
     apiFetch<AuthUser>('/me', { method: 'PATCH', body: patch }),
 
   /**
+   * Permanently delete the account and everything tied to it (irreversible).
+   * The server tears down all of the user's data; the caller then clears its
+   * local session.
+   */
+  deleteAccount: () => apiFetch<void>('/me', { method: 'DELETE' }),
+
+  /**
    * Exchange the one-time `handoff` token (delivered in the URL by the Google
    * callback redirect) for the real JWT pair. No auth header - the handoff IS
    * the credential.

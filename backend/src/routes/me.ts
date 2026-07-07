@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 
+import { deleteAccount } from '../lib/account-deletion';
 import { regenerateForUser } from '../jobs/reminder-engine';
 import { asyncHandler } from '../lib/async-handler';
 import { normalizePhone } from '../lib/phone';
@@ -84,6 +85,20 @@ meRouter.patch(
     }
 
     res.json(serializeUser(user));
+  }),
+);
+
+/**
+ * DELETE /me - permanently delete the account and everything tied to it (§10).
+ * Irreversible: cascades the user's people, events, reminders, notes, owned
+ * shared lists, invites, refresh tokens, and connected integrations, then the
+ * user record itself. The client clears its local session afterward.
+ */
+meRouter.delete(
+  '/',
+  asyncHandler(async (req, res) => {
+    await deleteAccount(req.user!);
+    res.status(204).end();
   }),
 );
 

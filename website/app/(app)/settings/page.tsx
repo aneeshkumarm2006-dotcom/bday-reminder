@@ -24,7 +24,7 @@ import { useAuth } from "@/providers/auth-provider";
 
 /** Settings (FR-19-26) — profile, channels, lead times, reminder time, appearance. */
 export default function SettingsPage() {
-  const { user, updateProfile, signOut, refreshUser } = useAuth();
+  const { user, updateProfile, signOut, deleteAccount, refreshUser } = useAuth();
   const { toast } = useToast();
   const confirm = useConfirm();
   const router = useRouter();
@@ -34,6 +34,7 @@ export default function SettingsPage() {
   const [phone, setPhone] = useState(user?.phone ?? "");
   const [profileBusy, setProfileBusy] = useState(false);
   const [connectingGmail, setConnectingGmail] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
 
   const { data: config } = useQuery({ queryKey: ["config"], queryFn: () => configApi.get() });
 
@@ -116,6 +117,26 @@ export default function SettingsPage() {
     setProfileBusy(true);
     await persist({ name: name.trim(), phone: phone.trim() || null }, "Profile saved.");
     setProfileBusy(false);
+  };
+
+  const onDeleteAccount = async () => {
+    const ok = await confirm({
+      title: "Delete account?",
+      message:
+        "This permanently deletes your account and everything in it — people, reminders, notes, gift notes, shared lists, and connected accounts. This can’t be undone.",
+      confirmLabel: "Delete everything",
+      destructive: true,
+    });
+    if (!ok) return;
+    setDeletingAccount(true);
+    try {
+      // On success the auth status flips to unauthenticated and the layout routes
+      // back to sign-in, so this page unmounts - no need to reset the flag.
+      await deleteAccount();
+    } catch {
+      setDeletingAccount(false);
+      toast({ message: "Couldn't delete your account. Try again.", tone: "error" });
+    }
   };
 
   return (
@@ -243,6 +264,24 @@ export default function SettingsPage() {
           Log out
         </Button>
       </div>
+
+      <Section title="Danger zone">
+        <div className="rounded-lg border border-danger-fg/30 bg-danger-bg/40 p-4">
+          <p className="text-[15px] font-medium text-ink">Delete account</p>
+          <p className="mt-0.5 text-sm text-ink-muted">
+            Permanently erase your account and all of its data. This can’t be undone.
+          </p>
+          <div className="mt-3">
+            <Button
+              variant="destructive"
+              onClick={onDeleteAccount}
+              disabled={deletingAccount}
+            >
+              {deletingAccount ? "Deleting…" : "Delete account"}
+            </Button>
+          </div>
+        </div>
+      </Section>
     </div>
   );
 }

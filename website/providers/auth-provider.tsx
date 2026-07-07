@@ -42,6 +42,12 @@ type AuthContextValue = {
    */
   completeGoogleSession: (handoff: string) => Promise<{ isNew: boolean }>;
   signOut: () => Promise<void>;
+  /**
+   * Permanently delete the account and all its data, then clear the local
+   * session (irreversible). Throws if the server call fails so the UI can keep
+   * the user signed in and surface an error.
+   */
+  deleteAccount: () => Promise<void>;
   /** Patch the current user's profile/preferences and sync context (Stage 5). */
   updateProfile: (patch: UpdateMeInput) => Promise<AuthUser>;
   /** Re-fetch the current user from the server (e.g. after connecting Gmail). */
@@ -180,6 +186,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setStatus("unauthenticated");
   }, []);
 
+  const deleteAccount = useCallback(async () => {
+    // Server wipes all data + revokes the tokens; on success mirror signOut's
+    // local teardown. No logout call - the refresh token is already gone.
+    await authApi.deleteAccount();
+    await clearTokens();
+    setUser(null);
+    setStatus("unauthenticated");
+  }, []);
+
   const updateProfile = useCallback(async (patch: UpdateMeInput) => {
     // Optimistic: reflect the change immediately, persist, revert on failure.
     const previous = userRef.current;
@@ -212,8 +227,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo<AuthContextValue>(
-    () => ({ status, user, signIn, signUp, completeGoogleSession, signOut, updateProfile, refreshUser }),
-    [status, user, signIn, signUp, completeGoogleSession, signOut, updateProfile, refreshUser],
+    () => ({
+      status,
+      user,
+      signIn,
+      signUp,
+      completeGoogleSession,
+      signOut,
+      deleteAccount,
+      updateProfile,
+      refreshUser,
+    }),
+    [
+      status,
+      user,
+      signIn,
+      signUp,
+      completeGoogleSession,
+      signOut,
+      deleteAccount,
+      updateProfile,
+      refreshUser,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
