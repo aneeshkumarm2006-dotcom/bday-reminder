@@ -1,4 +1,5 @@
 import { siteConfig } from "@/lib/site";
+import { organizationNode } from "@/lib/structured-data";
 
 import type { Post } from "@/lib/blog/types";
 import { isHttpUrl, jsonLdScript } from "@/lib/blog/url";
@@ -26,11 +27,9 @@ export function PostJsonLd({ post }: { post: Post }) {
     datePublished: post.publishedAt ?? post.createdAt,
     dateModified: post.updatedAt,
     author: { "@type": "Person", name: post.author || siteConfig.name },
-    publisher: {
-      "@type": "Organization",
-      name: siteConfig.name,
-      logo: { "@type": "ImageObject", url: `${siteConfig.url}/icon.svg` },
-    },
+    // Same Organization entity as the homepage (matched by @id), with a real
+    // crawlable logo — the old `/icon.svg` no longer exists.
+    publisher: organizationNode(),
     mainEntityOfPage: { "@type": "WebPage", "@id": url },
   };
 

@@ -13,6 +13,7 @@ import Link from "next/link";
 
 import { AppPreview, ReminderPreview, WidgetPreview } from "@/components/app-preview";
 import { Reveal } from "@/components/reveal";
+import { SiteJsonLd } from "@/components/site-json-ld";
 import { SmoothScroll } from "@/components/smooth-scroll";
 import { HeroTodayRing, StepRing } from "@/components/today-rings";
 import { buttonVariants } from "@/components/ui/button";
@@ -20,6 +21,7 @@ import { buttonVariants } from "@/components/ui/button";
 export default function Home() {
   return (
     <>
+      <SiteJsonLd />
       <SmoothScroll />
       <Hero />
       <ValueProp />
