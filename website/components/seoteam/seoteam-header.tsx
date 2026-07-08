@@ -1,6 +1,6 @@
 "use client";
 
-import { ExternalLink, LogOut, Plus } from "lucide-react";
+import { ExternalLink, Images, LogOut, Plus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -34,6 +34,13 @@ export function SeoTeamHeader({ showNewButton = true }: { showNewButton?: boolea
           SEO dashboard
         </Link>
         <div className="flex items-center gap-1.5">
+          <Link
+            href="/seoteam/media"
+            className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}
+          >
+            <Images size={18} aria-hidden="true" />
+            <span className="hidden sm:inline">Media</span>
+          </Link>
           <Link
             href="/blog"
             target="_blank"

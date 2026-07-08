@@ -10,7 +10,7 @@ export default defineConfig({
   plugins: [tsconfigPaths()],
   test: {
     environment: "jsdom",
-    include: ["lib/analyticshub/__tests__/**/*.test.ts"],
+    include: ["lib/**/__tests__/**/*.test.ts"],
     globals: true,
   },
 });

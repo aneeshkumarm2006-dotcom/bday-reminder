@@ -15,3 +15,17 @@ export function formatDate(iso: string): string {
     return "";
   }
 }
+
+/** Human-readable file size (e.g. "1.4 MB"). Returns "—" for 0 / unknown. */
+export function formatBytes(bytes: number): string {
+  if (!bytes || bytes < 0) return "—";
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  let n = bytes;
+  let i = 0;
+  while (n >= 1024 && i < units.length - 1) {
+    n /= 1024;
+    i++;
+  }
+  const value = i === 0 ? n : Math.round(n * 10) / 10;
+  return `${value} ${units[i]}`;
+}

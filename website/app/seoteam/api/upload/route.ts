@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 
 import { uploadImage } from "@/lib/blog/cloudinary";
+import { recordUploadedImage } from "@/lib/blog/images";
 import { getSeoSession } from "@/lib/seo-auth/server";
 
 const schema = z.object({
@@ -45,6 +46,14 @@ export async function POST(req: NextRequest) {
 
   try {
     const result = await uploadImage(parsed.data.image);
+    // Track hosted uploads in the Media library so they appear without a Sync.
+    if (result.resource) {
+      try {
+        await recordUploadedImage(result.resource);
+      } catch (err) {
+        console.error("recordUploadedImage failed (upload still succeeded):", err);
+      }
+    }
     return NextResponse.json({ url: result.url, hosted: result.hosted });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Upload failed.";

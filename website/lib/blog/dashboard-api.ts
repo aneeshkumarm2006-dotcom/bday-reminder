@@ -1,5 +1,5 @@
 import type { CreatePostBody, UpdatePostBody } from "./validation";
-import type { Post } from "./types";
+import type { MediaRow, Post, SyncSummary } from "./types";
 
 /**
  * Thin client-side fetch helpers for the /seoteam dashboard. The session is an
@@ -58,6 +58,45 @@ export async function uploadImageRequest(dataUri: string): Promise<string> {
     body: JSON.stringify({ image: dataUri }),
   });
   return url;
+}
+
+/** Full media grid/table dataset (inventory joined with live post usage). */
+export async function fetchMediaRows(): Promise<MediaRow[]> {
+  const { rows } = await request<{ rows: MediaRow[] }>("/seoteam/api/media");
+  return rows;
+}
+
+/** Refresh the inventory from Cloudinary; returns the add/update/remove counts. */
+export async function syncMediaRequest(): Promise<SyncSummary> {
+  return request<SyncSummary>("/seoteam/api/media/sync", { method: "POST" });
+}
+
+/** Edit one image's alt (written back into posts) and/or tags. Returns the row. */
+export async function updateImageRequest(
+  id: string,
+  body: { alt?: string; tags?: string[] },
+): Promise<MediaRow> {
+  const { row } = await request<{ row: MediaRow }>(`/seoteam/api/media/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  });
+  return row;
+}
+
+export async function deleteImageRequest(id: string): Promise<void> {
+  await request(`/seoteam/api/media/${id}`, { method: "DELETE" });
+}
+
+/** Bulk delete / add tag / remove tag over selected image ids. */
+export async function bulkMediaRequest(body: {
+  action: "delete" | "addTag" | "removeTag";
+  ids: string[];
+  tag?: string;
+}): Promise<{ affected: number }> {
+  return request<{ affected: number }>("/seoteam/api/media/bulk", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
 }
 
 /** Read a File as a base64 data URI for upload. */

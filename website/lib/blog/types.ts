@@ -73,3 +73,56 @@ export interface SeoAnalysis {
   /** True when nothing is failing — the post is "SEO-ready" to publish. */
   ready: boolean;
 }
+
+/**
+ * A Cloudinary image asset tracked in the Media library (serialized JSON — safe
+ * to pass to the client). Metadata mirrors the fields Cloudinary returns; alt
+ * text is intentionally NOT stored here — it lives per-usage in the post HTML
+ * (see `ImageUsage`), so editing it writes back into the posts.
+ */
+export interface BlogImage {
+  id: string;
+  /** Cloudinary public_id ("folder/name") — the stable identifier. */
+  publicId: string;
+  /** Delivery URL (Cloudinary secure_url). */
+  secureUrl: string;
+  /** File format: jpg | png | webp | … ("" if unknown). */
+  format: string;
+  width: number;
+  height: number;
+  bytes: number;
+  tags: string[];
+  /** Cloudinary upload time (ISO), or null if unknown. */
+  cloudinaryCreatedAt: string | null;
+  createdAt: string; // ISO — when the record was first tracked
+  updatedAt: string; // ISO
+}
+
+/** One place an image is used: a post's cover, or an inline body `<img>`. */
+export interface ImageUsage {
+  postId: string;
+  slug: string;
+  title: string;
+  field: "cover" | "body";
+  /** The alt text at this usage, trimmed ("" when missing — the SEO gap). */
+  alt: string;
+}
+
+/** A Media-library row: an image joined with its live usage across posts. */
+export interface MediaRow {
+  image: BlogImage;
+  /** Every usage across all posts (may include multiple usages per post). */
+  usedInPosts: ImageUsage[];
+  /** True when the image is used somewhere with an empty alt (SEO gap). */
+  missingAlt: boolean;
+  /** True when no post references the image. */
+  unused: boolean;
+}
+
+/** Summary returned by a media Sync run. */
+export interface SyncSummary {
+  added: number;
+  updated: number;
+  removed: number;
+  total: number;
+}

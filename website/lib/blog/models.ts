@@ -75,3 +75,40 @@ postSchema.index({ status: 1, publishedAt: -1 });
 
 export const Post: Model<PostDoc> =
   (models.Post as Model<PostDoc>) || model<PostDoc>("Post", postSchema);
+
+/**
+ * A Cloudinary image asset tracked for the Media library. Populated by a Sync
+ * (Admin-API list of the upload folder) and by new uploads. Usage/alt are NOT
+ * stored here — they're derived live from posts (alt lives in the post HTML).
+ */
+export interface BlogImageDoc {
+  _id: Types.ObjectId;
+  publicId: string;
+  secureUrl: string;
+  format: string;
+  width: number;
+  height: number;
+  bytes: number;
+  tags: string[];
+  cloudinaryCreatedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+const blogImageSchema = new Schema<BlogImageDoc>(
+  {
+    publicId: { type: String, required: true, unique: true, trim: true },
+    secureUrl: { type: String, required: true, trim: true },
+    format: { type: String, default: "", trim: true },
+    width: { type: Number, default: 0 },
+    height: { type: Number, default: 0 },
+    bytes: { type: Number, default: 0 },
+    tags: { type: [String], default: () => [] },
+    cloudinaryCreatedAt: { type: Date, default: null },
+  },
+  { timestamps: true },
+);
+
+export const BlogImage: Model<BlogImageDoc> =
+  (models.BlogImage as Model<BlogImageDoc>) ||
+  model<BlogImageDoc>("BlogImage", blogImageSchema);

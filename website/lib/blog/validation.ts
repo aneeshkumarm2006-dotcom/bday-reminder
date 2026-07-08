@@ -90,6 +90,24 @@ export const updatePostSchema = z
 export type CreatePostBody = z.infer<typeof createPostSchema>;
 export type UpdatePostBody = z.infer<typeof updatePostSchema>;
 
+/** Media image edit: alt (written back into posts) and/or tags. Both optional. */
+export const updateImageSchema = z
+  .object({
+    alt: z.string().trim().max(200),
+    tags: z.array(z.string().trim().max(60)).max(40),
+  })
+  .partial();
+
+/** Bulk media action over a set of image ids. */
+export const bulkImageSchema = z.object({
+  action: z.enum(["delete", "addTag", "removeTag"]),
+  ids: z.array(z.string().trim().min(1)).min(1).max(200),
+  tag: z.string().trim().max(60).optional(),
+});
+
+export type UpdateImageBody = z.infer<typeof updateImageSchema>;
+export type BulkImageBody = z.infer<typeof bulkImageSchema>;
+
 /** First human-readable validation message from a ZodError. */
 export function firstZodError(error: ZodError): string {
   return error.issues[0]?.message ?? "Invalid input.";
