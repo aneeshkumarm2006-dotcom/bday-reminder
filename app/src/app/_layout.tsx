@@ -82,6 +82,8 @@ function RootNavigator() {
       <Stack.Screen name="(auth)" />
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="google-login" />
+      <Stack.Screen name="google-import-connected" />
+      <Stack.Screen name="gmail-connected" />
       <Stack.Screen name="add-person" options={{ presentation: 'modal' }} />
       <Stack.Screen name="import" options={{ presentation: 'modal' }} />
       <Stack.Screen name="person/[id]" />

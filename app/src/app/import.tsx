@@ -292,6 +292,24 @@ export default function ImportScreen() {
     }
   }, [source, scanContacts]);
 
+  // Returning from the Google OAuth deep-link fallback (see
+  // app/google-import-connected.tsx): source=google resumes the preview - the user
+  // is already connected, so runGooglePreview skips the browser and fetches rows;
+  // source=google-error surfaces the connect failure. This only runs when Android
+  // dispatched the OAuth return as a fresh Intent instead of resolving the in-app
+  // browser session.
+  const autoGoogle = useRef(false);
+  useEffect(() => {
+    if (autoGoogle.current) return;
+    if (source === 'google') {
+      autoGoogle.current = true;
+      void runGooglePreview();
+    } else if (source === 'google-error') {
+      autoGoogle.current = true;
+      setError("Couldn't connect Google. Please try again.");
+    }
+  }, [source, runGooglePreview]);
+
   const setResolution = (id: string, resolution: ImportResolution) =>
     setResolutions((prev) => ({ ...prev, [id]: resolution }));
 

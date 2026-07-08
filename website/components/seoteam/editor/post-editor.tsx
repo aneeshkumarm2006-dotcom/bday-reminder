@@ -3,12 +3,13 @@
 import { ArrowLeft, Eye, Pencil } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { SeoTeamHeader } from "@/components/seoteam/seoteam-header";
 import { SeoCheckList } from "@/components/seoteam/seo-check-list";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { Input, Label, TextField, Textarea } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/components/ui/toast";
@@ -79,6 +80,7 @@ export function PostEditor({
 }) {
   const router = useRouter();
   const { toast } = useToast();
+  const confirm = useConfirm();
 
   const [template, setTemplate] = useState<TemplateKey | null>(
     initial?.template ?? null,
@@ -107,6 +109,123 @@ export function PostEditor({
 
   const [tab, setTab] = useState<"edit" | "preview">("edit");
   const [busy, setBusy] = useState(false);
+
+  // ── Unsaved-changes guard ─────────────────────────────────────────────────
+  // A fingerprint of every editable field. When it drifts from the last-saved
+  // baseline the form is "dirty" and we warn before the user navigates away —
+  // people kept losing edits by leaving the editor without hitting the button.
+  const snapshot = useMemo(
+    () =>
+      JSON.stringify({
+        template,
+        title,
+        slug,
+        metaTitle,
+        excerpt,
+        author,
+        coverImage,
+        coverImageAlt,
+        body,
+        keywords,
+        linkOccurrences,
+        visibility,
+        publishedAt,
+      }),
+    [
+      template,
+      title,
+      slug,
+      metaTitle,
+      excerpt,
+      author,
+      coverImage,
+      coverImageAlt,
+      body,
+      keywords,
+      linkOccurrences,
+      visibility,
+      publishedAt,
+    ],
+  );
+  const [baseline, setBaseline] = useState(snapshot);
+  const [justSaved, setJustSaved] = useState(false);
+  const dirty = snapshot !== baseline;
+
+  // After a successful save, state settles to the server's response on the next
+  // render; re-baseline from the fresh snapshot then so `dirty` resets to false.
+  useEffect(() => {
+    if (justSaved) {
+      setBaseline(snapshot);
+      setJustSaved(false);
+    }
+  }, [justSaved, snapshot]);
+
+  const confirmLeave = useCallback(
+    async (dest: string) => {
+      const ok = await confirm({
+        title: "Leave without saving?",
+        message:
+          "You have unsaved changes. If you leave now they'll be lost — save your draft or publish first.",
+        confirmLabel: "Leave and discard",
+        cancelLabel: "Keep editing",
+        destructive: true,
+      });
+      if (ok) router.push(dest);
+    },
+    [confirm, router],
+  );
+
+  // Warn on any exit while there are unsaved edits: hard navigations / refresh /
+  // tab close via `beforeunload`, and in-app link clicks (the Posts back links,
+  // the header logo, Media, etc.) via a capture-phase interceptor that stops the
+  // click before Next's <Link> handles it and routes it through our confirm.
+  useEffect(() => {
+    if (!dirty) return;
+
+    const onBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+
+    const onClickCapture = (event: MouseEvent) => {
+      if (
+        event.defaultPrevented ||
+        event.button !== 0 ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.shiftKey ||
+        event.altKey
+      ) {
+        return;
+      }
+      const anchor = (event.target as HTMLElement | null)?.closest("a");
+      const href = anchor?.getAttribute("href");
+      if (!anchor || !href) return;
+      // Opening in a new tab or downloading doesn't discard the current form.
+      if (anchor.target && anchor.target !== "_self") return;
+      if (anchor.hasAttribute("download")) return;
+
+      const url = new URL(href, window.location.href);
+      if (url.origin !== window.location.origin) return; // external link
+      if (
+        url.pathname === window.location.pathname &&
+        url.search === window.location.search
+      ) {
+        return; // same page (e.g. a hash anchor)
+      }
+
+      event.preventDefault();
+      event.stopPropagation();
+      void confirmLeave(url.pathname + url.search + url.hash);
+    };
+    document.addEventListener("click", onClickCapture, true);
+
+    return () => {
+      window.removeEventListener("beforeunload", onBeforeUnload);
+      document.removeEventListener("click", onClickCapture, true);
+    };
+  }, [dirty, confirmLeave]);
 
   const effectiveMetaTitle = metaTitle.trim() || title;
 
@@ -201,10 +320,12 @@ export function PostEditor({
         setSlug(updated.slug);
         setPublishedAt(updated.publishedAt ?? "");
         setVisibility(deriveVisibility(updated.status, updated.publishedAt));
+        setJustSaved(true);
         toast({ message: savedMessage(), tone: "success" });
         router.refresh();
       } else {
         const created = await createPostRequest(payload);
+        // Navigating to the edit page unmounts this form, so no re-baseline needed.
         toast({ message: savedMessage(), tone: "success" });
         router.replace(`/seoteam/posts/${created.id}/edit`);
       }
@@ -261,6 +382,15 @@ export function PostEditor({
             <ArrowLeft size={16} aria-hidden="true" /> Posts
           </Link>
           <div className="flex flex-wrap items-center gap-2">
+            {dirty && (
+              <span className="inline-flex items-center gap-1.5 text-xs font-medium text-snz-fg">
+                <span
+                  className="h-2 w-2 rounded-full bg-snz-fg"
+                  aria-hidden="true"
+                />
+                Unsaved changes
+              </span>
+            )}
             <Badge tone={vis.tone}>{vis.label}</Badge>
             {mode === "edit" && initial && (
               <a
