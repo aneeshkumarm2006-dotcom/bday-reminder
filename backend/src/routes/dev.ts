@@ -4,6 +4,7 @@ import { asyncHandler } from '../lib/async-handler';
 import { logger } from '../lib/logger';
 import {
   dispatchBirthdayGreetings,
+  dispatchBirthdaySms,
   dispatchDue,
   generateForAllUsers,
 } from '../jobs/reminder-engine';
@@ -75,6 +76,21 @@ devRouter.post(
   asyncHandler(async (_req, res) => {
     const summary = await dispatchBirthdayGreetings(new Date());
     logger.info(`[dev] greetings/run ${JSON.stringify(summary)}`);
+    res.json(summary);
+  }),
+);
+
+/**
+ * POST /dev/sms/run - run the birthday auto-send SMS pass once at `now` (Stage
+ * 15 QA). Sends a real Twilio text for any person whose birthday is today, who
+ * has an E.164 phone + autoBirthdaySms enabled, and whose owner is past the
+ * send time - so a tester doesn't wait for the cron tick.
+ */
+devRouter.post(
+  '/sms/run',
+  asyncHandler(async (_req, res) => {
+    const summary = await dispatchBirthdaySms(new Date());
+    logger.info(`[dev] sms/run ${JSON.stringify(summary)}`);
     res.json(summary);
   }),
 );
