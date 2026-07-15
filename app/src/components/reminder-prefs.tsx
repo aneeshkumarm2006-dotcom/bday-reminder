@@ -5,6 +5,7 @@ import { Pressable, View } from 'react-native';
 import { Button, Chip, Icon, Select, Sheet, Text, ToggleRow, type SelectOption } from '@/components/ui';
 import { cn, focusRing } from '@/lib/cn';
 import type { ChannelKey, ChannelPreferences } from '@/lib/api';
+import { TIMEZONE_OPTIONS, zoneOffsetLabel } from '@/lib/timezones';
 
 /**
  * Reminder-preference controls (DESIGN.md §8.4/§8.5), shared by the global
@@ -223,6 +224,33 @@ export function ReminderTimePicker({
   // Guard against a stored value off the half-hour grid so it still shows.
   const options = base.some((o) => o.value === value) ? base : [{ label: value, value }, ...base];
   return <Select value={value} options={options} onChange={onChange} placeholder="9:00 AM" />;
+}
+
+/**
+ * Timezone picker for the auto-send "send at this time in this zone" control.
+ * `value` is an IANA id ("" = inherit the account timezone). A stored value that
+ * isn't in the curated list is appended so it still shows (same guard as the
+ * time picker). The live GMT offset is appended to each label as a hint.
+ */
+export function TimeZonePicker({
+  value,
+  onChange,
+  inheritLabel,
+}: {
+  value: string;
+  onChange: (next: string) => void;
+  /** Leading "inherit" option (value ""), e.g. "My timezone (Asia/Kolkata)". */
+  inheritLabel: string;
+}) {
+  const zoneOptions: SelectOption[] = TIMEZONE_OPTIONS.map((o) => {
+    const off = zoneOffsetLabel(o.id);
+    return { label: off ? `${o.label} · ${off}` : o.label, value: o.id };
+  });
+  const base: SelectOption[] = [{ label: inheritLabel, value: '' }, ...zoneOptions];
+  const options = base.some((o) => o.value === value) ? base : [...base, { label: value, value }];
+  return (
+    <Select value={value} options={options} onChange={onChange} accessibilityLabel="Send time zone" />
+  );
 }
 
 /** Bare 12-hour label for an "HH:mm" (e.g. "9:00 AM"), for use in prose. Falls back to 9:00 AM. */

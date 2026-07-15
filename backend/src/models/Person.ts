@@ -7,15 +7,19 @@ import { dateParts, FEB29_RULES, type DateParts, type Feb29Rule } from './common
  * emails this person (at `Person.email`) on their birthday, sent AS the person's
  * owner through the owner's connected Gmail (see `User.gmailIntegration`).
  * `message` is the editable greeting body (confirmed once when enabling);
- * `sendTime` is the wall-clock "HH:mm" (in the owner's timezone) the greeting goes
- * out at on the birthday - unset means inherit the owner's `defaultReminderTime`;
- * `lastSentYear` guards against double-sending - the dispatch only fires when the
- * occurrence's year differs from it, then stamps it (idempotent per year).
+ * `sendTime` is the wall-clock "HH:mm" the greeting goes out at on the birthday -
+ * unset means inherit the owner's `defaultReminderTime`. `sendTimeZone` is the
+ * IANA zone that `sendTime` is anchored in (e.g. "America/New_York" for "9am EST"
+ * even when the owner lives in India) - unset means the owner's account timezone,
+ * so a friend abroad can be greeted at their own local morning. `lastSentYear`
+ * guards against double-sending - the dispatch only fires when the occurrence's
+ * year differs from it, then stamps it (idempotent per year).
  */
 export interface AutoBirthdayEmail {
   enabled: boolean;
   message?: string;
   sendTime?: string;
+  sendTimeZone?: string;
   lastSentYear?: number;
 }
 
@@ -30,6 +34,7 @@ export interface AutoBirthdaySms {
   enabled: boolean;
   message?: string;
   sendTime?: string;
+  sendTimeZone?: string;
   lastSentYear?: number;
 }
 
@@ -64,6 +69,7 @@ const autoBirthdayEmailSchema = new Schema<AutoBirthdayEmail>(
     enabled: { type: Boolean, default: false },
     message: { type: String, trim: true },
     sendTime: { type: String, trim: true },
+    sendTimeZone: { type: String, trim: true },
     lastSentYear: { type: Number },
   },
   { _id: false },
@@ -74,6 +80,7 @@ const autoBirthdaySmsSchema = new Schema<AutoBirthdaySms>(
     enabled: { type: Boolean, default: false },
     message: { type: String, trim: true },
     sendTime: { type: String, trim: true },
+    sendTimeZone: { type: String, trim: true },
     lastSentYear: { type: Number },
   },
   { _id: false },

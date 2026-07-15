@@ -124,19 +124,29 @@ export default function PersonProfilePage() {
   // Confirm handlers for the popups; a thrown ApiError (e.g. "connect Gmail
   // first" for a shared person whose owner isn't connected) is surfaced by the
   // dialog itself, which stays open.
-  const confirmAutoEmail = async ({ recipient, message, sendTime }: AutoSendDraft) => {
+  const confirmAutoEmail = async ({ recipient, message, sendTime, sendTimeZone }: AutoSendDraft) => {
     await peopleApi.update(person.id, {
       email: recipient,
-      autoBirthdayEmail: { enabled: true, message, sendTime: sendTime || null },
+      autoBirthdayEmail: {
+        enabled: true,
+        message,
+        sendTime: sendTime || null,
+        sendTimeZone: sendTimeZone || null,
+      },
     });
     invalidatePerson();
     toast({ message: "Auto-send email on.", tone: "success" });
   };
 
-  const confirmAutoSms = async ({ recipient, message, sendTime }: AutoSendDraft) => {
+  const confirmAutoSms = async ({ recipient, message, sendTime, sendTimeZone }: AutoSendDraft) => {
     await peopleApi.update(person.id, {
       phone: recipient,
-      autoBirthdaySms: { enabled: true, message, sendTime: sendTime || null },
+      autoBirthdaySms: {
+        enabled: true,
+        message,
+        sendTime: sendTime || null,
+        sendTimeZone: sendTimeZone || null,
+      },
     });
     invalidatePerson();
     toast({ message: "Auto-send SMS on.", tone: "success" });
@@ -306,6 +316,7 @@ export default function PersonProfilePage() {
         initialRecipient={person.email ?? ""}
         initialMessage={person.autoBirthdayEmail?.message ?? ""}
         initialSendTime={person.autoBirthdayEmail?.sendTime ?? ""}
+        initialSendTimeZone={person.autoBirthdayEmail?.sendTimeZone ?? ""}
         alreadyEnabled={!!person.autoBirthdayEmail?.enabled}
         onConfirm={confirmAutoEmail}
       />
@@ -318,6 +329,7 @@ export default function PersonProfilePage() {
         initialRecipient={person.phone ?? ""}
         initialMessage={person.autoBirthdaySms?.message ?? ""}
         initialSendTime={person.autoBirthdaySms?.sendTime ?? ""}
+        initialSendTimeZone={person.autoBirthdaySms?.sendTimeZone ?? ""}
         alreadyEnabled={!!person.autoBirthdaySms?.enabled}
         onConfirm={confirmAutoSms}
       />

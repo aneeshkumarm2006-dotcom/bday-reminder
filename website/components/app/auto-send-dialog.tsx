@@ -7,6 +7,7 @@ import {
   defaultTimeInheritLabel,
   friendlyTimeLabel,
   ReminderTimePicker,
+  TimeZonePicker,
 } from "@/components/app/reminder-prefs";
 import { Button } from "@/components/ui/button";
 import { Chip } from "@/components/ui/chip";
@@ -25,10 +26,16 @@ import {
   type GreetingChannel,
 } from "@/lib/greeting-templates";
 import { useAuth } from "@/providers/auth-provider";
+import { timeZoneLabel } from "@/lib/timezones";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-export type AutoSendDraft = { recipient: string; message: string; sendTime: string };
+export type AutoSendDraft = {
+  recipient: string;
+  message: string;
+  sendTime: string;
+  sendTimeZone: string;
+};
 
 /**
  * Auto-send setup popup (Stage 14/15) — opened by the auto-send toggles instead
@@ -51,6 +58,7 @@ export function AutoSendDialog({
   initialRecipient,
   initialMessage,
   initialSendTime,
+  initialSendTimeZone,
   alreadyEnabled,
   onConfirm,
 }: {
@@ -65,6 +73,8 @@ export function AutoSendDialog({
   initialMessage: string;
   /** Stored "HH:mm" send time; "" = inherit the user's default reminder time. */
   initialSendTime: string;
+  /** Stored IANA zone `sendTime` is anchored in; "" = inherit the account timezone. */
+  initialSendTimeZone: string;
   /** true → editing an existing setup ("Save"); false → enabling ("Turn on"). */
   alreadyEnabled: boolean;
   onConfirm: (draft: AutoSendDraft) => void | Promise<void>;
@@ -79,6 +89,7 @@ export function AutoSendDialog({
   const [recipient, setRecipient] = useState("");
   const [message, setMessage] = useState("");
   const [sendTime, setSendTime] = useState("");
+  const [sendTimeZone, setSendTimeZone] = useState("");
   const [customPicked, setCustomPicked] = useState(false);
   const [busy, setBusy] = useState(false);
   const [connectWaiting, setConnectWaiting] = useState(false);
@@ -92,6 +103,7 @@ export function AutoSendDialog({
       setRecipient(initialRecipient);
       setMessage(initialMessage.trim() || defaultGreeting(channel, fillOpts));
       setSendTime(initialSendTime);
+      setSendTimeZone(initialSendTimeZone);
       setCustomPicked(false);
       setBusy(false);
       setConnectWaiting(false);
@@ -100,8 +112,11 @@ export function AutoSendDialog({
 
   const gmailReady = !!user?.gmailConnected;
   // The time the greeting actually goes out at: the chosen slot, or the user's
-  // default reminder time when left on inherit ("").
+  // default reminder time when left on inherit (""). When a send timezone is
+  // picked, the time is anchored there (e.g. "9:00 AM EST"), so we note the zone.
   const effectiveTime = friendlyTimeLabel(sendTime || user?.defaultReminderTime);
+  const zoneNote = sendTimeZone ? ` (${timeZoneLabel(sendTimeZone)})` : "";
+  const effectiveTimeLabel = `${effectiveTime}${zoneNote}`;
 
   // While the OAuth tab is open, re-check the connection whenever the user
   // comes back to this tab — no interval polling needed.
@@ -157,7 +172,12 @@ export function AutoSendDialog({
     if (!canConfirm) return;
     setBusy(true);
     try {
-      await onConfirm({ recipient: recipient.trim(), message: message.trim(), sendTime });
+      await onConfirm({
+        recipient: recipient.trim(),
+        message: message.trim(),
+        sendTime,
+        sendTimeZone,
+      });
       onClose();
     } catch (e) {
       toast({
@@ -272,6 +292,21 @@ export function AutoSendDialog({
             />
           </div>
 
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-ink-secondary">
+              Time zone
+            </label>
+            <TimeZonePicker
+              value={sendTimeZone}
+              onChange={setSendTimeZone}
+              inheritLabel={`My timezone (${user?.timezone ?? "auto"})`}
+            />
+            <p className="mt-1.5 text-xs text-ink-muted">
+              Sends at that time in this zone — pick where {firstName(personName)} lives to greet
+              them at their local time.
+            </p>
+          </div>
+
           {isEmail ? (
             <div className="rounded-lg border border-border-subtle bg-surface-sunken p-4">
               {gmailReady ? (
@@ -279,7 +314,7 @@ export function AutoSendDialog({
                   <CheckCircle2 size={18} className="mt-0.5 shrink-0 text-ok-fg" aria-hidden="true" />
                   <p className="text-sm text-ink-secondary">
                     Sends from <span className="font-medium text-ink">{user?.gmailEmail}</span> — as
-                    you, once a year on their birthday at {effectiveTime}. Your note arrives as a
+                    you, once a year on their birthday at {effectiveTimeLabel}. Your note arrives as a
                     designed birthday card, with a small &ldquo;Sent with Circle the date&rdquo; line
                     at the bottom.
                   </p>
@@ -318,7 +353,7 @@ export function AutoSendDialog({
               <p className="text-sm text-ink-secondary">
                 The text comes from a shared number — not yours — and is signed with your name
                 {user?.name ? ` (${user.name})` : ""}, once a year on their birthday at{" "}
-                {effectiveTime}.
+                {effectiveTimeLabel}.
               </p>
             </div>
           )}

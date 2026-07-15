@@ -41,6 +41,8 @@ async function main(): Promise<void> {
   const { twilioMonthlyCap, autoSmsPeriod } = await import('../src/lib/auto-sms-usage');
   const { AutoSmsUsage } = await import('../src/models/AutoSmsUsage');
   const { Person } = await import('../src/models/Person');
+  const { todayInTimeZone } = await import('../src/lib/dates');
+  const { fireInstant } = await import('../src/lib/schedule');
 
   await connectDb(process.env.MONGODB_URI);
   const app = createApp();
@@ -229,6 +231,48 @@ async function main(): Promise<void> {
     const sEve = makeStub('sent');
     summary = await dispatchBirthdaySms(atUTC(19), { send: sEve.send });
     check(summary.sent === 1 && sEve.calls[0].to === '+15551230011', 'once 18:00 passes the night-owl text sends');
+
+    // --- Per-person send TIMEZONE (sendTimeZone) --------------------------------
+    // Text a friend at "09:00 America/New_York" while the owner is on UTC. The
+    // birthday is reckoned in the target zone (derived from that zone's today);
+    // the fire instant is a fixed absolute moment we straddle.
+    const tzTarget = 'America/New_York';
+    const nyToday = todayInTimeZone(tzTarget);
+    res = await post(
+      '/people',
+      {
+        fullName: 'NY Friend',
+        dob: { month: nyToday.getUTCMonth() + 1, day: nyToday.getUTCDate(), year: 1990 },
+        phone: '5551230012',
+        autoBirthdaySms: { enabled: true, sendTime: '09:00', sendTimeZone: tzTarget },
+      },
+      token,
+    );
+    const nyFriend = (await res.json()).person;
+    check(
+      nyFriend.autoBirthdaySms.sendTimeZone === tzTarget && nyFriend.autoBirthdaySms.sendTime === '09:00',
+      'sendTimeZone round-trips through create + serialize',
+    );
+    const nyFire = fireInstant(nyToday, 0, tzTarget, '09:00');
+    const sNyBefore = makeStub('sent');
+    await dispatchBirthdaySms(new Date(nyFire.getTime() - 60_000), { send: sNyBefore.send });
+    check(
+      sNyBefore.calls.every((c) => c.to !== '+15551230012'),
+      'before 09:00 New-York-time the text is held (not the owner’s UTC clock)',
+    );
+    const sNyAfter = makeStub('sent');
+    await dispatchBirthdaySms(new Date(nyFire.getTime() + 60_000), { send: sNyAfter.send });
+    check(
+      sNyAfter.calls.some((c) => c.to === '+15551230012'),
+      'once 09:00 New-York-time passes the text sends',
+    );
+    // An unknown timezone is rejected at the schema boundary.
+    res = await post(
+      '/people',
+      { fullName: 'Bad TZ', dob: { ...md(todayUTC), year: 1990 }, phone: '5551230013', autoBirthdaySms: { enabled: true, sendTimeZone: 'Mars/Olympus' } },
+      token,
+    );
+    check(res.status === 400, 'an unknown sendTimeZone is rejected (400)');
 
     // PATCH updates the time, clears it (→ inherit default), rejects bad input.
     res = await patch(`/people/${owl.id}`, { autoBirthdaySms: { enabled: true, sendTime: '07:30' } }, token);

@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { ToggleRow } from "@/components/ui/switch";
 import type { ChannelKey, ChannelPreferences } from "@/lib/api";
+import { TIMEZONE_OPTIONS, type TimeZoneOption, zoneOffsetLabel } from "@/lib/timezones";
 
 /**
  * Reminder-preference controls (DESIGN.md §8.4/§8.5), shared by the Settings
@@ -174,6 +175,44 @@ export function ReminderTimePicker({
 }) {
   const base = inheritLabel ? [{ label: inheritLabel, value: "" }, ...TIME_OPTIONS] : TIME_OPTIONS;
   const options = base.some((o) => o.value === value) ? base : [{ label: value, value }, ...base];
+  return (
+    <Select value={value} onChange={(e) => onChange(e.target.value)}>
+      {options.map((o) => (
+        <option key={o.value} value={o.value}>
+          {o.label}
+        </option>
+      ))}
+    </Select>
+  );
+}
+
+/**
+ * Timezone picker for the auto-send "send at this time in this zone" control.
+ * `value` is an IANA id ("" = inherit the account timezone). A stored value that
+ * isn't in the curated list is prepended so it still shows (same guard as the
+ * time picker). The live GMT offset is appended to each label as a hint.
+ */
+export function TimeZonePicker({
+  value,
+  onChange,
+  inheritLabel,
+}: {
+  value: string;
+  onChange: (next: string) => void;
+  /** Leading "inherit" option (value ""), e.g. "My timezone (Asia/Kolkata)". */
+  inheritLabel: string;
+}) {
+  const withOffset = (o: TimeZoneOption) => {
+    const off = zoneOffsetLabel(o.id);
+    return off ? `${o.label} · ${off}` : o.label;
+  };
+  const base = [
+    { label: inheritLabel, value: "" },
+    ...TIMEZONE_OPTIONS.map((o) => ({ label: withOffset(o), value: o.id })),
+  ];
+  const options = base.some((o) => o.value === value)
+    ? base
+    : [...base, { label: value, value }];
   return (
     <Select value={value} onChange={(e) => onChange(e.target.value)}>
       {options.map((o) => (

@@ -40,6 +40,8 @@ async function main(): Promise<void> {
   const { encryptToken } = await import('../src/lib/token-crypto');
   const { User } = await import('../src/models/User');
   const { Person } = await import('../src/models/Person');
+  const { todayInTimeZone } = await import('../src/lib/dates');
+  const { fireInstant } = await import('../src/lib/schedule');
 
   await connectDb(process.env.MONGODB_URI);
   const app = createApp();
@@ -266,6 +268,53 @@ async function main(): Promise<void> {
       summary.sent === 1 && sEve.calls[0].to === 'owl@example.com',
       'once 18:00 passes the night-owl greeting sends (the early one stays idempotent)',
     );
+
+    // --- Per-person send TIMEZONE (sendTimeZone) --------------------------------
+    // A friend greeted at "09:00 America/New_York" even though the owner is on UTC.
+    // The birthday is reckoned in the *target* zone, so we derive it from that
+    // zone's today; the fire instant is a fixed absolute moment we can straddle.
+    const tzTarget = 'America/New_York';
+    const nyToday = todayInTimeZone(tzTarget);
+    res = await post(
+      '/people',
+      {
+        fullName: 'NY Friend',
+        dob: { month: nyToday.getUTCMonth() + 1, day: nyToday.getUTCDate(), year: 1990 },
+        email: 'ny@example.com',
+        autoBirthdayEmail: { enabled: true, sendTime: '09:00', sendTimeZone: tzTarget },
+      },
+      token,
+    );
+    const nyFriend = (await res.json()).person;
+    check(
+      nyFriend.autoBirthdayEmail.sendTimeZone === tzTarget && nyFriend.autoBirthdayEmail.sendTime === '09:00',
+      'sendTimeZone round-trips through create + serialize',
+    );
+    // 09:00 in New York resolves to a specific UTC instant (13:00/14:00 depending
+    // on DST) — well after the owner's own 00:00 UTC default would have fired.
+    const nyFire = fireInstant(nyToday, 0, tzTarget, '09:00');
+    const sNyBefore = makeStub('sent');
+    summary = await dispatchBirthdayGreetings(new Date(nyFire.getTime() - 60_000), { send: sNyBefore.send });
+    check(
+      sNyBefore.calls.every((c) => c.to !== 'ny@example.com'),
+      'before 09:00 New-York-time the greeting is held (not the owner’s UTC clock)',
+    );
+    const nyDocBefore = await Person.findById(nyFriend.id);
+    check(nyDocBefore?.autoBirthdayEmail?.lastSentYear == null, 'the NY friend is not claimed before their local send time');
+    const sNyAfter = makeStub('sent');
+    summary = await dispatchBirthdayGreetings(new Date(nyFire.getTime() + 60_000), { send: sNyAfter.send });
+    check(
+      sNyAfter.calls.some((c) => c.to === 'ny@example.com'),
+      'once 09:00 New-York-time passes the greeting sends',
+    );
+
+    // An unknown timezone is rejected at the schema boundary.
+    res = await post(
+      '/people',
+      { fullName: 'Bad TZ', dob: { ...md(todayUTC), year: 1990 }, email: 'bad@example.com', autoBirthdayEmail: { enabled: true, sendTimeZone: 'Mars/Olympus' } },
+      token,
+    );
+    check(res.status === 400, 'an unknown sendTimeZone is rejected (400)');
 
     // PATCH updates the time, clears it (→ inherit default), and rejects bad input.
     res = await patch(`/people/${owl.id}`, { autoBirthdayEmail: { enabled: true, sendTime: '07:30' } }, token);

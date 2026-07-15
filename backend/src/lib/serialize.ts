@@ -90,8 +90,9 @@ export function serializePerson(person: PersonDoc, extras: PersonExtras = {}) {
           enabled: person.autoBirthdayEmail.enabled,
           message: person.autoBirthdayEmail.message ?? null,
           sendTime: person.autoBirthdayEmail.sendTime ?? null,
+          sendTimeZone: person.autoBirthdayEmail.sendTimeZone ?? null,
         }
-      : { enabled: false, message: null, sendTime: null },
+      : { enabled: false, message: null, sendTime: null, sendTimeZone: null },
     // The friend's auto-send birthday SMS config (Stage 15). Same shape; the
     // internal lastSentYear guard stays server-side.
     autoBirthdaySms: person.autoBirthdaySms
@@ -99,8 +100,9 @@ export function serializePerson(person: PersonDoc, extras: PersonExtras = {}) {
           enabled: person.autoBirthdaySms.enabled,
           message: person.autoBirthdaySms.message ?? null,
           sendTime: person.autoBirthdaySms.sendTime ?? null,
+          sendTimeZone: person.autoBirthdaySms.sendTimeZone ?? null,
         }
-      : { enabled: false, message: null, sendTime: null },
+      : { enabled: false, message: null, sendTime: null, sendTimeZone: null },
     lists: person.lists.map((id) => id.toString()),
     // Shared-list attribution (Stage 8); omitted on personal-only contexts that don't pass it.
     ...(extras.lastEditedBy !== undefined ? { lastEditedBy: extras.lastEditedBy } : {}),

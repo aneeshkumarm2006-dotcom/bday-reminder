@@ -84,6 +84,29 @@ const sendTimeSchema = z
   .nullable()
   .optional();
 
+/** Whether a string is a runtime-recognized IANA timezone (e.g. America/New_York). */
+function isValidTimeZone(tz: string): boolean {
+  try {
+    // Throws RangeError on an unknown zone; any accepted zone is safe to store.
+    new Intl.DateTimeFormat('en-US', { timeZone: tz });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// The IANA zone `sendTime` is anchored in, so "9:00 in America/New_York" fires at
+// EST regardless of where the owner lives. `null`/omitted means the owner's
+// account timezone (the historical behavior). Shared by both auto-send channels.
+const sendTimeZoneSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(64)
+  .refine(isValidTimeZone, 'Unknown timezone.')
+  .nullable()
+  .optional();
+
 // Auto-send toggle + editable greeting body + per-person send time (Stage 14).
 // `null` clears the whole config; `lastSentYear` is server-managed and never
 // accepted from the client.
@@ -92,6 +115,7 @@ const autoBirthdayEmailSchema = z
     enabled: z.boolean(),
     message: z.string().trim().max(2000).nullable().optional(),
     sendTime: sendTimeSchema,
+    sendTimeZone: sendTimeZoneSchema,
   })
   .strict()
   .nullable()
@@ -104,6 +128,7 @@ const autoBirthdaySmsSchema = z
     enabled: z.boolean(),
     message: z.string().trim().max(160).nullable().optional(),
     sendTime: sendTimeSchema,
+    sendTimeZone: sendTimeZoneSchema,
   })
   .strict()
   .nullable()
@@ -286,6 +311,7 @@ peopleRouter.post(
               enabled,
               message: body.autoBirthdayEmail.message?.trim() || undefined,
               sendTime: body.autoBirthdayEmail.sendTime ?? undefined,
+              sendTimeZone: body.autoBirthdayEmail.sendTimeZone ?? undefined,
             },
       autoBirthdaySms:
         body.autoBirthdaySms == null
@@ -294,6 +320,7 @@ peopleRouter.post(
               enabled: smsEnabled,
               message: body.autoBirthdaySms.message?.trim() || undefined,
               sendTime: body.autoBirthdaySms.sendTime ?? undefined,
+              sendTimeZone: body.autoBirthdaySms.sendTimeZone ?? undefined,
             },
       createdBy: userId,
       updatedBy: userId,
@@ -422,9 +449,10 @@ peopleRouter.patch(
       if (patch.autoBirthdayEmail === null) {
         person.autoBirthdayEmail = undefined;
       } else {
-        // Preserve the server-managed lastSentYear; only `message`/`sendTime`
-        // undefined means "leave as-is" (null/'' clears the message → default copy;
-        // null sendTime clears it → inherit the owner's default reminder time).
+        // Preserve the server-managed lastSentYear; only `message`/`sendTime`/
+        // `sendTimeZone` undefined means "leave as-is" (null/'' clears the message
+        // → default copy; null sendTime → inherit the owner's default reminder time;
+        // null sendTimeZone → inherit the owner's account timezone).
         const prev = person.autoBirthdayEmail;
         const nextMessage =
           patch.autoBirthdayEmail.message === undefined
@@ -434,10 +462,15 @@ peopleRouter.patch(
           patch.autoBirthdayEmail.sendTime === undefined
             ? prev?.sendTime
             : (patch.autoBirthdayEmail.sendTime ?? undefined);
+        const nextSendTimeZone =
+          patch.autoBirthdayEmail.sendTimeZone === undefined
+            ? prev?.sendTimeZone
+            : (patch.autoBirthdayEmail.sendTimeZone ?? undefined);
         person.autoBirthdayEmail = {
           enabled: patch.autoBirthdayEmail.enabled,
           message: nextMessage,
           sendTime: nextSendTime,
+          sendTimeZone: nextSendTimeZone,
           lastSentYear: prev?.lastSentYear,
         };
       }
@@ -446,9 +479,10 @@ peopleRouter.patch(
       if (patch.autoBirthdaySms === null) {
         person.autoBirthdaySms = undefined;
       } else {
-        // Preserve the server-managed lastSentYear; only `message`/`sendTime`
-        // undefined means "leave as-is" (null/'' clears the message → default copy;
-        // null sendTime clears it → inherit the owner's default reminder time).
+        // Preserve the server-managed lastSentYear; only `message`/`sendTime`/
+        // `sendTimeZone` undefined means "leave as-is" (null/'' clears the message
+        // → default copy; null sendTime → inherit the owner's default reminder time;
+        // null sendTimeZone → inherit the owner's account timezone).
         const prev = person.autoBirthdaySms;
         const nextMessage =
           patch.autoBirthdaySms.message === undefined
@@ -458,10 +492,15 @@ peopleRouter.patch(
           patch.autoBirthdaySms.sendTime === undefined
             ? prev?.sendTime
             : (patch.autoBirthdaySms.sendTime ?? undefined);
+        const nextSendTimeZone =
+          patch.autoBirthdaySms.sendTimeZone === undefined
+            ? prev?.sendTimeZone
+            : (patch.autoBirthdaySms.sendTimeZone ?? undefined);
         person.autoBirthdaySms = {
           enabled: patch.autoBirthdaySms.enabled,
           message: nextMessage,
           sendTime: nextSendTime,
+          sendTimeZone: nextSendTimeZone,
           lastSentYear: prev?.lastSentYear,
         };
       }

@@ -162,6 +162,7 @@ export default function AddPersonScreen() {
   const [autoSendOn, setAutoSendOn] = useState(false);
   const [autoSendMessage, setAutoSendMessage] = useState('');
   const [autoSendTime, setAutoSendTime] = useState('');
+  const [autoSendTz, setAutoSendTz] = useState('');
   const [emailSheetOpen, setEmailSheetOpen] = useState(false);
   const [gmailAvailable, setGmailAvailable] = useState<boolean | undefined>(undefined);
 
@@ -171,6 +172,7 @@ export default function AddPersonScreen() {
   const [autoSmsOn, setAutoSmsOn] = useState(false);
   const [autoSmsMessage, setAutoSmsMessage] = useState('');
   const [autoSmsTime, setAutoSmsTime] = useState('');
+  const [autoSmsTz, setAutoSmsTz] = useState('');
   const [smsSheetOpen, setSmsSheetOpen] = useState(false);
   const [smsAutoSendAvailable, setSmsAutoSendAvailable] = useState<boolean | undefined>(undefined);
 
@@ -274,9 +276,11 @@ export default function AddPersonScreen() {
         setAutoSendOn(person.autoBirthdayEmail?.enabled ?? false);
         setAutoSendMessage(person.autoBirthdayEmail?.message ?? '');
         setAutoSendTime(person.autoBirthdayEmail?.sendTime ?? '');
+        setAutoSendTz(person.autoBirthdayEmail?.sendTimeZone ?? '');
         setAutoSmsOn(person.autoBirthdaySms?.enabled ?? false);
         setAutoSmsMessage(person.autoBirthdaySms?.message ?? '');
         setAutoSmsTime(person.autoBirthdaySms?.sendTime ?? '');
+        setAutoSmsTz(person.autoBirthdaySms?.sendTimeZone ?? '');
         setPhotoUrl(person.photoUrl ?? null);
         setFeb29Rule(person.feb29Rule);
 
@@ -362,11 +366,13 @@ export default function AddPersonScreen() {
           enabled: autoSendOn,
           message: autoSendMessage.trim() ? autoSendMessage.trim() : null,
           sendTime: autoSendTime || null,
+          sendTimeZone: autoSendTz || null,
         },
         autoBirthdaySms: {
           enabled: autoSmsOn,
           message: autoSmsMessage.trim() ? autoSmsMessage.trim() : null,
           sendTime: autoSmsTime || null,
+          sendTimeZone: autoSmsTz || null,
         },
         photoUrl: photoUrl ?? null,
         feb29Rule: isLeapDay ? feb29Rule : 'feb28',
@@ -856,11 +862,13 @@ export default function AddPersonScreen() {
           initialRecipient={email}
           initialMessage={autoSendMessage}
           initialSendTime={autoSendTime}
+          initialSendTimeZone={autoSendTz}
           alreadyEnabled={autoSendOn}
-          onConfirm={({ recipient, message, sendTime }) => {
+          onConfirm={({ recipient, message, sendTime, sendTimeZone }) => {
             setEmail(recipient);
             setAutoSendMessage(message);
             setAutoSendTime(sendTime);
+            setAutoSendTz(sendTimeZone);
             setAutoSendOn(true);
           }}
         />
@@ -873,11 +881,13 @@ export default function AddPersonScreen() {
           initialRecipient={phone}
           initialMessage={autoSmsMessage}
           initialSendTime={autoSmsTime}
+          initialSendTimeZone={autoSmsTz}
           alreadyEnabled={autoSmsOn}
-          onConfirm={({ recipient, message, sendTime }) => {
+          onConfirm={({ recipient, message, sendTime, sendTimeZone }) => {
             setPhone(recipient);
             setAutoSmsMessage(message);
             setAutoSmsTime(sendTime);
+            setAutoSmsTz(sendTimeZone);
             setAutoSmsOn(true);
           }}
         />

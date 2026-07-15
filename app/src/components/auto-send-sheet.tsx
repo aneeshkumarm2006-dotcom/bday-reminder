@@ -14,9 +14,11 @@ import {
   defaultTimeInheritLabel,
   friendlyTimeLabel,
   ReminderTimePicker,
+  TimeZonePicker,
 } from '@/components/reminder-prefs';
 import { ApiError } from '@/lib/api';
 import { connectGmail } from '@/lib/gmail-auth';
+import { timeZoneLabel } from '@/lib/timezones';
 import {
   defaultGreeting,
   EMAIL_MAX,
@@ -32,7 +34,12 @@ import { useTokens } from '@/theme/theme-provider';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-export type AutoSendDraft = { recipient: string; message: string; sendTime: string };
+export type AutoSendDraft = {
+  recipient: string;
+  message: string;
+  sendTime: string;
+  sendTimeZone: string;
+};
 
 /**
  * Auto-send setup sheet (Stage 14/15) — opened by the auto-send toggles instead
@@ -54,6 +61,7 @@ export function AutoSendSheet({
   initialRecipient,
   initialMessage,
   initialSendTime,
+  initialSendTimeZone,
   alreadyEnabled,
   onConfirm,
 }: {
@@ -68,6 +76,8 @@ export function AutoSendSheet({
   initialMessage: string;
   /** Stored "HH:mm" send time; "" = inherit the user's default reminder time. */
   initialSendTime: string;
+  /** Stored IANA zone `sendTime` is anchored in; "" = inherit the account timezone. */
+  initialSendTimeZone: string;
   /** true → editing an existing setup ("Save"); false → enabling ("Turn on"). */
   alreadyEnabled: boolean;
   onConfirm: (draft: AutoSendDraft) => void | Promise<void>;
@@ -83,6 +93,7 @@ export function AutoSendSheet({
   const [recipient, setRecipient] = useState('');
   const [message, setMessage] = useState('');
   const [sendTime, setSendTime] = useState('');
+  const [sendTimeZone, setSendTimeZone] = useState('');
   const [customPicked, setCustomPicked] = useState(false);
   const [busy, setBusy] = useState(false);
   const [connecting, setConnecting] = useState(false);
@@ -96,6 +107,7 @@ export function AutoSendSheet({
       setRecipient(initialRecipient);
       setMessage(initialMessage.trim() || defaultGreeting(channel, fillOpts));
       setSendTime(initialSendTime);
+      setSendTimeZone(initialSendTimeZone);
       setCustomPicked(false);
       setBusy(false);
       setConnecting(false);
@@ -104,8 +116,12 @@ export function AutoSendSheet({
 
   const gmailReady = !!user?.gmailConnected;
   // The time the greeting actually goes out at: the chosen slot, or the user's
-  // default reminder time when left on inherit ("").
+  // default reminder time when left on inherit (""). When a send timezone is
+  // picked, the time is anchored there (e.g. "9:00 AM EST"), so we note the zone.
   const effectiveTime = friendlyTimeLabel(sendTime || user?.defaultReminderTime);
+  const effectiveTimeLabel = sendTimeZone
+    ? `${effectiveTime} (${timeZoneLabel(sendTimeZone)})`
+    : effectiveTime;
   const matched = matchTemplateId(message, channel, fillOpts);
   const activeTemplate = customPicked ? null : matched;
 
@@ -132,7 +148,12 @@ export function AutoSendSheet({
     if (!canConfirm) return;
     setBusy(true);
     try {
-      await onConfirm({ recipient: recipient.trim(), message: message.trim(), sendTime });
+      await onConfirm({
+        recipient: recipient.trim(),
+        message: message.trim(),
+        sendTime,
+        sendTimeZone,
+      });
       onClose();
     } catch (e) {
       toast.show(e instanceof ApiError ? e.message : "Couldn't save. Try again.");
@@ -228,13 +249,25 @@ export function AutoSendSheet({
                 />
               </View>
 
+              <View>
+                <Label>Time zone</Label>
+                <TimeZonePicker
+                  value={sendTimeZone}
+                  onChange={setSendTimeZone}
+                  inheritLabel={`My timezone (${user?.timezone ?? 'auto'})`}
+                />
+                <Text variant="caption" className="mt-1.5 text-ink-muted">
+                  {`Sends at that time in this zone — pick where ${firstName(personName)} lives to greet them at their local time.`}
+                </Text>
+              </View>
+
               {isEmail ? (
                 <View className="rounded-md bg-surface-sunken p-3">
                   {gmailReady ? (
                     <View className="flex-row items-start gap-2.5">
                       <Icon icon={CheckCircle2} size={18} color={t.okFg} />
                       <Text variant="caption" className="flex-1 text-ink-secondary">
-                        {`Sends from ${user?.gmailEmail ?? 'your Gmail'} — as you, once a year on their birthday at ${effectiveTime}. Your note arrives as a designed birthday card, with a small “Sent with Circle the date” line at the bottom.`}
+                        {`Sends from ${user?.gmailEmail ?? 'your Gmail'} — as you, once a year on their birthday at ${effectiveTimeLabel}. Your note arrives as a designed birthday card, with a small “Sent with Circle the date” line at the bottom.`}
                       </Text>
                     </View>
                   ) : connecting ? (
@@ -260,7 +293,7 @@ export function AutoSendSheet({
                   <Text variant="caption" className="text-ink-secondary">
                     {`The text comes from a shared number — not yours — and is signed with your name${
                       user?.name ? ` (${user.name})` : ''
-                    }, once a year on their birthday at ${effectiveTime}.`}
+                    }, once a year on their birthday at ${effectiveTimeLabel}.`}
                   </Text>
                 </View>
               )}

@@ -356,7 +356,6 @@ export async function dispatchBirthdayGreetings(
   );
 
   for (const user of senders) {
-    const today = todayInTimeZone(user.timezone);
     const people = await Person.find({
       owner: user._id,
       'autoBirthdayEmail.enabled': true,
@@ -365,12 +364,19 @@ export async function dispatchBirthdayGreetings(
 
     for (const person of people) {
       if (!person.email) continue;
+      // Anchor "is it their birthday, and has the send time arrived?" in the
+      // greeting's own timezone. `sendTimeZone` wins (e.g. "9am America/New_York"
+      // for a friend in the US even when the owner lives in India); unset falls
+      // back to the owner's account timezone (the historical behavior), so a
+      // friend abroad is greeted at their local morning, not the owner's.
+      const tz = person.autoBirthdayEmail?.sendTimeZone ?? user.timezone;
+      const today = todayInTimeZone(tz);
       const { occurrence } = resolveOccurrence(person.dob, person.feb29Rule, today);
       // Only on the birthday itself, once the send time has arrived. The person's
       // per-greeting sendTime wins; unset falls back to the owner's default time.
       if (daysUntil(occurrence, today) !== 0) continue;
       const sendTime = person.autoBirthdayEmail?.sendTime ?? user.defaultReminderTime;
-      if (now.getTime() < fireInstant(occurrence, 0, user.timezone, sendTime).getTime()) {
+      if (now.getTime() < fireInstant(occurrence, 0, tz, sendTime).getTime()) {
         continue;
       }
 
@@ -474,13 +480,18 @@ export async function dispatchBirthdaySms(
     const owner = await ownerOf(person.owner.toString());
     if (!owner) continue;
 
-    const today = todayInTimeZone(owner.timezone);
+    // Anchor "is it their birthday, and has the send time arrived?" in the
+    // greeting's own timezone. `sendTimeZone` wins (e.g. "9am America/New_York"
+    // for a friend in the US even when the owner lives in India); unset falls
+    // back to the owner's account timezone (the historical behavior).
+    const tz = person.autoBirthdaySms?.sendTimeZone ?? owner.timezone;
+    const today = todayInTimeZone(tz);
     const { occurrence } = resolveOccurrence(person.dob, person.feb29Rule, today);
     // Only on the birthday itself, once the send time has arrived. The person's
     // per-greeting sendTime wins; unset falls back to the owner's default time.
     if (daysUntil(occurrence, today) !== 0) continue;
     const sendTime = person.autoBirthdaySms?.sendTime ?? owner.defaultReminderTime;
-    if (now.getTime() < fireInstant(occurrence, 0, owner.timezone, sendTime).getTime()) {
+    if (now.getTime() < fireInstant(occurrence, 0, tz, sendTime).getTime()) {
       continue;
     }
 

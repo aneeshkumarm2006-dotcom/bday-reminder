@@ -85,9 +85,11 @@ export function PersonForm({
   const [autoSendOn, setAutoSendOn] = useState(person?.autoBirthdayEmail?.enabled ?? false);
   const [autoSendMessage, setAutoSendMessage] = useState(person?.autoBirthdayEmail?.message ?? "");
   const [autoSendTime, setAutoSendTime] = useState(person?.autoBirthdayEmail?.sendTime ?? "");
+  const [autoSendTz, setAutoSendTz] = useState(person?.autoBirthdayEmail?.sendTimeZone ?? "");
   const [autoSmsOn, setAutoSmsOn] = useState(person?.autoBirthdaySms?.enabled ?? false);
   const [autoSmsMessage, setAutoSmsMessage] = useState(person?.autoBirthdaySms?.message ?? "");
   const [autoSmsTime, setAutoSmsTime] = useState(person?.autoBirthdaySms?.sendTime ?? "");
+  const [autoSmsTz, setAutoSmsTz] = useState(person?.autoBirthdaySms?.sendTimeZone ?? "");
   const [emailDialogOpen, setEmailDialogOpen] = useState(false);
   const [smsDialogOpen, setSmsDialogOpen] = useState(false);
   const [photoUrl, setPhotoUrl] = useState<string | null>(person?.photoUrl ?? null);
@@ -171,11 +173,13 @@ export function PersonForm({
         enabled: autoSendOn,
         message: autoSendMessage.trim() || null,
         sendTime: autoSendTime || null,
+        sendTimeZone: autoSendTz || null,
       },
       autoBirthdaySms: {
         enabled: autoSmsOn,
         message: autoSmsMessage.trim() || null,
         sendTime: autoSmsTime || null,
+        sendTimeZone: autoSmsTz || null,
       },
       photoUrl,
       lists: selectedLists,
@@ -471,11 +475,13 @@ export function PersonForm({
         initialRecipient={email}
         initialMessage={autoSendMessage}
         initialSendTime={autoSendTime}
+        initialSendTimeZone={autoSendTz}
         alreadyEnabled={autoSendOn}
-        onConfirm={({ recipient, message, sendTime }) => {
+        onConfirm={({ recipient, message, sendTime, sendTimeZone }) => {
           setEmail(recipient);
           setAutoSendMessage(message);
           setAutoSendTime(sendTime);
+          setAutoSendTz(sendTimeZone);
           setAutoSendOn(true);
         }}
       />
@@ -488,11 +494,13 @@ export function PersonForm({
         initialRecipient={phone}
         initialMessage={autoSmsMessage}
         initialSendTime={autoSmsTime}
+        initialSendTimeZone={autoSmsTz}
         alreadyEnabled={autoSmsOn}
-        onConfirm={({ recipient, message, sendTime }) => {
+        onConfirm={({ recipient, message, sendTime, sendTimeZone }) => {
           setPhone(recipient);
           setAutoSmsMessage(message);
           setAutoSmsTime(sendTime);
+          setAutoSmsTz(sendTimeZone);
           setAutoSmsOn(true);
         }}
       />
