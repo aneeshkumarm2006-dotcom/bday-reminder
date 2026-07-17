@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Hanken_Grotesk, Inter } from "next/font/google";
+import Script from "next/script";
 
 import { ThemeProvider } from "@/components/theme-provider";
 import { AppProviders } from "@/providers/app-providers";
@@ -22,6 +23,9 @@ const inter = Inter({
   variable: "--font-inter",
   display: "swap",
 });
+
+// Google Analytics 4 (gtag.js) measurement ID.
+const GA_MEASUREMENT_ID = "G-SFK13RXJQR";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteConfig.url),
@@ -93,6 +97,20 @@ export default function RootLayout({
         <ThemeProvider>
           <AppProviders>{children}</AppProviders>
         </ThemeProvider>
+
+        {/* Google Analytics 4 — loaded after hydration (Next.js gtag.js pattern). */}
+        <Script
+          src={`https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`}
+          strategy="afterInteractive"
+        />
+        <Script id="google-analytics" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', '${GA_MEASUREMENT_ID}');
+          `}
+        </Script>
       </body>
     </html>
   );
