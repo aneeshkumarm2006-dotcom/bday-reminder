@@ -317,7 +317,7 @@ export function TiptapEditor({
             value={initialContent}
             onChange={(e) => onChangeRef.current(e.target.value)}
             spellCheck={false}
-            className="block min-h-[22rem] w-full resize-y bg-surface px-4 py-3 font-mono text-[13px] leading-relaxed text-ink focus:outline-none"
+            className="block h-[32rem] w-full resize-none overflow-y-auto overscroll-contain bg-surface px-4 py-3 font-mono text-[13px] leading-relaxed text-ink focus:outline-none"
             aria-label="HTML source"
           />
           <p className="border-t border-border-subtle px-4 py-2 text-xs text-ink-muted">
@@ -326,7 +326,10 @@ export function TiptapEditor({
           </p>
         </>
       ) : (
-        <EditorContent editor={editor} className="px-4 py-3" />
+        <EditorContent
+          editor={editor}
+          className="h-[32rem] overflow-y-auto overscroll-contain px-4 py-3"
+        />
       )}
 
       <Dialog
