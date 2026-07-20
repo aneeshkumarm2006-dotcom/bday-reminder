@@ -16,6 +16,7 @@ import { useToast } from "@/components/ui/toast";
 import {
   createPostRequest,
   fileToDataUri,
+  importImageUrlRequest,
   updatePostRequest,
   uploadImageRequest,
 } from "@/lib/blog/dashboard-api";
@@ -458,6 +459,7 @@ export function PostEditor({
                       const dataUri = await fileToDataUri(file);
                       return uploadImageRequest(dataUri);
                     }}
+                    onImportImageUrl={importImageUrlRequest}
                     onError={(message) => toast({ message, tone: "error" })}
                   />
                 </div>

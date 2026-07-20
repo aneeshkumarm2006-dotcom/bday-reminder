@@ -1,5 +1,7 @@
 import { createHash } from "node:crypto";
 
+import sharp from "sharp";
+
 /**
  * Image upload to Cloudinary via signed REST (no SDK), mirroring the backend's
  * approach (backend/src/lib/cloudinary.ts). Three discrete env vars; when any is
@@ -59,24 +61,135 @@ function sign(params: Record<string, string>, secret: string): string {
   return createHash("sha1").update(toSign + secret).digest("hex");
 }
 
-export async function uploadImage(dataUri: string): Promise<UploadResult> {
+/**
+ * Ingest format we transcode every upload to. WebP is smaller than JPEG/PNG at
+ * equivalent quality and preserves alpha, so it's the better SEO/perf default —
+ * the stored asset (and its `secure_url`) comes back as `.webp` regardless of
+ * whether the source was a JPG, PNG, or another WebP.
+ */
+const TARGET_FORMAT = "webp";
+
+/**
+ * Every stored blog image is compressed to at most this many bytes (~300KB) for
+ * faster page loads and better Core Web Vitals / SEO. Images already under the
+ * cap are left untouched (Cloudinary still transcodes them to WebP as before).
+ */
+const MAX_UPLOAD_BYTES = 300 * 1024;
+
+/** Never upscale, but cap very wide source images — blog content rarely needs more. */
+const MAX_UPLOAD_WIDTH = 2000;
+
+/** Decode a `data:` URI or fetch a remote http(s) URL into a Buffer, or null. */
+async function loadImageBytes(file: string): Promise<Buffer | null> {
+  try {
+    if (file.startsWith("data:")) {
+      const comma = file.indexOf(",");
+      if (comma === -1) return null;
+      return Buffer.from(file.slice(comma + 1), "base64");
+    }
+    const res = await fetch(file);
+    if (!res.ok) return null;
+    return Buffer.from(await res.arrayBuffer());
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Re-encode `input` to WebP under `maxBytes`, stepping quality then dimensions
+ * down until it fits. Returns the best-effort smallest buffer (which may still
+ * exceed the cap for pathological inputs) or null if sharp can't read it.
+ */
+async function compressToWebp(input: Buffer, maxBytes: number): Promise<Buffer | null> {
+  try {
+    const meta = await sharp(input, { failOn: "none" }).metadata();
+    const srcWidth = meta.width ?? MAX_UPLOAD_WIDTH;
+    const cap = Math.min(srcWidth, MAX_UPLOAD_WIDTH);
+
+    // Progressively lower quality, then shrink dimensions, until under the cap.
+    const attempts: Array<{ width: number; quality: number }> = [
+      { width: cap, quality: 80 },
+      { width: cap, quality: 65 },
+      { width: cap, quality: 50 },
+      { width: Math.round(cap * 0.75), quality: 60 },
+      { width: Math.round(cap * 0.75), quality: 45 },
+      { width: Math.round(cap * 0.5), quality: 50 },
+      { width: Math.round(cap * 0.5), quality: 40 },
+    ];
+
+    let smallest: Buffer | null = null;
+    for (const { width, quality } of attempts) {
+      const out = await sharp(input, { failOn: "none" })
+        .rotate() // bake in EXIF orientation before we drop the metadata
+        .resize({ width: Math.max(width, 1), withoutEnlargement: true })
+        .webp({ quality })
+        .toBuffer();
+      if (!smallest || out.length < smallest.length) smallest = out;
+      if (out.length <= maxBytes) return out;
+    }
+    return smallest;
+  } catch (err) {
+    console.error("Image compression failed (uploading original):", err);
+    return null;
+  }
+}
+
+/**
+ * Prepare the `file` param for the Cloudinary upload, compressing oversized
+ * images under {@link MAX_UPLOAD_BYTES} first. Returns the value to upload plus
+ * whether Cloudinary should still transcode it to WebP: for a locally compressed
+ * image we skip that (the bytes are already final WebP), for everything else we
+ * keep the original transcode-on-upload behavior.
+ */
+async function prepareUpload(file: string): Promise<{ file: string; transcode: boolean }> {
+  const bytes = await loadImageBytes(file);
+  // Can't inspect it (fetch failed, odd data URI) → upload as-is, let Cloudinary transcode.
+  if (!bytes) return { file, transcode: true };
+  // Already small enough → leave it; Cloudinary still transcodes to WebP as before.
+  if (bytes.length <= MAX_UPLOAD_BYTES) return { file, transcode: true };
+
+  const compressed = await compressToWebp(bytes, MAX_UPLOAD_BYTES);
+  if (!compressed) return { file, transcode: true };
+  return {
+    file: `data:image/webp;base64,${compressed.toString("base64")}`,
+    transcode: false,
+  };
+}
+
+/**
+ * Upload an image to Cloudinary and transcode it to WebP. `file` may be a base64
+ * data URI (a picked/dropped file) or a remote http(s) URL (a pasted link, which
+ * Cloudinary fetches server-side). Images over ~300KB are compressed to WebP
+ * under that cap before upload (for load speed / SEO); smaller ones are left
+ * untouched. Echoes the input back untouched when Cloudinary isn't configured so
+ * the feature still works in local dev.
+ */
+export async function uploadImage(file: string): Promise<UploadResult> {
   if (!isCloudinaryConfigured()) {
-    return { url: dataUri, hosted: false };
+    return { url: file, hosted: false };
   }
 
   const cloudName = process.env.CLOUDINARY_CLOUD_NAME as string;
   const apiKey = process.env.CLOUDINARY_API_KEY as string;
   const apiSecret = process.env.CLOUDINARY_API_SECRET as string;
 
+  const { file: toUpload, transcode } = await prepareUpload(file);
+
   const timestamp = Math.floor(Date.now() / 1000).toString();
   const uploadFolder = folder();
-  const signature = sign({ folder: uploadFolder, timestamp }, apiSecret);
+  // `format` transcodes the stored asset, so it must be part of the signature.
+  // A locally compressed image is already final WebP, so we skip the transcode
+  // (and thus the `format` param) to preserve the exact sub-300KB bytes.
+  const signedParams: Record<string, string> = { folder: uploadFolder, timestamp };
+  if (transcode) signedParams.format = TARGET_FORMAT;
+  const signature = sign(signedParams, apiSecret);
 
   const form = new URLSearchParams();
-  form.set("file", dataUri);
+  form.set("file", toUpload);
   form.set("api_key", apiKey);
   form.set("timestamp", timestamp);
   form.set("folder", uploadFolder);
+  if (transcode) form.set("format", TARGET_FORMAT);
   form.set("signature", signature);
 
   const res = await fetch(

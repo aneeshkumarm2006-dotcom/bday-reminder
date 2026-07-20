@@ -2,6 +2,7 @@
 
 import {
   Copy,
+  FileImage,
   Images,
   LayoutGrid,
   RefreshCw,
@@ -20,6 +21,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
 import {
+  backfillWebpRequest,
   bulkMediaRequest,
   deleteImageRequest,
   fetchMediaRows,
@@ -63,6 +65,7 @@ export function MediaGallery({
   const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set());
   const [busyIds, setBusyIds] = React.useState<Set<string>>(new Set());
   const [syncing, setSyncing] = React.useState(false);
+  const [converting, setConverting] = React.useState(false);
   const [bulkTagInput, setBulkTagInput] = React.useState("");
   const [lightboxRow, setLightboxRow] = React.useState<MediaRow | null>(null);
 
@@ -233,6 +236,41 @@ export function MediaGallery({
     }
   };
 
+  const runBackfill = async () => {
+    const ok = await confirm({
+      title: "Convert all images to WebP?",
+      message:
+        "This re-encodes every JPG/PNG in the library to WebP, repoints the posts that use them, and deletes the originals from Cloudinary. Already-WebP images are skipped. This can't be undone.",
+      confirmLabel: "Convert",
+    });
+    if (!ok) return;
+
+    setConverting(true);
+    try {
+      const summary = await backfillWebpRequest();
+      setRows(await fetchMediaRows());
+      clearSelection();
+      toast({
+        message:
+          summary.converted === 0
+            ? "Nothing to convert — every image is already WebP."
+            : `Converted ${summary.converted} image(s) to WebP` +
+              `, updated ${summary.postsUpdated} post reference(s)` +
+              (summary.failed ? `, ${summary.failed} failed` : "") +
+              ".",
+        tone: summary.failed ? "error" : "success",
+      });
+      router.refresh();
+    } catch (err) {
+      toast({
+        message: err instanceof Error ? err.message : "Conversion failed.",
+        tone: "error",
+      });
+    } finally {
+      setConverting(false);
+    }
+  };
+
   // ── Bulk actions ───────────────────────────────────────────────────────
   const bulkDelete = async () => {
     const ids = [...selectedIds];
@@ -382,11 +420,31 @@ export function MediaGallery({
           <Button
             variant="secondary"
             onClick={runSync}
-            disabled={syncing || !cloudinaryReady}
+            disabled={syncing || converting || !cloudinaryReady}
             title={cloudinaryReady ? "Sync from Cloudinary" : "Cloudinary isn't configured"}
           >
             <RefreshCw size={18} className={cn(syncing && "animate-spin")} aria-hidden="true" />
             <span className="hidden sm:inline">{syncing ? "Syncing…" : "Sync"}</span>
+          </Button>
+
+          <Button
+            variant="secondary"
+            onClick={runBackfill}
+            disabled={syncing || converting || !cloudinaryReady}
+            title={
+              cloudinaryReady
+                ? "Convert legacy JPG/PNG images to WebP"
+                : "Cloudinary isn't configured"
+            }
+          >
+            <FileImage
+              size={18}
+              className={cn(converting && "animate-pulse")}
+              aria-hidden="true"
+            />
+            <span className="hidden sm:inline">
+              {converting ? "Converting…" : "Convert to WebP"}
+            </span>
           </Button>
         </div>
       </div>

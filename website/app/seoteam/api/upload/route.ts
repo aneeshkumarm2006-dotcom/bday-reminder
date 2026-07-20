@@ -5,13 +5,24 @@ import { uploadImage } from "@/lib/blog/cloudinary";
 import { recordUploadedImage } from "@/lib/blog/images";
 import { getSeoSession } from "@/lib/seo-auth/server";
 
-const schema = z.object({
-  image: z
-    .string()
-    .refine((s) => /^data:image\/[a-z0-9.+-]+;base64,/i.test(s), {
-      message: "Expected a base64 image data URL.",
-    }),
-});
+// Either a base64 data URL (a picked/dropped file) or a remote http(s) URL (a
+// pasted link). Both are converted to WebP by uploadImage().
+const schema = z.union([
+  z.object({
+    image: z
+      .string()
+      .refine((s) => /^data:image\/[a-z0-9.+-]+;base64,/i.test(s), {
+        message: "Expected a base64 image data URL.",
+      }),
+  }),
+  z.object({
+    url: z
+      .string()
+      .refine((s) => /^https?:\/\/\S+$/i.test(s), {
+        message: "Expected an http(s) image URL.",
+      }),
+  }),
+]);
 
 const MAX_BYTES = 8 * 1024 * 1024; // ~8MB, matching the backend's upload cap
 
@@ -35,17 +46,22 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // base64 is ~4/3 the byte size — reject oversized payloads before uploading.
-  const approxBytes = (parsed.data.image.length * 3) / 4;
-  if (approxBytes > MAX_BYTES) {
-    return NextResponse.json(
-      { error: "Image is too large (max 8MB)." },
-      { status: 413 },
-    );
+  // A data URL is sent inline, so reject oversized payloads before uploading
+  // (base64 is ~4/3 the byte size). A remote URL is fetched by Cloudinary, so
+  // there's no local payload to size-check here.
+  const source = "image" in parsed.data ? parsed.data.image : parsed.data.url;
+  if ("image" in parsed.data) {
+    const approxBytes = (parsed.data.image.length * 3) / 4;
+    if (approxBytes > MAX_BYTES) {
+      return NextResponse.json(
+        { error: "Image is too large (max 8MB)." },
+        { status: 413 },
+      );
+    }
   }
 
   try {
-    const result = await uploadImage(parsed.data.image);
+    const result = await uploadImage(source);
     // Track hosted uploads in the Media library so they appear without a Sync.
     if (result.resource) {
       try {

@@ -5,6 +5,7 @@ import {
   destroyImage,
   listResources,
   updateResourceTags,
+  uploadImage,
   type CloudinaryResource,
 } from "./cloudinary";
 import { connectDb } from "./db";
@@ -19,6 +20,7 @@ import type {
   MediaRow,
   Post,
   SyncSummary,
+  WebpBackfillSummary,
 } from "./types";
 
 /** Trim, drop empties/commas (commas break Cloudinary's tag list), de-dupe, cap. */
@@ -119,6 +121,103 @@ export async function recordUploadedImage(resource: CloudinaryResource): Promise
     },
     { upsert: true },
   );
+}
+
+/** Cloudinary source formats we convert to WebP. Others (SVG vector, animated
+ * GIF) are intentionally left alone. */
+const CONVERTIBLE_FORMATS = new Set(["jpg", "jpeg", "png"]);
+
+/**
+ * Point every post reference from an old image (matched by its Cloudinary
+ * public_id, so version/transform prefixes don't defeat the match) at a new
+ * delivery URL. Rewrites the cover image and any inline `<img src>`, re-sanitizes
+ * touched bodies, and returns the slugs changed.
+ */
+async function replaceImageUrlAcrossPosts(
+  oldPublicId: string,
+  newUrl: string,
+): Promise<string[]> {
+  const posts = await getAllPosts();
+  const touched: string[] = [];
+
+  for (const post of posts) {
+    const patch: { coverImage?: string; body?: string } = {};
+
+    if (cloudinaryPublicId(post.coverImage) === oldPublicId) {
+      patch.coverImage = newUrl;
+    }
+
+    if (post.body && post.body.includes("res.cloudinary.com")) {
+      try {
+        const root = parse(post.body);
+        let bodyChanged = false;
+        for (const img of root.querySelectorAll("img")) {
+          if (cloudinaryPublicId(img.getAttribute("src") || "") === oldPublicId) {
+            img.setAttribute("src", newUrl);
+            bodyChanged = true;
+          }
+        }
+        if (bodyChanged) patch.body = sanitizePostHtml(root.toString());
+      } catch {
+        // Ignore parse failures — leave that post's body untouched.
+      }
+    }
+
+    if (patch.coverImage !== undefined || patch.body !== undefined) {
+      await updatePost(post.id, patch);
+      touched.push(post.slug);
+    }
+  }
+
+  return touched;
+}
+
+/**
+ * One-off (safely re-runnable) backfill: re-encode every legacy JPG/PNG asset in
+ * the library to WebP, repoint all post references to the new asset, then delete
+ * the original from Cloudinary and the library. WebP-native or non-convertible
+ * assets (SVG/GIF) are skipped. Idempotent — a second run only sees what's left,
+ * so a timeout mid-way is fine to resume. Returns per-outcome counts.
+ */
+export async function backfillWebp(): Promise<WebpBackfillSummary> {
+  await connectDb();
+  const resources = await listResources();
+
+  let converted = 0;
+  let postsUpdated = 0;
+  let skipped = 0;
+  let failed = 0;
+
+  for (const r of resources) {
+    if (!CONVERTIBLE_FORMATS.has((r.format || "").toLowerCase())) {
+      skipped++;
+      continue;
+    }
+    try {
+      // Re-upload the existing asset from its delivery URL, forcing WebP.
+      const result = await uploadImage(r.secureUrl);
+      if (!result.hosted || !result.resource) {
+        // Cloudinary not configured, or no asset returned — nothing to swap in.
+        skipped++;
+        continue;
+      }
+      const next = result.resource;
+      await recordUploadedImage(next);
+
+      const slugs = await replaceImageUrlAcrossPosts(r.publicId, next.secureUrl);
+      postsUpdated += slugs.length;
+
+      // Retire the original now that nothing points at it.
+      await destroyImage(r.publicId);
+      await BlogImage.deleteOne({ publicId: r.publicId });
+      converted++;
+    } catch (err) {
+      console.error("backfillWebp failed for", r.publicId, err);
+      failed++;
+    }
+  }
+
+  return { converted, postsUpdated, skipped, failed };
 }
 
 /**

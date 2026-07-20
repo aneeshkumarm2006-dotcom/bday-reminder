@@ -1,5 +1,5 @@
 import type { CreatePostBody, UpdatePostBody } from "./validation";
-import type { MediaRow, Post, SyncSummary } from "./types";
+import type { MediaRow, Post, SyncSummary, WebpBackfillSummary } from "./types";
 
 /**
  * Thin client-side fetch helpers for the /seoteam dashboard. The session is an
@@ -60,6 +60,19 @@ export async function uploadImageRequest(dataUri: string): Promise<string> {
   return url;
 }
 
+/**
+ * Import a remote image URL into Cloudinary as WebP and return the hosted URL.
+ * Used for pasted external links so they're converted like uploaded files. If
+ * Cloudinary isn't configured the server echoes the URL back unchanged.
+ */
+export async function importImageUrlRequest(imageUrl: string): Promise<string> {
+  const { url } = await request<{ url: string }>("/seoteam/api/upload", {
+    method: "POST",
+    body: JSON.stringify({ url: imageUrl }),
+  });
+  return url;
+}
+
 /** Full media grid/table dataset (inventory joined with live post usage). */
 export async function fetchMediaRows(): Promise<MediaRow[]> {
   const { rows } = await request<{ rows: MediaRow[] }>("/seoteam/api/media");
@@ -69,6 +82,13 @@ export async function fetchMediaRows(): Promise<MediaRow[]> {
 /** Refresh the inventory from Cloudinary; returns the add/update/remove counts. */
 export async function syncMediaRequest(): Promise<SyncSummary> {
   return request<SyncSummary>("/seoteam/api/media/sync", { method: "POST" });
+}
+
+/** Convert legacy JPG/PNG assets to WebP and repoint posts; returns the counts. */
+export async function backfillWebpRequest(): Promise<WebpBackfillSummary> {
+  return request<WebpBackfillSummary>("/seoteam/api/media/backfill", {
+    method: "POST",
+  });
 }
 
 /** Edit one image's alt (written back into posts) and/or tags. Returns the row. */

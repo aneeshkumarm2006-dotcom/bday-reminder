@@ -30,6 +30,7 @@ import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { TextField } from "@/components/ui/input";
+import { cloudinaryPublicId } from "@/lib/blog/image-url";
 import { cn } from "@/lib/utils";
 
 interface TiptapEditorProps {
@@ -38,6 +39,11 @@ interface TiptapEditorProps {
   onChange: (html: string) => void;
   /** Upload a dropped/pasted/selected image and resolve to its URL. */
   onUploadImage: (file: File) => Promise<string>;
+  /**
+   * Import a pasted remote image URL (host it as WebP) and resolve to the hosted
+   * URL. Omit to insert pasted URLs as-is without conversion.
+   */
+  onImportImageUrl?: (url: string) => Promise<string>;
   onError?: (message: string) => void;
 }
 
@@ -77,16 +83,19 @@ export function TiptapEditor({
   initialContent,
   onChange,
   onUploadImage,
+  onImportImageUrl,
   onError,
 }: TiptapEditorProps) {
   const onChangeRef = useRef(onChange);
   const uploadRef = useRef(onUploadImage);
+  const importRef = useRef(onImportImageUrl);
   const errorRef = useRef(onError);
   // Keep the latest callbacks without re-creating the editor (refs synced in an
   // effect, not during render, per react-hooks rules).
   useEffect(() => {
     onChangeRef.current = onChange;
     uploadRef.current = onUploadImage;
+    importRef.current = onImportImageUrl;
     errorRef.current = onError;
   });
 
@@ -248,9 +257,27 @@ export function TiptapEditor({
     }
   };
 
-  const applyImage = () => {
-    const src = imageUrl.trim();
-    if (!src) return;
+  const applyImage = async () => {
+    const raw = imageUrl.trim();
+    if (!raw) return;
+    // Convert a pasted external link to a hosted WebP. Data URLs and links
+    // already on our Cloudinary (e.g. a just-uploaded file) are inserted as-is.
+    let src = raw;
+    const isRemote = /^https?:\/\//i.test(raw);
+    const alreadyHosted = cloudinaryPublicId(raw) !== null;
+    if (isRemote && !alreadyHosted && importRef.current) {
+      setUploading(true);
+      try {
+        src = await importRef.current(raw);
+      } catch (err) {
+        errorRef.current?.(
+          err instanceof Error ? err.message : "Could not import that image URL.",
+        );
+        setUploading(false);
+        return;
+      }
+      setUploading(false);
+    }
     editor.chain().focus().setImage({ src, alt: imageAlt.trim() }).run();
     setImageOpen(false);
   };

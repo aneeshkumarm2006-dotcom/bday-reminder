@@ -126,3 +126,15 @@ export interface SyncSummary {
   removed: number;
   total: number;
 }
+
+/** Result of converting legacy JPG/PNG assets to WebP across the library. */
+export interface WebpBackfillSummary {
+  /** Assets that were re-encoded to WebP. */
+  converted: number;
+  /** Post URL references rewritten to the new WebP asset. */
+  postsUpdated: number;
+  /** Assets already WebP (or a format we don't convert, e.g. SVG/GIF). */
+  skipped: number;
+  /** Assets that errored during conversion (left untouched). */
+  failed: number;
+}

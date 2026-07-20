@@ -37,8 +37,16 @@ function sign(params: Record<string, string>, secret: string): string {
 }
 
 /**
- * Upload a base64 data URI (`data:image/...;base64,...`) and return its URL.
- * Falls back to echoing the data URI when Cloudinary isn't configured.
+ * Format we transcode every upload to. WebP is smaller than JPEG/PNG at
+ * equivalent quality and preserves alpha, so the stored asset comes back as
+ * `.webp` no matter what the source was.
+ */
+const TARGET_FORMAT = 'webp';
+
+/**
+ * Upload a base64 data URI (`data:image/...;base64,...`) and return its URL,
+ * transcoded to WebP. Falls back to echoing the data URI when Cloudinary isn't
+ * configured.
  */
 export async function uploadImage(dataUri: string): Promise<UploadResult> {
   const env = loadEnv();
@@ -48,13 +56,18 @@ export async function uploadImage(dataUri: string): Promise<UploadResult> {
 
   const timestamp = Math.floor(Date.now() / 1000).toString();
   const folder = env.CLOUDINARY_UPLOAD_FOLDER;
-  const signature = sign({ folder, timestamp }, env.CLOUDINARY_API_SECRET as string);
+  // `format` transcodes the stored asset, so it must be part of the signature.
+  const signature = sign(
+    { folder, format: TARGET_FORMAT, timestamp },
+    env.CLOUDINARY_API_SECRET as string,
+  );
 
   const form = new URLSearchParams();
   form.set('file', dataUri);
   form.set('api_key', env.CLOUDINARY_API_KEY as string);
   form.set('timestamp', timestamp);
   form.set('folder', folder);
+  form.set('format', TARGET_FORMAT);
   form.set('signature', signature);
 
   const res = await fetch(`https://api.cloudinary.com/v1_1/${env.CLOUDINARY_CLOUD_NAME}/image/upload`, {
