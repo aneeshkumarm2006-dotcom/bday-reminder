@@ -5,6 +5,7 @@ import {
   Globe,
   MessageCircle,
   PawPrint,
+  Plus,
   Smartphone,
   Sparkles,
   Users,
@@ -20,6 +21,7 @@ import { HeroTodayRing, StepRing } from "@/components/today-rings";
 import { buttonVariants } from "@/components/ui/button";
 import { isDbConfigured } from "@/lib/blog/db";
 import { getPublishedPosts } from "@/lib/blog/posts";
+import { jsonLdScript } from "@/lib/blog/url";
 
 // Static-friendly homepage, refreshed hourly so newly published posts surface in
 // the "From the blog" strip without a redeploy (the /blog index is force-dynamic).
@@ -35,8 +37,94 @@ export default function Home() {
       <Features />
       <HowItWorks />
       <LatestPosts />
+      <Faq />
       <GetTheApp />
     </>
+  );
+}
+
+// Single source of truth: the visible accordion and the FAQPage JSON-LD below
+// both read from this list, so they can never drift out of sync.
+const faqs = [
+  {
+    q: "What is a birthday reminder app and how does it help you never miss a birthday?",
+    a: "A birthday reminder app helps you store birthdays, receive automatic alerts, and organize important celebrations. Whether it is a friend’s birthday, family member’s special day, or important occasion, a reliable birthday app helps you never miss a birthday with timely reminders and notifications.",
+  },
+  {
+    q: "How can a birthday app help manage birthdays and special occasions?",
+    a: "A birthday app allows users to save birthdays, anniversaries, and important events in one place. With features like a family birthday calendar, customized alerts, and contact syncing, you can easily manage celebrations and stay organized.",
+  },
+  {
+    q: "What is a shared family calendar for birthdays?",
+    a: "A shared family calendar allows family members to add, view, and manage birthdays together. A family birthday calendar makes it easier for everyone to track upcoming celebrations, plan events, and receive reminders for important family occasions.",
+  },
+  {
+    q: "Does a birthday reminder app provide SMS birthday reminders?",
+    a: "Yes, many birthday reminder solutions provide SMS birthday reminders and notification options. These alerts help users receive timely updates and send birthday wishes without forgetting important dates.",
+  },
+  {
+    q: "Can a reminder app be used as an anniversary reminder?",
+    a: "Yes, a reminder app can also work as an anniversary reminder by helping you save wedding anniversaries, relationship milestones, and other special occasions. This allows you to manage birthdays and anniversaries from one convenient platform.",
+  },
+  {
+    q: "What is a group birthday tracker and how does it work?",
+    a: "A group birthday tracker helps families, teams, and friend groups manage multiple birthdays together. Users can share dates, add new events, and receive reminders so everyone stays updated about upcoming celebrations.",
+  },
+  {
+    q: "What features should the best birthday reminder app include?",
+    a: "A quality birthday reminder app should include features like a shared family calendar, family birthday calendar, SMS birthday reminders, anniversary tracking, group birthday management, customizable alerts, and easy birthday organization.",
+  },
+  {
+    q: "How can I make sure I never miss a birthday again?",
+    a: "Using a dedicated birthday reminder app is one of the easiest ways to never miss a birthday. Automated reminders, birthday alerts, shared calendars, and group birthday tracking help you remember every important celebration at the right time.",
+  },
+];
+
+function Faq() {
+  const faqJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: faqs.map((f) => ({
+      "@type": "Question",
+      name: f.q,
+      acceptedAnswer: { "@type": "Answer", text: f.a },
+    })),
+  };
+
+  return (
+    <section id="faq" className="mx-auto w-full max-w-3xl scroll-mt-20 px-5 py-20">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: jsonLdScript(faqJsonLd) }}
+      />
+      <Reveal className="text-center">
+        <h2 className="font-display text-3xl font-semibold tracking-[-0.01em] text-ink">
+          Frequently asked questions
+        </h2>
+        <p className="mt-4 text-ink-secondary">
+          Everything about birthday reminders, shared calendars, and never missing a date again.
+        </p>
+      </Reveal>
+
+      <div className="mt-12 flex flex-col gap-3">
+        {faqs.map((f, i) => (
+          <Reveal key={f.q} delay={i * 0.03}>
+            <details className="group rounded-lg border border-border-subtle bg-surface px-5 transition-colors duration-300 hover:border-biro/40 open:border-biro/40">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-4 py-4 font-display text-base font-medium text-ink transition-colors duration-200 group-hover:text-biro [&::-webkit-details-marker]:hidden">
+                {f.q}
+                <span
+                  aria-hidden="true"
+                  className="shrink-0 text-biro transition-transform duration-300 ease-out group-open:rotate-45"
+                >
+                  <Plus size={18} />
+                </span>
+              </summary>
+              <p className="pb-5 text-pretty leading-relaxed text-ink-secondary">{f.a}</p>
+            </details>
+          </Reveal>
+        ))}
+      </div>
+    </section>
   );
 }
 
@@ -378,7 +466,9 @@ async function LatestPosts() {
 
         <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {posts.map((post, i) => (
-            <Reveal key={post.id} delay={i * 0.05}>
+            // h-full + a child <a> that fills it keeps every card the same height,
+            // regardless of how many lines the title wraps to.
+            <Reveal key={post.id} delay={i * 0.05} className="h-full [&>a]:h-full">
               <PostCard post={post} />
             </Reveal>
           ))}

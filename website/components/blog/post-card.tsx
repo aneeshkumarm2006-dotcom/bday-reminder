@@ -34,7 +34,7 @@ export function PostCard({ post }: { post: Post }) {
               {post.excerpt}
             </p>
           )}
-          <div className="mt-4 flex items-center gap-2 text-xs text-ink-muted">
+          <div className="mt-auto pt-4 flex items-center gap-2 text-xs text-ink-muted">
             <time dateTime={date}>{formatDate(date)}</time>
             <span aria-hidden="true">·</span>
             <span>{readingTimeMinutes(post.body)} min read</span>
