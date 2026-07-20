@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import {
   Bell,
   CalendarDays,
@@ -26,6 +27,25 @@ import { jsonLdScript } from "@/lib/blog/url";
 // Static-friendly homepage, refreshed hourly so newly published posts surface in
 // the "From the blog" strip without a redeploy (the /blog index is force-dynamic).
 export const revalidate = 3600;
+
+// Home-page-specific SEO. `title.absolute` opts out of the root layout's
+// `%s · <name>` template so the exact keyword-led title is used verbatim.
+const homeTitle = "Birthday Reminder App | Family Birthday Calendar";
+const homeDescription =
+  "Never miss a birthday with a birthday reminder app. Use a birthday app and reminder app to manage a family birthday calendar, shared family calendar, anniversary reminder, SMS birthday reminders, and group birthday tracker.";
+
+export const metadata: Metadata = {
+  title: { absolute: homeTitle },
+  description: homeDescription,
+  openGraph: {
+    title: homeTitle,
+    description: homeDescription,
+  },
+  twitter: {
+    title: homeTitle,
+    description: homeDescription,
+  },
+};
 
 export default function Home() {
   return (
@@ -450,10 +470,10 @@ async function LatestPosts() {
         <Reveal className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h2 className="font-display text-3xl font-semibold tracking-[-0.01em] text-ink">
-              From the blog
+              Latest Blog Posts
             </h2>
             <p className="mt-3 max-w-xl text-ink-secondary">
-              Guides, tips, and product updates for remembering the moments that matter.
+              Expert tips, helpful guides, and the latest insights on birthday reminders, family calendars, and never missing a special occasion.
             </p>
           </div>
           <Link
