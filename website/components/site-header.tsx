@@ -34,11 +34,14 @@ export function SiteHeader() {
 
         <div className="flex items-center gap-1.5">
           <ThemeToggle />
-          <Link href="/login" className={buttonVariants({ variant: "ghost", size: "sm" })}>
+          <Link
+            href="/login"
+            className={`hidden md:inline-flex ${buttonVariants({ variant: "ghost", size: "sm" })}`}
+          >
             Log in
           </Link>
           <span
-            className="inline-flex h-9 cursor-default items-center rounded-md border border-border-strong bg-surface px-3 text-sm font-medium text-ink-muted"
+            className="hidden h-9 cursor-default items-center rounded-md border border-border-strong bg-surface px-3 text-sm font-medium text-ink-muted md:inline-flex"
             aria-label="App coming soon"
           >
             Coming soon

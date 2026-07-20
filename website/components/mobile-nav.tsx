@@ -48,6 +48,22 @@ export function MobileNav() {
               {link.label}
             </Link>
           ))}
+
+          <div className="my-2 border-t border-border-subtle" />
+
+          <Link
+            href="/login"
+            onClick={() => setOpen(false)}
+            className="block rounded-md px-3 py-3 text-sm font-medium text-ink-secondary transition-colors hover:bg-surface-sunken hover:text-ink"
+          >
+            Log in
+          </Link>
+          <span
+            className="block px-3 py-3 text-sm font-medium text-ink-muted"
+            aria-label="App coming soon"
+          >
+            Coming soon
+          </span>
         </nav>
       ) : null}
     </div>
