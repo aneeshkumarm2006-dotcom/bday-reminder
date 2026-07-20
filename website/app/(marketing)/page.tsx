@@ -12,11 +12,18 @@ import {
 import Link from "next/link";
 
 import { AppPreview, ReminderPreview, WidgetPreview } from "@/components/app-preview";
+import { PostCard } from "@/components/blog/post-card";
 import { Reveal } from "@/components/reveal";
 import { SiteJsonLd } from "@/components/site-json-ld";
 import { SmoothScroll } from "@/components/smooth-scroll";
 import { HeroTodayRing, StepRing } from "@/components/today-rings";
 import { buttonVariants } from "@/components/ui/button";
+import { isDbConfigured } from "@/lib/blog/db";
+import { getPublishedPosts } from "@/lib/blog/posts";
+
+// Static-friendly homepage, refreshed hourly so newly published posts surface in
+// the "From the blog" strip without a redeploy (the /blog index is force-dynamic).
+export const revalidate = 3600;
 
 export default function Home() {
   return (
@@ -27,6 +34,7 @@ export default function Home() {
       <ValueProp />
       <Features />
       <HowItWorks />
+      <LatestPosts />
       <GetTheApp />
     </>
   );
@@ -328,6 +336,50 @@ function HowItWorks() {
                 </h3>
                 <p className="mt-2 text-sm leading-relaxed text-ink-secondary">{step.body}</p>
               </div>
+            </Reveal>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+async function LatestPosts() {
+  // Gracefully absent when the blog DB isn't configured, is unreachable, or has
+  // no published posts yet — no empty placeholders on the marketing page.
+  if (!isDbConfigured()) return null;
+  let posts;
+  try {
+    ({ posts } = await getPublishedPosts(1, 3));
+  } catch {
+    return null;
+  }
+  if (!posts || posts.length === 0) return null;
+
+  return (
+    <section id="blog" className="border-y border-border-subtle bg-surface-sunken/60">
+      <div className="mx-auto w-full max-w-5xl scroll-mt-20 px-5 py-20">
+        <Reveal className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h2 className="font-display text-3xl font-semibold tracking-[-0.01em] text-ink">
+              From the blog
+            </h2>
+            <p className="mt-3 max-w-xl text-ink-secondary">
+              Guides, tips, and product updates for remembering the moments that matter.
+            </p>
+          </div>
+          <Link
+            href="/blog"
+            className={`${buttonVariants({ variant: "secondary" })} shrink-0 self-start hover:-translate-y-0.5 sm:self-auto`}
+          >
+            View all posts
+          </Link>
+        </Reveal>
+
+        <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {posts.map((post, i) => (
+            <Reveal key={post.id} delay={i * 0.05}>
+              <PostCard post={post} />
             </Reveal>
           ))}
         </div>

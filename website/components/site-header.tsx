@@ -8,7 +8,8 @@ import { navLinks } from "@/lib/site";
 
 /**
  * Sticky site header (DESIGN.md §5 layout): brand, in-page nav, theme toggle,
- * and the primary "Open the app" CTA. Flat - a hairline border defines it.
+ * and a "Coming soon" indicator (app not yet public). Flat - a hairline border
+ * defines it.
  */
 export function SiteHeader() {
   return (
@@ -36,9 +37,12 @@ export function SiteHeader() {
           <Link href="/login" className={buttonVariants({ variant: "ghost", size: "sm" })}>
             Log in
           </Link>
-          <Link href="/calendar" className={buttonVariants({ size: "sm" })}>
-            Open the app
-          </Link>
+          <span
+            className="inline-flex h-9 cursor-default items-center rounded-md border border-border-strong bg-surface px-3 text-sm font-medium text-ink-muted"
+            aria-label="App coming soon"
+          >
+            Coming soon
+          </span>
           <MobileNav />
         </div>
       </div>
