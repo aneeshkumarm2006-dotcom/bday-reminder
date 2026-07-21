@@ -121,11 +121,16 @@ const autoBirthdayEmailSchema = z
   .nullable()
   .optional();
 
-// Auto-send birthday SMS toggle + editable body + send time (Stage 15). Same shape
-// as email but the message is capped at 160 chars to keep it within one SMS segment.
+// Auto-send birthday SMS/WhatsApp toggle + editable body + send time (Stage 15).
+// `channel` picks the rail (defaults to SMS when omitted). The message is capped at
+// 160 chars to keep it within one SMS segment (also a safe WhatsApp body length).
 const autoBirthdaySmsSchema = z
   .object({
     enabled: z.boolean(),
+    channel: z.enum(['sms', 'whatsapp']).optional(),
+    // The greeting preset the message came from; on the WhatsApp rail it selects
+    // the approved template at send time. `null`/'' clears it (custom text).
+    templateId: z.enum(['classic', 'heartfelt', 'funny', 'short', 'formal']).nullable().optional(),
     message: z.string().trim().max(160).nullable().optional(),
     sendTime: sendTimeSchema,
     sendTimeZone: sendTimeZoneSchema,
@@ -318,6 +323,8 @@ peopleRouter.post(
           ? undefined
           : {
               enabled: smsEnabled,
+              channel: body.autoBirthdaySms.channel ?? 'sms',
+              templateId: body.autoBirthdaySms.templateId ?? undefined,
               message: body.autoBirthdaySms.message?.trim() || undefined,
               sendTime: body.autoBirthdaySms.sendTime ?? undefined,
               sendTimeZone: body.autoBirthdaySms.sendTimeZone ?? undefined,
@@ -484,6 +491,14 @@ peopleRouter.patch(
         // → default copy; null sendTime → inherit the owner's default reminder time;
         // null sendTimeZone → inherit the owner's account timezone).
         const prev = person.autoBirthdaySms;
+        const nextChannel =
+          patch.autoBirthdaySms.channel === undefined
+            ? (prev?.channel ?? 'sms')
+            : patch.autoBirthdaySms.channel;
+        const nextTemplateId =
+          patch.autoBirthdaySms.templateId === undefined
+            ? prev?.templateId
+            : (patch.autoBirthdaySms.templateId ?? undefined);
         const nextMessage =
           patch.autoBirthdaySms.message === undefined
             ? prev?.message
@@ -498,6 +513,8 @@ peopleRouter.patch(
             : (patch.autoBirthdaySms.sendTimeZone ?? undefined);
         person.autoBirthdaySms = {
           enabled: patch.autoBirthdaySms.enabled,
+          channel: nextChannel,
+          templateId: nextTemplateId,
           message: nextMessage,
           sendTime: nextSendTime,
           sendTimeZone: nextSendTimeZone,

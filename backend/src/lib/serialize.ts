@@ -98,11 +98,20 @@ export function serializePerson(person: PersonDoc, extras: PersonExtras = {}) {
     autoBirthdaySms: person.autoBirthdaySms
       ? {
           enabled: person.autoBirthdaySms.enabled,
+          channel: person.autoBirthdaySms.channel ?? 'sms',
+          templateId: person.autoBirthdaySms.templateId ?? null,
           message: person.autoBirthdaySms.message ?? null,
           sendTime: person.autoBirthdaySms.sendTime ?? null,
           sendTimeZone: person.autoBirthdaySms.sendTimeZone ?? null,
         }
-      : { enabled: false, message: null, sendTime: null, sendTimeZone: null },
+      : {
+          enabled: false,
+          channel: 'sms',
+          templateId: null,
+          message: null,
+          sendTime: null,
+          sendTimeZone: null,
+        },
     lists: person.lists.map((id) => id.toString()),
     // Shared-list attribution (Stage 8); omitted on personal-only contexts that don't pass it.
     ...(extras.lastEditedBy !== undefined ? { lastEditedBy: extras.lastEditedBy } : {}),

@@ -13,20 +13,23 @@ import { Text } from './text';
 export type ChipProps = {
   label: string;
   selected?: boolean;
+  disabled?: boolean;
   onPress?: () => void;
 };
 
-export function Chip({ label, selected = false, onPress }: ChipProps) {
+export function Chip({ label, selected = false, disabled = false, onPress }: ChipProps) {
   return (
     <Pressable
-      onPress={onPress}
+      onPress={disabled ? undefined : onPress}
+      disabled={disabled}
       hitSlop={6}
       accessibilityRole="button"
-      accessibilityState={{ selected }}
+      accessibilityState={{ selected, disabled }}
       className={cn(
         'min-h-[40px] flex-row items-center justify-center rounded-sm border px-3 active:scale-[0.98]',
         focusRing,
         selected ? 'border-biro bg-biro-tint' : 'border-transparent bg-surface-sunken',
+        disabled && 'opacity-40',
       )}>
       <Text variant="label" className={selected ? 'text-biro-pressed' : 'text-ink-secondary'}>
         {label}

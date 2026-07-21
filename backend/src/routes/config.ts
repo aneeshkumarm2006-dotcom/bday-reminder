@@ -6,7 +6,7 @@ import {
   googleLoginConfigured,
 } from '../lib/google-oauth';
 import { smsMonthlyCap } from '../lib/sms-usage';
-import { twilioConfigured } from '../lib/twilio-send';
+import { twilioConfigured, twilioWhatsappConfigured } from '../lib/twilio-send';
 
 /**
  * Public app config (TODO Stage 5; FR-56). Exposes business-configurable values
@@ -23,6 +23,9 @@ configRouter.get('/', (_req, res) => {
     smsWhatsappMonthlyCap: smsMonthlyCap(),
     gmailAutoSendAvailable: gmailOAuthConfigured(),
     smsAutoSendAvailable: twilioConfigured(),
+    // Whether the WhatsApp rail of auto-send is provisioned (a WhatsApp-enabled
+    // Twilio sender), so the client can offer WhatsApp alongside SMS.
+    whatsappAutoSendAvailable: twilioWhatsappConfigured(),
     // Whether "Sign in with Google" is provisioned (so the login page can hide
     // the button when it isn't).
     googleAuthAvailable: googleLoginConfigured(),

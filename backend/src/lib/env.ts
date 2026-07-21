@@ -80,6 +80,21 @@ const EnvSchema = z.object({
   TWILIO_AUTH_TOKEN: z.string().optional(),
   TWILIO_MESSAGING_SERVICE_SID: z.string().optional(),
   TWILIO_FROM_NUMBER: z.string().optional(),
+  // WhatsApp sender for auto-send birthday greetings on the WhatsApp channel. The
+  // account SID + auth token above are shared; this is the WhatsApp-enabled sender
+  // (a bare E.164 number - the `whatsapp:` prefix is added at send time - or a
+  // Messaging Service SID). Separately optional so a server can provision SMS,
+  // WhatsApp, both, or neither; when unset the WhatsApp channel is hidden
+  // (GET /config `whatsappAutoSendAvailable`) and the dispatch skips it.
+  TWILIO_WHATSAPP_FROM: z.string().optional(),
+  TWILIO_WHATSAPP_MESSAGING_SERVICE_SID: z.string().optional(),
+  // Meta-approved WhatsApp templates for auto-send birthday greetings, one per
+  // preset. A JSON object mapping preset id → Twilio Content SID, e.g.
+  // {"classic":"HX…","heartfelt":"HX…"}. Business-initiated WhatsApp can only send
+  // approved templates; a preset with a SID here sends as that template (else the
+  // dispatch falls back to a free-form body, which only delivers in the sandbox or
+  // an open 24h session). Generate with `npm run register:whatsapp-templates`.
+  TWILIO_WHATSAPP_TEMPLATES: z.string().optional(),
   // Account-wide monthly budget cap for auto-send SMS; 0 = unlimited. At the cap,
   // further auto-texts skip until the next UTC month. Surfaced on /seoteam.
   TWILIO_MONTHLY_CAP: z.coerce.number().int().min(0).default(0),

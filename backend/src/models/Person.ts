@@ -24,14 +24,21 @@ export interface AutoBirthdayEmail {
 }
 
 /**
- * Auto-send birthday SMS (Stage 15). Same shape (incl. per-person `sendTime` and
- * the once-per-year `lastSentYear` guard) as {@link AutoBirthdayEmail}, but the
- * greeting is texted to `Person.phone` via one shared Twilio account (there is no
- * per-user carrier account, so the message is signed with the owner's name to
- * read as coming from them).
+ * Auto-send birthday SMS/WhatsApp (Stage 15). Same shape (incl. per-person
+ * `sendTime` and the once-per-year `lastSentYear` guard) as
+ * {@link AutoBirthdayEmail}, but the greeting is sent to `Person.phone` via one
+ * shared Twilio account (there is no per-user carrier account, so the message is
+ * signed with the owner's name to read as coming from them). `channel` picks the
+ * delivery rail - a plain SMS text or a WhatsApp message - both from the same
+ * shared account to the same `phone`; unset means SMS (the historical default).
  */
 export interface AutoBirthdaySms {
   enabled: boolean;
+  channel?: 'sms' | 'whatsapp';
+  /** Which greeting preset the message came from ('classic'..'formal'), or unset
+   * for custom text. On the WhatsApp rail this selects the approved template used
+   * at send time; on SMS it's informational. */
+  templateId?: string;
   message?: string;
   sendTime?: string;
   sendTimeZone?: string;
@@ -78,6 +85,8 @@ const autoBirthdayEmailSchema = new Schema<AutoBirthdayEmail>(
 const autoBirthdaySmsSchema = new Schema<AutoBirthdaySms>(
   {
     enabled: { type: Boolean, default: false },
+    channel: { type: String, enum: ['sms', 'whatsapp'], default: 'sms' },
+    templateId: { type: String, trim: true },
     message: { type: String, trim: true },
     sendTime: { type: String, trim: true },
     sendTimeZone: { type: String, trim: true },

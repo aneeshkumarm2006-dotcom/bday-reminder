@@ -33,6 +33,14 @@ async function main(): Promise<void> {
   process.env.TWILIO_ACCOUNT_SID = 'ACtest0000000000000000000000000000';
   process.env.TWILIO_AUTH_TOKEN = 'test-auth-token';
   process.env.TWILIO_MESSAGING_SERVICE_SID = 'MGtest0000000000000000000000000000';
+  // A WhatsApp sender too, so twilioWhatsappConfigured() is true and the channel
+  // routes. The send is still stubbed below, so no real Twilio traffic happens.
+  process.env.TWILIO_WHATSAPP_FROM = '+14155238886';
+  // An approved-template mapping (preset id → Content SID) so the WhatsApp
+  // dispatch resolves a template for preset-backed people.
+  process.env.TWILIO_WHATSAPP_TEMPLATES = JSON.stringify({
+    classic: 'HXclassic0000000000000000000000000',
+  });
   process.env.TWILIO_MONTHLY_CAP = '5';
 
   const { connectDb, disconnectDb } = await import('../src/lib/db');
@@ -78,12 +86,14 @@ async function main(): Promise<void> {
   const period = autoSmsPeriod(now);
   const cap = twilioMonthlyCap();
 
-  // Injectable Twilio stub (records calls, no network).
-  type Texted = { to: string; body: string };
+  // Injectable Twilio stub (records calls, no network). Captures the channel +
+  // template opts so routing (SMS vs WhatsApp) and templated sends can be asserted.
+  type SendOpts = { contentSid?: string; contentVariables?: Record<string, string> };
+  type Texted = { to: string; body: string; channel: string; opts?: SendOpts };
   const makeStub = (outcome: 'sent' | 'failed') => {
     const calls: Texted[] = [];
-    const send = async (to: string, body: string) => {
-      calls.push({ to, body });
+    const send = async (to: string, body: string, channel: string = 'sms', opts?: SendOpts) => {
+      calls.push({ to, body, channel, opts });
       return { outcome } as { outcome: 'sent' | 'failed' };
     };
     return { calls, send };
@@ -102,7 +112,9 @@ async function main(): Promise<void> {
 
     // --- Config advertises the feature ---------------------------------------
     res = await get('/config');
-    check((await res.json()).smsAutoSendAvailable === true, 'GET /config advertises smsAutoSendAvailable');
+    const cfg = await res.json();
+    check(cfg.smsAutoSendAvailable === true, 'GET /config advertises smsAutoSendAvailable');
+    check(cfg.whatsappAutoSendAvailable === true, 'GET /config advertises whatsappAutoSendAvailable');
 
     // --- Enabling auto-send SMS is guarded (needs a phone) --------------------
     res = await post(
@@ -292,6 +304,73 @@ async function main(): Promise<void> {
     check(res.status === 200 && (await res.json()).person.autoBirthdaySms.enabled === false, 'PATCH can turn auto-send SMS back off');
     const deeDoc = await Person.findById(dee.id);
     check(deeDoc?.autoBirthdaySms?.lastSentYear === thisYear, 'lastSentYear is preserved across an enable→disable toggle');
+
+    // --- WhatsApp channel: routes on the person's chosen rail ------------------
+    // A friend set to the WhatsApp rail: channel round-trips, and the dispatch
+    // hands `channel: 'whatsapp'` to the sender (same phone, shared account).
+    // Reset the account-wide usage so accumulated sends above don't trip the cap.
+    await AutoSmsUsage.updateOne({ period }, { $set: { count: 0 } }, { upsert: true });
+    res = await post(
+      '/people',
+      {
+        fullName: 'Whats App',
+        dob: { ...md(todayUTC), year: 1990 },
+        phone: '5551230020',
+        autoBirthdaySms: { enabled: true, channel: 'whatsapp', message: 'Happy bday on WhatsApp!' },
+      },
+      token,
+    );
+    check(res.status === 201, 'create friend with WhatsApp auto-send → 201');
+    const wa = (await res.json()).person;
+    check(wa.autoBirthdaySms.channel === 'whatsapp', 'channel round-trips through create + serialize');
+    const sWa = makeStub('sent');
+    summary = await dispatchBirthdaySms(now, { send: sWa.send });
+    const waCall = sWa.calls.find((c) => c.to === '+15551230020');
+    check(!!waCall && waCall.channel === 'whatsapp', 'dispatch routes the WhatsApp person on the whatsapp channel');
+    check(waCall?.body === 'Happy bday on WhatsApp!', 'WhatsApp custom message body is used');
+    check(!waCall?.opts?.contentSid, 'a custom WhatsApp message (no preset) falls back to free-form (no template)');
+
+    // A preset-backed WhatsApp person sends via the approved template Content SID.
+    res = await post(
+      '/people',
+      {
+        fullName: 'Tem Plate',
+        dob: { ...md(todayUTC), year: 1990 },
+        phone: '5551230022',
+        autoBirthdaySms: {
+          enabled: true,
+          channel: 'whatsapp',
+          templateId: 'classic',
+          message: 'Happy birthday, Tem! Hope you have a great day. - Ana',
+        },
+      },
+      token,
+    );
+    const tem = (await res.json()).person;
+    check(tem.autoBirthdaySms.templateId === 'classic', 'templateId round-trips through create + serialize');
+    const sTpl = makeStub('sent');
+    await dispatchBirthdaySms(now, { send: sTpl.send });
+    const tplCall = sTpl.calls.find((c) => c.to === '+15551230022');
+    check(
+      tplCall?.opts?.contentSid === 'HXclassic0000000000000000000000000',
+      'dispatch sends the preset-backed person via the approved template Content SID',
+    );
+    check(
+      tplCall?.opts?.contentVariables?.['1'] === 'Tem' && tplCall?.opts?.contentVariables?.['2'] === 'Ana',
+      'template variables are the recipient first name + sender name',
+    );
+    // A default-channel (SMS) person created alongside routes on 'sms'.
+    res = await post(
+      '/people',
+      { fullName: 'Plain Sms', dob: { ...md(todayUTC), year: 1990 }, phone: '5551230021', autoBirthdaySms: { enabled: true } },
+      token,
+    );
+    const plain = (await res.json()).person;
+    check(plain.autoBirthdaySms.channel === 'sms', 'channel defaults to sms when omitted');
+    const sPlain = makeStub('sent');
+    await dispatchBirthdaySms(now, { send: sPlain.send });
+    const smsCall = sPlain.calls.find((c) => c.to === '+15551230021');
+    check(!!smsCall && smsCall.channel === 'sms', 'dispatch routes the default person on the sms channel');
 
     // --- Account-wide monthly cap (isolated: reset people + usage) -------------
     await Person.deleteMany({});

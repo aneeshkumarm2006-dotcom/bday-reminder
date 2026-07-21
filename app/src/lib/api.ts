@@ -246,6 +246,8 @@ export type AppConfig = {
   gmailAutoSendAvailable?: boolean;
   /** Whether Twilio SMS auto-send is provisioned on the server (Stage 15). */
   smsAutoSendAvailable?: boolean;
+  /** Whether Twilio WhatsApp auto-send is provisioned on the server (Stage 15). */
+  whatsappAutoSendAvailable?: boolean;
   /** Whether "Sign in with Google" is provisioned on the server (Stage 16). */
   googleAuthAvailable?: boolean;
   /** Whether Google Calendar + Contacts bulk import is provisioned (Stage 16). */
@@ -283,9 +285,16 @@ export type AutoBirthdayEmail = {
   sendTimeZone: string | null;
 };
 
-/** Auto-send birthday SMS config for a person (Stage 15). */
+/** The delivery rail for auto-send birthday messages (Stage 15). */
+export type SmsChannel = 'sms' | 'whatsapp';
+
+/** Auto-send birthday SMS/WhatsApp config for a person (Stage 15). `channel`
+ * picks the rail; both are texted to `phone` from the shared account. `templateId`
+ * is the greeting preset (selects the approved WhatsApp template at send time). */
 export type AutoBirthdaySms = {
   enabled: boolean;
+  channel: SmsChannel;
+  templateId: string | null;
   message: string | null;
   sendTime: string | null;
   sendTimeZone: string | null;
@@ -382,9 +391,11 @@ export type CreatePersonInput = {
     sendTime?: string | null;
     sendTimeZone?: string | null;
   } | null;
-  /** Auto-send birthday SMS config, texted to `phone` (Stage 15). */
+  /** Auto-send birthday SMS/WhatsApp config, sent to `phone` (Stage 15). */
   autoBirthdaySms?: {
     enabled: boolean;
+    channel?: SmsChannel;
+    templateId?: string | null;
     message?: string | null;
     sendTime?: string | null;
     sendTimeZone?: string | null;

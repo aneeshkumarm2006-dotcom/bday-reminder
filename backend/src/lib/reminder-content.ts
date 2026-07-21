@@ -75,7 +75,7 @@ export function greetingTemplate(name: string): string {
 }
 
 /** First name (or the whole name if single-word), for personal email copy. */
-function firstName(name: string): string {
+export function firstName(name: string): string {
   const trimmed = name.trim();
   return trimmed.split(/\s+/)[0] || trimmed;
 }

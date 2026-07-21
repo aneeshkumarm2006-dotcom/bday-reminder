@@ -199,6 +199,7 @@ function ProfileBody({
   const [savingChannel, setSavingChannel] = useState<'email' | 'sms' | null>(null);
   const [gmailAvailable, setGmailAvailable] = useState<boolean | undefined>(undefined);
   const [smsAvailable, setSmsAvailable] = useState<boolean | undefined>(undefined);
+  const [whatsappAvailable, setWhatsappAvailable] = useState<boolean | undefined>(undefined);
 
   useEffect(() => {
     let active = true;
@@ -208,6 +209,7 @@ function ProfileBody({
         if (!active) return;
         setGmailAvailable(!!c.gmailAutoSendAvailable);
         setSmsAvailable(!!c.smsAutoSendAvailable);
+        setWhatsappAvailable(!!c.whatsappAutoSendAvailable);
       })
       .catch(() => {
         // Treat a failed config fetch as "not available" rather than leaving
@@ -215,6 +217,7 @@ function ProfileBody({
         if (!active) return;
         setGmailAvailable(false);
         setSmsAvailable(false);
+        setWhatsappAvailable(false);
       });
     return () => {
       active = false;
@@ -258,18 +261,27 @@ function ProfileBody({
     toast.show('Auto-send email on.');
   };
 
-  const confirmAutoSms = async ({ recipient, message, sendTime, sendTimeZone }: AutoSendDraft) => {
+  const confirmAutoSms = async ({
+    recipient,
+    message,
+    sendTime,
+    sendTimeZone,
+    smsChannel,
+    smsTemplateId,
+  }: AutoSendDraft) => {
     await peopleApi.update(person.id, {
       phone: recipient,
       autoBirthdaySms: {
         enabled: true,
+        channel: smsChannel,
+        templateId: smsTemplateId,
         message,
         sendTime: sendTime || null,
         sendTimeZone: sendTimeZone || null,
       },
     });
     onReload();
-    toast.show('Auto-send SMS on.');
+    toast.show(smsChannel === 'whatsapp' ? 'Auto-send WhatsApp on.' : 'Auto-send SMS on.');
   };
 
   // Remove an anniversary/custom event (the birthday has no delete - it lives
@@ -442,11 +454,13 @@ function ProfileBody({
         <View className="mt-3 flex-row items-center gap-3 border-t border-border-subtle pt-3">
           <Icon icon={MessageSquare} size={20} color={t.biro} />
           <View className="flex-1">
-            <Text variant="body">Birthday SMS</Text>
+            <Text variant="body">
+              {person.autoBirthdaySms?.channel === 'whatsapp' ? 'Birthday WhatsApp' : 'Birthday text'}
+            </Text>
             <Text variant="caption" className="mt-0.5 text-ink-muted">
               {person.autoBirthdaySms?.enabled
-                ? `Texts ${formatNanp(person.phone) || 'their phone'} each year, signed with your name.`
-                : 'Off. Turn on to text a greeting, signed with your name.'}
+                ? `${person.autoBirthdaySms.channel === 'whatsapp' ? 'WhatsApps' : 'Texts'} ${formatNanp(person.phone) || 'their phone'} each year, signed with your name.`
+                : 'Off. Turn on to send a greeting by SMS or WhatsApp, signed with your name.'}
             </Text>
             {person.autoBirthdaySms?.enabled ? (
               <Pressable
@@ -526,10 +540,12 @@ function ProfileBody({
         onClose={() => setSmsSheetOpen(false)}
         personName={person.fullName}
         available={smsAvailable}
+        whatsappAvailable={whatsappAvailable}
         initialRecipient={formatNanp(person.phone)}
         initialMessage={person.autoBirthdaySms?.message ?? ''}
         initialSendTime={person.autoBirthdaySms?.sendTime ?? ''}
         initialSendTimeZone={person.autoBirthdaySms?.sendTimeZone ?? ''}
+        initialSmsChannel={person.autoBirthdaySms?.channel ?? 'sms'}
         alreadyEnabled={!!person.autoBirthdaySms?.enabled}
         onConfirm={confirmAutoSms}
       />

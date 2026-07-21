@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 
 import { Button, Chip, Icon, Label, Sheet, Text, TextField, useToast } from '@/components/ui';
+import type { SmsChannel } from '@/lib/api';
 import {
   defaultTimeInheritLabel,
   friendlyTimeLabel,
@@ -39,6 +40,10 @@ export type AutoSendDraft = {
   message: string;
   sendTime: string;
   sendTimeZone: string;
+  /** Selected rail for the SMS sheet ('sms' | 'whatsapp'); ignored by the email sheet. */
+  smsChannel: SmsChannel;
+  /** Chosen greeting preset id, or null for custom text; drives the WhatsApp template. */
+  smsTemplateId: string | null;
 };
 
 /**
@@ -58,10 +63,12 @@ export function AutoSendSheet({
   onClose,
   personName,
   available,
+  whatsappAvailable,
   initialRecipient,
   initialMessage,
   initialSendTime,
   initialSendTimeZone,
+  initialSmsChannel = 'sms',
   alreadyEnabled,
   onConfirm,
 }: {
@@ -70,14 +77,19 @@ export function AutoSendSheet({
   onClose: () => void;
   /** For {name} substitution and the fixed email subject preview. */
   personName: string;
-  /** Server provisioning flag; undefined = config still loading. */
+  /** Server provisioning flag for the SMS rail; undefined = config still loading.
+   * For the email sheet this is the Gmail auto-send flag. */
   available: boolean | undefined;
+  /** Server provisioning flag for the WhatsApp rail (SMS sheet only). */
+  whatsappAvailable?: boolean;
   initialRecipient: string;
   initialMessage: string;
   /** Stored "HH:mm" send time; "" = inherit the user's default reminder time. */
   initialSendTime: string;
   /** Stored IANA zone `sendTime` is anchored in; "" = inherit the account timezone. */
   initialSendTimeZone: string;
+  /** Stored rail for the SMS sheet ('sms' | 'whatsapp'); defaults to SMS. */
+  initialSmsChannel?: SmsChannel;
   /** true → editing an existing setup ("Save"); false → enabling ("Turn on"). */
   alreadyEnabled: boolean;
   onConfirm: (draft: AutoSendDraft) => void | Promise<void>;
@@ -94,6 +106,7 @@ export function AutoSendSheet({
   const [message, setMessage] = useState('');
   const [sendTime, setSendTime] = useState('');
   const [sendTimeZone, setSendTimeZone] = useState('');
+  const [smsChannel, setSmsChannel] = useState<SmsChannel>('sms');
   const [customPicked, setCustomPicked] = useState(false);
   const [busy, setBusy] = useState(false);
   const [connecting, setConnecting] = useState(false);
@@ -108,11 +121,19 @@ export function AutoSendSheet({
       setMessage(initialMessage.trim() || defaultGreeting(channel, fillOpts));
       setSendTime(initialSendTime);
       setSendTimeZone(initialSendTimeZone);
+      setSmsChannel(initialSmsChannel);
       setCustomPicked(false);
       setBusy(false);
       setConnecting(false);
     }
   }
+
+  // The WhatsApp option only shows when that rail is provisioned; when only one
+  // rail exists the sheet stays single-channel (its current behavior). Whether
+  // the *selected* rail is available drives the gate and the confirm button.
+  const isWhatsapp = !isEmail && smsChannel === 'whatsapp';
+  const showChannelToggle = !isEmail && (available === true || whatsappAvailable === true);
+  const effectiveAvailable = isEmail ? available : isWhatsapp ? whatsappAvailable : available;
 
   const gmailReady = !!user?.gmailConnected;
   // The time the greeting actually goes out at: the chosen slot, or the user's
@@ -142,7 +163,12 @@ export function AutoSendSheet({
   const recipientOk = isEmail ? EMAIL_RE.test(recipient.trim()) : recipient.trim().length > 0;
   const messageOk = message.trim().length > 0 && message.trim().length <= maxLen;
   const canConfirm =
-    available === true && recipientOk && messageOk && (!isEmail || gmailReady) && !busy && !connecting;
+    effectiveAvailable === true &&
+    recipientOk &&
+    messageOk &&
+    (!isEmail || gmailReady) &&
+    !busy &&
+    !connecting;
 
   const confirm = async () => {
     if (!canConfirm) return;
@@ -153,6 +179,8 @@ export function AutoSendSheet({
         message: message.trim(),
         sendTime,
         sendTimeZone,
+        smsChannel,
+        smsTemplateId: isEmail ? null : activeTemplate,
       });
       onClose();
     } catch (e) {
@@ -166,16 +194,46 @@ export function AutoSendSheet({
     <Sheet
       visible={visible}
       onClose={onClose}
-      title={isEmail ? 'Auto-send birthday email' : 'Auto-send birthday SMS'}>
-      {available !== true ? (
+      title={
+        isEmail
+          ? 'Auto-send birthday email'
+          : isWhatsapp
+            ? 'Auto-send birthday WhatsApp'
+            : 'Auto-send birthday SMS'
+      }>
+      {/* Rail picker — only when WhatsApp is also provisioned; otherwise the sheet
+          stays single-channel. Sits above the availability gate so you can always
+          switch back to an available rail. */}
+      {showChannelToggle ? (
+        <View className="mb-4">
+          <Label>Send by</Label>
+          <View className="flex-row gap-2">
+            <Chip
+              label="SMS"
+              selected={!isWhatsapp}
+              disabled={available !== true}
+              onPress={() => setSmsChannel('sms')}
+            />
+            <Chip
+              label="WhatsApp"
+              selected={isWhatsapp}
+              disabled={whatsappAvailable !== true}
+              onPress={() => setSmsChannel('whatsapp')}
+            />
+          </View>
+        </View>
+      ) : null}
+      {effectiveAvailable !== true ? (
         <View className="gap-4 pb-2">
           <View className="rounded-sm bg-warn-bg p-3">
             <Text variant="caption" className="text-warn-fg">
-              {available === undefined
+              {effectiveAvailable === undefined
                 ? 'Checking availability…'
                 : isEmail
                   ? "Auto-send email isn't available on this server yet, so it can't be turned on. Check back later."
-                  : "Auto-send texts aren't available on this server yet, so they can't be turned on. Check back later."}
+                  : isWhatsapp
+                    ? "Auto-send WhatsApp isn't available on this server yet, so it can't be turned on. Check back later."
+                    : "Auto-send texts aren't available on this server yet, so they can't be turned on. Check back later."}
             </Text>
           </View>
           <Button fullWidth variant="secondary" onPress={onClose}>
@@ -236,7 +294,9 @@ export function AutoSendSheet({
                 hint={
                   isEmail
                     ? `Subject will be "Happy Birthday, ${firstName(personName)}!" · sent as a designed birthday card`
-                    : `${message.length}/${SMS_MAX} · Keep it short — one message. An emoji costs extra.`
+                    : isWhatsapp
+                      ? `${message.length}/${SMS_MAX} · Keep it short and friendly — one message.`
+                      : `${message.length}/${SMS_MAX} · Keep it short — one message. An emoji costs extra.`
                 }
               />
 
@@ -289,12 +349,26 @@ export function AutoSendSheet({
                   )}
                 </View>
               ) : (
-                <View className="rounded-md bg-surface-sunken p-3">
-                  <Text variant="caption" className="text-ink-secondary">
-                    {`The text comes from a shared number — not yours — and is signed with your name${
-                      user?.name ? ` (${user.name})` : ''
-                    }, once a year on their birthday at ${effectiveTimeLabel}.`}
-                  </Text>
+                <View className="gap-2">
+                  <View className="rounded-md bg-surface-sunken p-3">
+                    <Text variant="caption" className="text-ink-secondary">
+                      {`${
+                        isWhatsapp
+                          ? 'The WhatsApp message comes from a shared business number'
+                          : 'The text comes from a shared number'
+                      } — not yours — and is signed with your name${
+                        user?.name ? ` (${user.name})` : ''
+                      }, once a year on their birthday at ${effectiveTimeLabel}.`}
+                    </Text>
+                  </View>
+                  {isWhatsapp && activeTemplate === null ? (
+                    <View className="rounded-md bg-warn-bg p-3">
+                      <Text variant="caption" className="text-warn-fg">
+                        WhatsApp can only auto-send an approved template — pick a greeting above. Custom
+                        text only reaches them if you already have an open WhatsApp chat.
+                      </Text>
+                    </View>
+                  ) : null}
                 </View>
               )}
 

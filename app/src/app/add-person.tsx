@@ -40,6 +40,7 @@ import {
   type Feb29Rule,
   type PersonType,
   type SharedListView,
+  type SmsChannel,
 } from '@/lib/api';
 import { eventTypeMeta } from '@/lib/event-style';
 import { formatNanp } from '@/lib/phone';
@@ -170,11 +171,16 @@ export default function AddPersonScreen() {
   // birthday via one shared Twilio account - no per-user connect step, so it
   // just needs a phone. Same popup flow.
   const [autoSmsOn, setAutoSmsOn] = useState(false);
+  const [autoSmsChannel, setAutoSmsChannel] = useState<SmsChannel>('sms');
+  const [autoSmsTemplateId, setAutoSmsTemplateId] = useState<string | null>(null);
   const [autoSmsMessage, setAutoSmsMessage] = useState('');
   const [autoSmsTime, setAutoSmsTime] = useState('');
   const [autoSmsTz, setAutoSmsTz] = useState('');
   const [smsSheetOpen, setSmsSheetOpen] = useState(false);
   const [smsAutoSendAvailable, setSmsAutoSendAvailable] = useState<boolean | undefined>(undefined);
+  const [whatsappAutoSendAvailable, setWhatsappAutoSendAvailable] = useState<boolean | undefined>(
+    undefined,
+  );
 
   // Per-event reminder override (applies to this person's birthday event).
   const [birthdayEventId, setBirthdayEventId] = useState<string | null>(null);
@@ -209,6 +215,7 @@ export default function AddPersonScreen() {
         setSmsCap(c.smsWhatsappMonthlyCap);
         setGmailAvailable(!!c.gmailAutoSendAvailable);
         setSmsAutoSendAvailable(!!c.smsAutoSendAvailable);
+        setWhatsappAutoSendAvailable(!!c.whatsappAutoSendAvailable);
       })
       .catch(() => {
         // Treat a failed config fetch as "not available" rather than leaving
@@ -216,6 +223,7 @@ export default function AddPersonScreen() {
         if (!active) return;
         setGmailAvailable(false);
         setSmsAutoSendAvailable(false);
+        setWhatsappAutoSendAvailable(false);
       });
     return () => {
       active = false;
@@ -278,6 +286,8 @@ export default function AddPersonScreen() {
         setAutoSendTime(person.autoBirthdayEmail?.sendTime ?? '');
         setAutoSendTz(person.autoBirthdayEmail?.sendTimeZone ?? '');
         setAutoSmsOn(person.autoBirthdaySms?.enabled ?? false);
+        setAutoSmsChannel(person.autoBirthdaySms?.channel ?? 'sms');
+        setAutoSmsTemplateId(person.autoBirthdaySms?.templateId ?? null);
         setAutoSmsMessage(person.autoBirthdaySms?.message ?? '');
         setAutoSmsTime(person.autoBirthdaySms?.sendTime ?? '');
         setAutoSmsTz(person.autoBirthdaySms?.sendTimeZone ?? '');
@@ -370,6 +380,8 @@ export default function AddPersonScreen() {
         },
         autoBirthdaySms: {
           enabled: autoSmsOn,
+          channel: autoSmsChannel,
+          templateId: autoSmsTemplateId,
           message: autoSmsMessage.trim() ? autoSmsMessage.trim() : null,
           sendTime: autoSmsTime || null,
           sendTimeZone: autoSmsTz || null,
@@ -744,15 +756,15 @@ export default function AddPersonScreen() {
                 account to connect (one shared Twilio number). */}
             <View>
               <ToggleRow
-                title="Auto-send birthday SMS"
-                helper="Text a greeting on their birthday, signed with your name."
+                title="Auto-send birthday text"
+                helper="Send a greeting on their birthday by SMS or WhatsApp, signed with your name."
                 value={autoSmsOn}
                 onValueChange={(on) => (on ? openAutoSendSheet('sms') : setAutoSmsOn(false))}
               />
               {autoSmsOn ? (
                 <View className="mt-1 flex-row flex-wrap items-center gap-x-1">
                   <Text variant="caption" className="text-ink-muted">
-                    {`To ${phone.trim() || 'their phone'}, signed ${user?.name || 'you'}, every year.`}
+                    {`By ${autoSmsChannel === 'whatsapp' ? 'WhatsApp' : 'SMS'} to ${phone.trim() || 'their phone'}, signed ${user?.name || 'you'}, every year.`}
                   </Text>
                   <Pressable
                     onPress={() => setSmsSheetOpen(true)}
@@ -878,16 +890,20 @@ export default function AddPersonScreen() {
           onClose={() => setSmsSheetOpen(false)}
           personName={name}
           available={smsAutoSendAvailable}
+          whatsappAvailable={whatsappAutoSendAvailable}
           initialRecipient={phone}
           initialMessage={autoSmsMessage}
           initialSendTime={autoSmsTime}
           initialSendTimeZone={autoSmsTz}
+          initialSmsChannel={autoSmsChannel}
           alreadyEnabled={autoSmsOn}
-          onConfirm={({ recipient, message, sendTime, sendTimeZone }) => {
+          onConfirm={({ recipient, message, sendTime, sendTimeZone, smsChannel, smsTemplateId }) => {
             setPhone(recipient);
             setAutoSmsMessage(message);
             setAutoSmsTime(sendTime);
             setAutoSmsTz(sendTimeZone);
+            setAutoSmsChannel(smsChannel);
+            setAutoSmsTemplateId(smsTemplateId);
             setAutoSmsOn(true);
           }}
         />

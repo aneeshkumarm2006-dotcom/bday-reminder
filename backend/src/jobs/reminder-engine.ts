@@ -40,7 +40,16 @@ import {
 } from '../lib/reminder-content';
 import { fireInstant } from '../lib/schedule';
 import { incrementSmsUsage, resolveFairUse, smsPeriod } from '../lib/sms-usage';
-import { sendTwilioSms, twilioConfigured, type SmsSender } from '../lib/twilio-send';
+import {
+  sendTwilioSms,
+  twilioChannelConfigured,
+  twilioConfigured,
+  twilioWhatsappConfigured,
+  type MessageChannel,
+  type SendOptions,
+  type SmsSender,
+} from '../lib/twilio-send';
+import { birthdayWhatsappVariables, whatsappTemplateSidFor } from '../lib/whatsapp-templates';
 import { CHANNEL_KEYS, type ChannelKey } from '../models/common';
 import { Event, type EventDoc } from '../models/Event';
 import { Person, type PersonDoc } from '../models/Person';
@@ -431,9 +440,11 @@ export async function dispatchBirthdayGreetings(
 }
 
 /**
- * Auto-send birthday SMS greetings (Stage 15). The SMS analog of
- * `dispatchBirthdayGreetings`, texting the *person* on their birthday AS the
- * person's owner. Two structural differences from the email path:
+ * Auto-send birthday SMS/WhatsApp greetings (Stage 15). The messaging analog of
+ * `dispatchBirthdayGreetings`, messaging the *person* on their birthday AS the
+ * person's owner. Each person's `autoBirthdaySms.channel` picks the rail (SMS or
+ * WhatsApp); both go out from the same shared Twilio account to `Person.phone`.
+ * Three structural differences from the email path:
  *
  *  1. There is no per-user carrier account, so we can't shrink the candidate set
  *     by "users who connected an integration". We query people directly and
@@ -442,6 +453,9 @@ export async function dispatchBirthdayGreetings(
  *     (the single per-person yearly claim guarantees exactly one send).
  *  2. The shared Twilio account costs money per message, so an account-wide
  *     monthly cap (`TWILIO_MONTHLY_CAP`, 0 = unlimited) stops sends once reached.
+ *     SMS and WhatsApp share this one budget.
+ *  3. SMS and WhatsApp are provisioned independently; a person whose chosen
+ *     channel isn't configured on this server is skipped (not failed).
  *
  * Same once-per-year atomic claim on `autoBirthdaySms.lastSentYear` with rollback
  * on a non-`sent` outcome, so a transient failure is retried on the next tick.
@@ -454,8 +468,8 @@ export async function dispatchBirthdaySms(
   const send = deps.send ?? sendTwilioSms;
   const summary: GreetingDispatchSummary = { considered: 0, sent: 0, skipped: 0, failed: 0 };
 
-  // Nothing to do until a shared Twilio account is provisioned.
-  if (!twilioConfigured()) return summary;
+  // Nothing to do until at least one rail (SMS or WhatsApp) is provisioned.
+  if (!twilioConfigured() && !twilioWhatsappConfigured()) return summary;
 
   const people = await Person.find({
     'autoBirthdaySms.enabled': true,
@@ -480,6 +494,8 @@ export async function dispatchBirthdaySms(
     const owner = await ownerOf(person.owner.toString());
     if (!owner) continue;
 
+    const channel: MessageChannel = person.autoBirthdaySms?.channel ?? 'sms';
+
     // Anchor "is it their birthday, and has the send time arrived?" in the
     // greeting's own timezone. `sendTimeZone` wins (e.g. "9am America/New_York"
     // for a friend in the US even when the owner lives in India); unset falls
@@ -499,6 +515,15 @@ export async function dispatchBirthdaySms(
     const prevYear = person.autoBirthdaySms?.lastSentYear;
     if (prevYear === year) continue;
     summary.considered += 1;
+
+    // The person's chosen rail may not be provisioned on this server (e.g. SMS is
+    // set up but WhatsApp isn't); skip rather than fail so it can send once the
+    // channel is configured.
+    if (!twilioChannelConfigured(channel)) {
+      summary.skipped += 1;
+      logger.info(`greeting-sms ${person._id.toString()} → skipped (${channel} not configured)`);
+      continue;
+    }
 
     // A malformed / non-E.164 number can never send; skip it rather than let
     // Twilio 400 on every tick forever (normalizePhone is soft on non-NANP input).
@@ -524,10 +549,22 @@ export async function dispatchBirthdaySms(
     );
     if (claim.modifiedCount !== 1) continue;
 
-    const result = await send(
-      person.phone,
-      person.autoBirthdaySms?.message?.trim() || birthdaySmsBody(person.fullName, owner.name),
-    );
+    // On WhatsApp, a business-initiated message must be an approved template:
+    // resolve the person's chosen preset to its Content SID and fill {{1}}/{{2}}
+    // with the recipient's first name + the sender's name. No SID (unconfigured,
+    // or custom "write your own" text) → free-form body, which only delivers in
+    // the Twilio sandbox or an open 24h session.
+    const body = person.autoBirthdaySms?.message?.trim() || birthdaySmsBody(person.fullName, owner.name);
+    const opts =
+      channel === 'whatsapp'
+        ? ((): SendOptions | undefined => {
+            const contentSid = whatsappTemplateSidFor(person.autoBirthdaySms?.templateId);
+            return contentSid
+              ? { contentSid, contentVariables: birthdayWhatsappVariables(person.fullName, owner.name) }
+              : undefined;
+          })()
+        : undefined;
+    const result = await send(person.phone, body, channel, opts);
 
     if (result.outcome === 'sent') {
       summary.sent += 1;

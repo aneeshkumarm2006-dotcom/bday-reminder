@@ -36,7 +36,8 @@
     "smoke:autosms": "tsx scripts/smoke-autosms.ts",
     "smoke:googleauth": "tsx scripts/smoke-googleauth.ts",
     "smoke:google-import": "tsx scripts/smoke-google-import.ts",
-    "smoke:delete-account": "tsx scripts/smoke-delete-account.ts"
+    "smoke:delete-account": "tsx scripts/smoke-delete-account.ts",
+    "register:whatsapp-templates": "tsx scripts/register-whatsapp-templates.ts"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

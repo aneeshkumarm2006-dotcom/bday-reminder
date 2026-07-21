@@ -138,18 +138,30 @@ export default function PersonProfilePage() {
     toast({ message: "Auto-send email on.", tone: "success" });
   };
 
-  const confirmAutoSms = async ({ recipient, message, sendTime, sendTimeZone }: AutoSendDraft) => {
+  const confirmAutoSms = async ({
+    recipient,
+    message,
+    sendTime,
+    sendTimeZone,
+    smsChannel,
+    smsTemplateId,
+  }: AutoSendDraft) => {
     await peopleApi.update(person.id, {
       phone: recipient,
       autoBirthdaySms: {
         enabled: true,
+        channel: smsChannel,
+        templateId: smsTemplateId,
         message,
         sendTime: sendTime || null,
         sendTimeZone: sendTimeZone || null,
       },
     });
     invalidatePerson();
-    toast({ message: "Auto-send SMS on.", tone: "success" });
+    toast({
+      message: smsChannel === "whatsapp" ? "Auto-send WhatsApp on." : "Auto-send SMS on.",
+      tone: "success",
+    });
   };
 
   return (
@@ -242,14 +254,17 @@ export default function PersonProfilePage() {
           <div className="flex items-center gap-3 rounded-lg border border-border-subtle bg-surface p-4">
             <MessageSquare size={20} className="shrink-0 text-biro" aria-hidden="true" />
             <div className="min-w-0 flex-1">
-              <p className="font-medium text-ink">Birthday SMS</p>
+              <p className="font-medium text-ink">
+                {person.autoBirthdaySms?.channel === "whatsapp" ? "Birthday WhatsApp" : "Birthday text"}
+              </p>
               <p className="mt-0.5 text-sm text-ink-muted">
                 {person.autoBirthdaySms?.enabled ? (
                   <>
-                    Texts {person.phone || "their phone"} each year, signed with your name.{" "}
+                    {person.autoBirthdaySms.channel === "whatsapp" ? "WhatsApps" : "Texts"}{" "}
+                    {person.phone || "their phone"} each year, signed with your name.{" "}
                     <button
                       type="button"
-                      aria-label="Edit the birthday SMS message"
+                      aria-label="Edit the birthday message"
                       className="font-medium text-biro hover:underline"
                       onClick={() => setSmsDialogOpen(true)}
                     >
@@ -257,7 +272,7 @@ export default function PersonProfilePage() {
                     </button>
                   </>
                 ) : (
-                  "Off. Turn on to text a greeting, signed with your name."
+                  "Off. Turn on to send a greeting by SMS or WhatsApp, signed with your name."
                 )}
               </p>
             </div>
@@ -265,7 +280,7 @@ export default function PersonProfilePage() {
               checked={!!person.autoBirthdaySms?.enabled}
               disabled={savingChannel === "sms"}
               onCheckedChange={(on) => (on ? setSmsDialogOpen(true) : autoSendOff("sms"))}
-              aria-label="Auto-send birthday SMS"
+              aria-label="Auto-send birthday text"
             />
           </div>
         </div>
@@ -326,10 +341,14 @@ export default function PersonProfilePage() {
         onClose={() => setSmsDialogOpen(false)}
         personName={person.fullName}
         available={config ? !!config.smsAutoSendAvailable : configFailed ? false : undefined}
+        whatsappAvailable={
+          config ? !!config.whatsappAutoSendAvailable : configFailed ? false : undefined
+        }
         initialRecipient={person.phone ?? ""}
         initialMessage={person.autoBirthdaySms?.message ?? ""}
         initialSendTime={person.autoBirthdaySms?.sendTime ?? ""}
         initialSendTimeZone={person.autoBirthdaySms?.sendTimeZone ?? ""}
+        initialSmsChannel={person.autoBirthdaySms?.channel ?? "sms"}
         alreadyEnabled={!!person.autoBirthdaySms?.enabled}
         onConfirm={confirmAutoSms}
       />

@@ -14,7 +14,7 @@ import { Chip } from "@/components/ui/chip";
 import { Dialog } from "@/components/ui/dialog";
 import { Label, Textarea, TextField } from "@/components/ui/input";
 import { useToast } from "@/components/ui/toast";
-import { ApiError, gmailApi } from "@/lib/api";
+import { ApiError, gmailApi, type SmsChannel } from "@/lib/api";
 import {
   defaultGreeting,
   EMAIL_MAX,
@@ -35,6 +35,10 @@ export type AutoSendDraft = {
   message: string;
   sendTime: string;
   sendTimeZone: string;
+  /** Selected rail for the SMS dialog ('sms' | 'whatsapp'); ignored by the email dialog. */
+  smsChannel: SmsChannel;
+  /** Chosen greeting preset id, or null for custom text; drives the WhatsApp template. */
+  smsTemplateId: string | null;
 };
 
 /**
@@ -55,10 +59,12 @@ export function AutoSendDialog({
   onClose,
   personName,
   available,
+  whatsappAvailable,
   initialRecipient,
   initialMessage,
   initialSendTime,
   initialSendTimeZone,
+  initialSmsChannel = "sms",
   alreadyEnabled,
   onConfirm,
 }: {
@@ -67,14 +73,19 @@ export function AutoSendDialog({
   onClose: () => void;
   /** For {name} substitution and the fixed email subject preview. */
   personName: string;
-  /** Server provisioning flag; undefined = config still loading. */
+  /** Server provisioning flag for the SMS rail (or Gmail for the email dialog);
+   * undefined = config still loading. */
   available: boolean | undefined;
+  /** Server provisioning flag for the WhatsApp rail (SMS dialog only). */
+  whatsappAvailable?: boolean;
   initialRecipient: string;
   initialMessage: string;
   /** Stored "HH:mm" send time; "" = inherit the user's default reminder time. */
   initialSendTime: string;
   /** Stored IANA zone `sendTime` is anchored in; "" = inherit the account timezone. */
   initialSendTimeZone: string;
+  /** Stored rail for the SMS dialog ('sms' | 'whatsapp'); defaults to SMS. */
+  initialSmsChannel?: SmsChannel;
   /** true → editing an existing setup ("Save"); false → enabling ("Turn on"). */
   alreadyEnabled: boolean;
   onConfirm: (draft: AutoSendDraft) => void | Promise<void>;
@@ -90,6 +101,7 @@ export function AutoSendDialog({
   const [message, setMessage] = useState("");
   const [sendTime, setSendTime] = useState("");
   const [sendTimeZone, setSendTimeZone] = useState("");
+  const [smsChannel, setSmsChannel] = useState<SmsChannel>("sms");
   const [customPicked, setCustomPicked] = useState(false);
   const [busy, setBusy] = useState(false);
   const [connectWaiting, setConnectWaiting] = useState(false);
@@ -104,11 +116,19 @@ export function AutoSendDialog({
       setMessage(initialMessage.trim() || defaultGreeting(channel, fillOpts));
       setSendTime(initialSendTime);
       setSendTimeZone(initialSendTimeZone);
+      setSmsChannel(initialSmsChannel);
       setCustomPicked(false);
       setBusy(false);
       setConnectWaiting(false);
     }
   }
+
+  // The WhatsApp option only shows when that rail is provisioned; when only one
+  // rail exists the dialog stays single-channel (its current behavior). Whether
+  // the *selected* rail is available drives the gate and the confirm button.
+  const isWhatsapp = !isEmail && smsChannel === "whatsapp";
+  const showChannelToggle = !isEmail && (available === true || whatsappAvailable === true);
+  const effectiveAvailable = isEmail ? available : isWhatsapp ? whatsappAvailable : available;
 
   const gmailReady = !!user?.gmailConnected;
   // The time the greeting actually goes out at: the chosen slot, or the user's
@@ -166,7 +186,8 @@ export function AutoSendDialog({
 
   const recipientOk = isEmail ? EMAIL_RE.test(recipient.trim()) : recipient.trim().length > 0;
   const messageOk = message.trim().length > 0 && message.trim().length <= maxLen;
-  const canConfirm = available === true && recipientOk && messageOk && (!isEmail || gmailReady) && !busy;
+  const canConfirm =
+    effectiveAvailable === true && recipientOk && messageOk && (!isEmail || gmailReady) && !busy;
 
   const confirm = async () => {
     if (!canConfirm) return;
@@ -177,6 +198,8 @@ export function AutoSendDialog({
         message: message.trim(),
         sendTime,
         sendTimeZone,
+        smsChannel,
+        smsTemplateId: isEmail ? null : activeTemplate,
       });
       onClose();
     } catch (e) {
@@ -193,21 +216,53 @@ export function AutoSendDialog({
     <Dialog
       open={open}
       onClose={onClose}
-      title={isEmail ? "Auto-send birthday email" : "Auto-send birthday SMS"}
+      title={
+        isEmail
+          ? "Auto-send birthday email"
+          : isWhatsapp
+            ? "Auto-send birthday WhatsApp"
+            : "Auto-send birthday SMS"
+      }
       description={
         isEmail
           ? `A greeting emails itself on ${firstName(personName)}'s birthday — sent from your Gmail, as you.`
-          : `A text goes out on ${firstName(personName)}'s birthday, signed with your name.`
+          : `A ${isWhatsapp ? "WhatsApp message" : "text"} goes out on ${firstName(personName)}'s birthday, signed with your name.`
       }
     >
-      {available !== true ? (
+      {/* Rail picker — only when WhatsApp is also provisioned; otherwise the
+          dialog stays single-channel. Sits above the availability gate so you can
+          always switch back to an available rail. */}
+      {showChannelToggle ? (
+        <div className="mb-4">
+          <Label id="auto-send-rail">Send by</Label>
+          <div role="group" aria-labelledby="auto-send-rail" className="flex flex-wrap gap-2">
+            <Chip
+              selected={!isWhatsapp}
+              disabled={available !== true}
+              onClick={() => setSmsChannel("sms")}
+            >
+              SMS
+            </Chip>
+            <Chip
+              selected={isWhatsapp}
+              disabled={whatsappAvailable !== true}
+              onClick={() => setSmsChannel("whatsapp")}
+            >
+              WhatsApp
+            </Chip>
+          </div>
+        </div>
+      ) : null}
+      {effectiveAvailable !== true ? (
         <div className="flex flex-col gap-4">
           <div className="rounded-lg border border-border-subtle bg-surface-sunken p-4 text-sm text-ink-secondary">
-            {available === undefined
+            {effectiveAvailable === undefined
               ? "Checking availability…"
               : isEmail
                 ? "Auto-send email isn't available on this server yet, so it can't be turned on. Check back later."
-                : "Auto-send texts aren't available on this server yet, so they can't be turned on. Check back later."}
+                : isWhatsapp
+                  ? "Auto-send WhatsApp isn't available on this server yet, so it can't be turned on. Check back later."
+                  : "Auto-send texts aren't available on this server yet, so they can't be turned on. Check back later."}
           </div>
           <div className="flex justify-end">
             {/* Explicit type: this dialog can render inside the person form's
@@ -277,7 +332,9 @@ export function AutoSendDialog({
                   >
                     {message.length}/{SMS_MAX}
                   </span>{" "}
-                  · Keep it short — one message. An emoji costs extra.
+                  {isWhatsapp
+                    ? "· Keep it short and friendly — one message."
+                    : "· Keep it short — one message. An emoji costs extra."}
                 </>
               )}
             </p>
@@ -349,12 +406,25 @@ export function AutoSendDialog({
               )}
             </div>
           ) : (
-            <div className="rounded-lg border border-border-subtle bg-surface-sunken p-4">
-              <p className="text-sm text-ink-secondary">
-                The text comes from a shared number — not yours — and is signed with your name
-                {user?.name ? ` (${user.name})` : ""}, once a year on their birthday at{" "}
-                {effectiveTimeLabel}.
-              </p>
+            <div className="flex flex-col gap-2">
+              <div className="rounded-lg border border-border-subtle bg-surface-sunken p-4">
+                <p className="text-sm text-ink-secondary">
+                  {isWhatsapp
+                    ? "The WhatsApp message comes from a shared business number"
+                    : "The text comes from a shared number"}{" "}
+                  — not yours — and is signed with your name
+                  {user?.name ? ` (${user.name})` : ""}, once a year on their birthday at{" "}
+                  {effectiveTimeLabel}.
+                </p>
+              </div>
+              {isWhatsapp && activeTemplate === null ? (
+                <div className="rounded-lg bg-warn-bg p-4">
+                  <p className="text-sm text-warn-fg">
+                    WhatsApp can only auto-send an approved template — pick a greeting above. Custom
+                    text only reaches them if you already have an open WhatsApp chat.
+                  </p>
+                </div>
+              ) : null}
             </div>
           )}
 

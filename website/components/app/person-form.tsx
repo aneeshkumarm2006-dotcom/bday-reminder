@@ -24,6 +24,7 @@ import {
   type Feb29Rule,
   type PersonType,
   type PersonWithEvents,
+  type SmsChannel,
 } from "@/lib/api";
 import { monthAbbr } from "@/lib/dates";
 import { eventTypeMeta } from "@/lib/event-style";
@@ -87,6 +88,12 @@ export function PersonForm({
   const [autoSendTime, setAutoSendTime] = useState(person?.autoBirthdayEmail?.sendTime ?? "");
   const [autoSendTz, setAutoSendTz] = useState(person?.autoBirthdayEmail?.sendTimeZone ?? "");
   const [autoSmsOn, setAutoSmsOn] = useState(person?.autoBirthdaySms?.enabled ?? false);
+  const [autoSmsChannel, setAutoSmsChannel] = useState<SmsChannel>(
+    person?.autoBirthdaySms?.channel ?? "sms",
+  );
+  const [autoSmsTemplateId, setAutoSmsTemplateId] = useState<string | null>(
+    person?.autoBirthdaySms?.templateId ?? null,
+  );
   const [autoSmsMessage, setAutoSmsMessage] = useState(person?.autoBirthdaySms?.message ?? "");
   const [autoSmsTime, setAutoSmsTime] = useState(person?.autoBirthdaySms?.sendTime ?? "");
   const [autoSmsTz, setAutoSmsTz] = useState(person?.autoBirthdaySms?.sendTimeZone ?? "");
@@ -177,6 +184,8 @@ export function PersonForm({
       },
       autoBirthdaySms: {
         enabled: autoSmsOn,
+        channel: autoSmsChannel,
+        templateId: autoSmsTemplateId,
         message: autoSmsMessage.trim() || null,
         sendTime: autoSmsTime || null,
         sendTimeZone: autoSmsTz || null,
@@ -397,14 +406,15 @@ export function PersonForm({
           account to connect (one shared Twilio number). */}
       <div>
         <ToggleRow
-          label="Auto-send birthday SMS"
-          description="Text a greeting on their birthday, signed with your name."
+          label="Auto-send birthday text"
+          description="Send a greeting on their birthday by SMS or WhatsApp, signed with your name."
           checked={autoSmsOn}
           onCheckedChange={(on) => (on ? openAutoSendDialog("sms") : setAutoSmsOn(false))}
         />
         {autoSmsOn ? (
           <p className="mt-1 text-xs text-ink-muted">
-            To {phone.trim() || "their phone"}, signed {user?.name || "you"}, every year.{" "}
+            By {autoSmsChannel === "whatsapp" ? "WhatsApp" : "SMS"} to {phone.trim() || "their phone"}
+            , signed {user?.name || "you"}, every year.{" "}
             <button
               type="button"
               aria-label="Edit the birthday SMS message"
@@ -491,16 +501,22 @@ export function PersonForm({
         onClose={() => setSmsDialogOpen(false)}
         personName={fullName}
         available={config ? !!config.smsAutoSendAvailable : configFailed ? false : undefined}
+        whatsappAvailable={
+          config ? !!config.whatsappAutoSendAvailable : configFailed ? false : undefined
+        }
         initialRecipient={phone}
         initialMessage={autoSmsMessage}
         initialSendTime={autoSmsTime}
         initialSendTimeZone={autoSmsTz}
+        initialSmsChannel={autoSmsChannel}
         alreadyEnabled={autoSmsOn}
-        onConfirm={({ recipient, message, sendTime, sendTimeZone }) => {
+        onConfirm={({ recipient, message, sendTime, sendTimeZone, smsChannel, smsTemplateId }) => {
           setPhone(recipient);
           setAutoSmsMessage(message);
           setAutoSmsTime(sendTime);
           setAutoSmsTz(sendTimeZone);
+          setAutoSmsChannel(smsChannel);
+          setAutoSmsTemplateId(smsTemplateId);
           setAutoSmsOn(true);
         }}
       />
