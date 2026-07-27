@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect, redirect } from "next/navigation";
 import { cache } from "react";
 
 import { PostArticle } from "@/components/blog/post-article";
 import { PostJsonLd } from "@/components/blog/post-json-ld";
+import { recordNotFound, resolveRedirect } from "@/lib/content/redirects";
 import { getPublishedPostBySlug, incrementViews } from "@/lib/blog/posts";
 import type { Post } from "@/lib/blog/types";
 import { isHttpUrl } from "@/lib/blog/url";
@@ -72,7 +73,17 @@ export default async function BlogPostPage({
 }) {
   const { slug } = await params;
   const post = await loadPost(slug);
-  if (!post) notFound();
+  if (!post) {
+    // Same miss-path handling as the custom-page catch-all: a renamed post is
+    // the other place old URLs go stale, so check the redirect table before 404.
+    const rule = await resolveRedirect(`/blog/${slug}`);
+    if (rule) {
+      if (rule.type === 301) permanentRedirect(rule.to);
+      redirect(rule.to);
+    }
+    await recordNotFound(`/blog/${slug}`);
+    notFound();
+  }
 
   // Monitoring metric — best-effort, never blocks/breaks the render.
   await incrementViews(post.slug);

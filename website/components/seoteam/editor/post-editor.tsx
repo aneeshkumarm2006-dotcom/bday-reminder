@@ -353,10 +353,10 @@ export function PostEditor({
   if (mode === "new" && !template) {
     return (
       <>
-        <SeoTeamHeader showNewButton={false} />
+        <SeoTeamHeader />
         <main className="mx-auto w-full max-w-5xl px-5 py-8">
           <Link
-            href="/seoteam"
+            href="/seoteam/posts"
             className="mb-6 inline-flex items-center gap-1.5 text-sm text-ink-muted hover:text-ink"
           >
             <ArrowLeft size={16} aria-hidden="true" /> Back to posts
@@ -371,13 +371,13 @@ export function PostEditor({
 
   return (
     <>
-      <SeoTeamHeader showNewButton={false} />
+      <SeoTeamHeader />
 
       {/* Sticky action bar */}
       <div className="sticky top-0 z-10 border-b border-border-subtle bg-paper/90 backdrop-blur">
         <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-3 px-5 py-3">
           <Link
-            href="/seoteam"
+            href="/seoteam/posts"
             className="inline-flex items-center gap-1.5 text-sm text-ink-muted hover:text-ink"
           >
             <ArrowLeft size={16} aria-hidden="true" /> Posts

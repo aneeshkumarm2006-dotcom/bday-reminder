@@ -1,65 +1,29 @@
 import type { Metadata } from "next";
 
+import { CustomJsonLd } from "@/components/custom-json-ld";
 import { LegalPage } from "@/components/legal-page";
-import { siteConfig } from "@/lib/site";
+import { getLegalDoc, getPageMeta } from "@/lib/content/get";
+import { metadataForPath } from "@/lib/content/metadata";
 
-export const metadata: Metadata = {
-  title: "Terms",
-  description: `The terms of using ${siteConfig.name} - a free birthday and event reminder app.`,
-  alternates: { canonical: "/terms" },
-};
+// Admin-managed (/seoteam/meta for SEO, /seoteam/legal for the copy); both fall
+// back to the hardcoded defaults when no database is configured.
+export function generateMetadata(): Promise<Metadata> {
+  return metadataForPath("/terms");
+}
 
-export default function TermsPage() {
+export default async function TermsPage() {
+  const [doc, meta] = await Promise.all([getLegalDoc("terms"), getPageMeta("/terms")]);
+
   return (
-    <LegalPage
-      title="Terms of service"
-      updated="June 2026"
-      intro={`The basics of using ${siteConfig.name}. Plain language, no surprises.`}
-    >
-      <p>
-        This is a starting template and should be reviewed by a professional before launch.
-        By using {siteConfig.name}, you agree to the following.
-      </p>
-
-      <h2>The service</h2>
-      <p>
-        {siteConfig.name} helps you store birthdays and events and reminds you about them. It
-        is provided free of charge, with no paid tier at launch. We may add, change, or remove
-        features over time.
-      </p>
-
-      <h2>Your account</h2>
-      <ul>
-        <li>You&apos;re responsible for keeping your login secure.</li>
-        <li>You must be old enough to consent to this in your country.</li>
-        <li>Keep the information you add accurate, and only add details you&apos;re allowed to.</li>
-      </ul>
-
-      <h2>Acceptable use</h2>
-      <p>
-        Use {siteConfig.name} for its purpose of remembering and acting on the dates that matter
-        to you and your shared lists. Don&apos;t use it to harass anyone, to send unsolicited
-        bulk messages, or in any unlawful way.
-      </p>
-
-      <h2>Reminders &amp; messaging</h2>
-      <p>
-        We make a best effort to deliver reminders on time, but can&apos;t guarantee delivery, because
-        networks, devices, and third-party providers can fail. The &ldquo;send greeting&rdquo;
-        action only ever opens your own messaging app; you choose to send.
-      </p>
-
-      <h2>No warranty</h2>
-      <p>
-        The service is provided &ldquo;as is.&rdquo; To the extent permitted by law, we
-        disclaim warranties and aren&apos;t liable for missed reminders or indirect damages.
-      </p>
-
-      <h2>Contact</h2>
-      <p>
-        Questions about these terms? Email{" "}
-        <a href={`mailto:${siteConfig.contactEmail}`}>{siteConfig.contactEmail}</a>.
-      </p>
-    </LegalPage>
+    <>
+      <CustomJsonLd json={meta.customJsonLd} />
+      {/* `html` is sanitized on write — see the legal API route. */}
+      <LegalPage
+        title={doc.title}
+        updated={doc.updated || undefined}
+        intro={doc.intro}
+        html={doc.html}
+      />
+    </>
   );
 }

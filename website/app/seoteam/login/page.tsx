@@ -1,13 +1,34 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 
 import { BrandRing } from "@/components/brand-ring";
 import { Button } from "@/components/ui/button";
 import { TextField } from "@/components/ui/input";
 import { loginRequest } from "@/lib/blog/dashboard-api";
+import { EDITOR_COOKIE } from "@/lib/content/editor";
 import { siteConfig } from "@/lib/site";
+
+/**
+ * Read the (non-httpOnly, attribution-only) editor cookie to prefill the name.
+ * Cookies are an external store, so this goes through `useSyncExternalStore`
+ * instead of a setState-in-effect: the server snapshot is "" and the client's
+ * is the real cookie, which React reconciles without a hydration mismatch.
+ */
+function readEditorCookie(): string {
+  const match = document.cookie.match(
+    new RegExp(`(?:^|; )${EDITOR_COOKIE}=([^;]*)`),
+  );
+  try {
+    return match ? decodeURIComponent(match[1]) : "";
+  } catch {
+    return "";
+  }
+}
+
+/** The cookie can't change while this page is open — nothing to subscribe to. */
+const noopSubscribe = () => () => {};
 
 export default function SeoLoginPage() {
   const router = useRouter();
@@ -15,12 +36,22 @@ export default function SeoLoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
+  // Remember who was last at this browser (cosmetic — never an auth signal)
+  // until they type something, which takes over.
+  const rememberedName = useSyncExternalStore(
+    noopSubscribe,
+    readEditorCookie,
+    () => "",
+  );
+  const [typedName, setTypedName] = useState<string | null>(null);
+  const editorName = typedName ?? rememberedName;
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setBusy(true);
     try {
-      await loginRequest(password);
+      await loginRequest(password, editorName);
       // Honor a ?next= target if it stays inside the dashboard, else go home.
       const next = new URLSearchParams(window.location.search).get("next");
       const dest = next && next.startsWith("/seoteam") ? next : "/seoteam";
@@ -47,10 +78,19 @@ export default function SeoLoginPage() {
             SEO team sign in
           </h1>
           <p className="mt-1.5 text-sm text-ink-secondary">
-            Enter the shared dashboard password to manage blog posts.
+            Enter the shared dashboard password to manage the site.
           </p>
 
           <form onSubmit={submit} className="mt-6 flex flex-col gap-4">
+            <TextField
+              label="Your name (optional)"
+              type="text"
+              autoComplete="nickname"
+              placeholder="e.g. Priya"
+              value={editorName}
+              onChange={(e) => setTypedName(e.target.value)}
+              helper="Shown on the activity log so edits can be traced back to you."
+            />
             <TextField
               label="Password"
               type="password"

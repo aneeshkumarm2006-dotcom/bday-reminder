@@ -2,47 +2,54 @@ import { Mail } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { CustomJsonLd } from "@/components/custom-json-ld";
 import { LegalPage } from "@/components/legal-page";
 import { buttonVariants } from "@/components/ui/button";
-import { siteConfig } from "@/lib/site";
+import { getLegalDoc, getPageMeta, getSiteSettings } from "@/lib/content/get";
+import { metadataForPath } from "@/lib/content/metadata";
 
-export const metadata: Metadata = {
-  title: "Contact",
-  description: `Get in touch with the ${siteConfig.name} team.`,
-  alternates: { canonical: "/contact" },
-};
+// Admin-managed (/seoteam/meta for SEO, /seoteam/legal for the copy); both fall
+// back to the hardcoded defaults when no database is configured.
+export function generateMetadata(): Promise<Metadata> {
+  return metadataForPath("/contact");
+}
 
-export default function ContactPage() {
+export default async function ContactPage() {
+  const [doc, meta, settings] = await Promise.all([
+    getLegalDoc("contact"),
+    getPageMeta("/contact"),
+    getSiteSettings(),
+  ]);
+  // The email is one value, owned by Site settings — the contact card and the
+  // Organization structured data both read it from there.
+  const email = settings.identity.contactEmail;
+
   return (
-    <LegalPage
-      title="Contact"
-      intro="Found a bug, have an idea, or need a hand? We'd love to hear from you."
-    >
-      <p>
-        {siteConfig.name} is a small, free project. The fastest way to reach us is email.
-        We read every message.
-      </p>
-
-      <div className="not-prose flex flex-col items-start gap-4 rounded-lg border border-border-subtle bg-surface p-6">
-        <span className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-biro-tint text-biro">
-          <Mail size={20} aria-hidden="true" />
-        </span>
-        <div>
-          <p className="font-display text-lg font-semibold text-ink">Email us</p>
-          <p className="mt-1 text-sm text-ink-secondary">
-            We usually reply within a couple of days.
-          </p>
-        </div>
-        <Link href={`mailto:${siteConfig.contactEmail}`} className={buttonVariants()}>
-          {siteConfig.contactEmail}
-        </Link>
-      </div>
-
-      <p>
-        For privacy questions, see our{" "}
-        <Link href="/privacy">privacy policy</Link>. For the terms of use, see our{" "}
-        <Link href="/terms">terms</Link>.
-      </p>
-    </LegalPage>
+    <>
+      <CustomJsonLd json={meta.customJsonLd} />
+      <LegalPage
+        title={doc.title}
+        updated={doc.updated || undefined}
+        intro={doc.intro}
+        html={doc.html}
+      >
+        {email && (
+          <div className="not-prose flex flex-col items-start gap-4 rounded-lg border border-border-subtle bg-surface p-6">
+            <span className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-biro-tint text-biro">
+              <Mail size={20} aria-hidden="true" />
+            </span>
+            <div>
+              <p className="font-display text-lg font-semibold text-ink">Email us</p>
+              <p className="mt-1 text-sm text-ink-secondary">
+                We usually reply within a couple of days.
+              </p>
+            </div>
+            <Link href={`mailto:${email}`} className={buttonVariants()}>
+              {email}
+            </Link>
+          </div>
+        )}
+      </LegalPage>
+    </>
   );
 }

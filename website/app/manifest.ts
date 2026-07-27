@@ -1,13 +1,17 @@
 import type { MetadataRoute } from "next";
 
-import { siteConfig } from "@/lib/site";
+import { getSiteSettings } from "@/lib/content/get";
 
-/** Web app manifest (Stage 11 SEO / installability). */
-export default function manifest(): MetadataRoute.Manifest {
+// Regenerated per request so a rename in Site settings reaches installed PWAs.
+export const dynamic = "force-dynamic";
+
+/** Web app manifest (Stage 11 SEO / installability), named from Site settings. */
+export default async function manifest(): Promise<MetadataRoute.Manifest> {
+  const { identity } = await getSiteSettings();
   return {
-    name: siteConfig.name,
-    short_name: "Circle the date",
-    description: siteConfig.description,
+    name: identity.name,
+    short_name: identity.name,
+    description: identity.description,
     start_url: "/",
     display: "standalone",
     background_color: "#FCFBF8",

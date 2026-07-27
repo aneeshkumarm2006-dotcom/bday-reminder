@@ -4,15 +4,22 @@ import { Menu, X } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
-import { navLinks } from "@/lib/site";
+import type { NavLink, NavigationConfig } from "@/lib/content/types";
 
 /**
  * Mobile disclosure menu (Stage 12 a11y). The desktop <nav> is hidden below md;
  * without this the in-page section links are unreachable on phones. A labelled
- * button (aria-expanded / aria-controls) toggles the same links; selecting one
- * closes the panel. Hidden at md and up, where the desktop nav takes over.
+ * button (aria-expanded / aria-controls) toggles the same admin-managed links;
+ * selecting one closes the panel. Hidden at md and up, where the desktop nav
+ * takes over.
  */
-export function MobileNav() {
+export function MobileNav({
+  links,
+  ctas,
+}: {
+  links: NavLink[];
+  ctas: NavigationConfig["header"]["ctas"];
+}) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -38,32 +45,50 @@ export function MobileNav() {
           aria-label="Primary"
           className="absolute left-0 right-0 top-16 border-b border-border-subtle bg-paper px-5 py-2 shadow-sm"
         >
-          {navLinks.map((link) => (
+          {links.map((link) => (
             <Link
-              key={link.href}
+              key={link.id}
               href={link.href}
               onClick={() => setOpen(false)}
+              {...(link.external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
               className="block rounded-md px-3 py-3 text-sm font-medium text-ink-secondary transition-colors hover:bg-surface-sunken hover:text-ink"
             >
               {link.label}
             </Link>
           ))}
 
-          <div className="my-2 border-t border-border-subtle" />
+          {ctas.show && (
+            <>
+              <div className="my-2 border-t border-border-subtle" />
 
-          <Link
-            href="/login"
-            onClick={() => setOpen(false)}
-            className="block rounded-md px-3 py-3 text-sm font-medium text-ink-secondary transition-colors hover:bg-surface-sunken hover:text-ink"
-          >
-            Log in
-          </Link>
-          <span
-            className="block px-3 py-3 text-sm font-medium text-ink-muted"
-            aria-label="App coming soon"
-          >
-            Coming soon
-          </span>
+              {ctas.loginLabel && (
+                <Link
+                  href="/login"
+                  onClick={() => setOpen(false)}
+                  className="block rounded-md px-3 py-3 text-sm font-medium text-ink-secondary transition-colors hover:bg-surface-sunken hover:text-ink"
+                >
+                  {ctas.loginLabel}
+                </Link>
+              )}
+              {ctas.signupLabel &&
+                (ctas.signupHref ? (
+                  <Link
+                    href={ctas.signupHref}
+                    onClick={() => setOpen(false)}
+                    className="block rounded-md px-3 py-3 text-sm font-medium text-biro transition-colors hover:bg-surface-sunken"
+                  >
+                    {ctas.signupLabel}
+                  </Link>
+                ) : (
+                  <span
+                    className="block px-3 py-3 text-sm font-medium text-ink-muted"
+                    aria-label={`${ctas.signupLabel} — not available yet`}
+                  >
+                    {ctas.signupLabel}
+                  </span>
+                ))}
+            </>
+          )}
         </nav>
       ) : null}
     </div>

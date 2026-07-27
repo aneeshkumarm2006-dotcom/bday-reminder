@@ -2,27 +2,21 @@ import type { Metadata } from "next";
 
 import { BlogPagination } from "@/components/blog/blog-pagination";
 import { PostCard } from "@/components/blog/post-card";
+import { CustomJsonLd } from "@/components/custom-json-ld";
 import { isDbConfigured } from "@/lib/blog/db";
 import { getPublishedPosts, type PaginatedPosts } from "@/lib/blog/posts";
-import { siteConfig } from "@/lib/site";
+import { getPageMeta } from "@/lib/content/get";
+import { metadataForPath } from "@/lib/content/metadata";
 
 // Render on every request so newly published posts appear instantly (no redeploy).
 export const dynamic = "force-dynamic";
 
-const DESCRIPTION = `Guides, tips, and product updates from ${siteConfig.name}.`;
 const PAGE_SIZE = 9;
 
-export const metadata: Metadata = {
-  title: "Blog",
-  description: DESCRIPTION,
-  alternates: { canonical: "/blog" },
-  openGraph: {
-    title: `Blog · ${siteConfig.name}`,
-    description: DESCRIPTION,
-    url: `${siteConfig.url}/blog`,
-    type: "website",
-  },
-};
+// Admin-managed (see /seoteam/meta); falls back to DEFAULT_PAGE_META["/blog"].
+export function generateMetadata(): Promise<Metadata> {
+  return metadataForPath("/blog");
+}
 
 export default async function BlogIndexPage({
   searchParams,
@@ -31,6 +25,8 @@ export default async function BlogIndexPage({
 }) {
   const { page: pageParam } = await searchParams;
   const page = Math.max(1, Number.parseInt(pageParam ?? "1", 10) || 1);
+  // Cached by React `cache()` — this is the same read generateMetadata made.
+  const meta = await getPageMeta("/blog");
 
   let data: PaginatedPosts | null = null;
   let failed = false;
@@ -44,11 +40,12 @@ export default async function BlogIndexPage({
 
   return (
     <div className="mx-auto w-full max-w-5xl px-5 py-12 sm:py-16">
+      <CustomJsonLd json={meta.customJsonLd} />
       <header className="mb-10">
         <h1 className="font-display text-3xl font-semibold text-ink sm:text-4xl">
           Blog
         </h1>
-        <p className="mt-2 text-ink-muted">{DESCRIPTION}</p>
+        <p className="mt-2 text-ink-muted">{meta.description}</p>
       </header>
 
       {!data || data.posts.length === 0 ? (

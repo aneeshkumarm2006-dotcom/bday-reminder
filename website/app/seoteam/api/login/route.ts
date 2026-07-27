@@ -3,6 +3,11 @@ import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 
 import {
+  EDITOR_COOKIE,
+  EDITOR_COOKIE_MAX_AGE,
+  normalizeEditorName,
+} from "@/lib/content/editor";
+import {
   checkRateLimit,
   recordFailure,
   recordSuccess,
@@ -15,7 +20,11 @@ import {
   verifyPassword,
 } from "@/lib/seo-auth/session";
 
-const bodySchema = z.object({ password: z.string().min(1) });
+const bodySchema = z.object({
+  password: z.string().min(1),
+  /** Optional display name for edit attribution (see lib/content/editor.ts). */
+  editorName: z.string().max(200).optional(),
+});
 
 function clientKey(req: NextRequest): string {
   // Prefer the platform-set x-real-ip (harder to spoof than X-Forwarded-For,
@@ -75,6 +84,19 @@ export async function POST(req: NextRequest) {
     path: "/",
     maxAge: SESSION_MAX_AGE,
   });
+
+  // Attribution only: deliberately unsigned and readable by client code, so the
+  // admin UI can show "editing as …". Nothing authorizes off this value.
+  const editorName = normalizeEditorName(parsed.data.editorName);
+  if (editorName) {
+    store.set(EDITOR_COOKIE, editorName, {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: EDITOR_COOKIE_MAX_AGE,
+    });
+  }
 
   return NextResponse.json({ ok: true });
 }

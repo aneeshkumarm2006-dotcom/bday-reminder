@@ -1,9 +1,10 @@
 import type { Metadata, Viewport } from "next";
 import { Hanken_Grotesk, Inter } from "next/font/google";
-import Script from "next/script";
 
+import { AnalyticsScripts } from "@/components/analytics-scripts";
 import { ThemeProvider } from "@/components/theme-provider";
 import { AppProviders } from "@/providers/app-providers";
+import { getSiteSettings } from "@/lib/content/get";
 import { siteConfig } from "@/lib/site";
 
 import "./globals.css";
@@ -24,53 +25,62 @@ const inter = Inter({
   display: "swap",
 });
 
-// Google Analytics 4 (gtag.js) measurement ID.
-const GA_MEASUREMENT_ID = "G-SFK13RXJQR";
+/**
+ * Root metadata is admin-driven (Site settings → SEO defaults), with the
+ * hardcoded values in `lib/content/defaults.ts` as the fallback — so this
+ * renders identically whether or not a database is configured.
+ *
+ * `metadataBase` stays env-driven on purpose: the origin is a deploy concern,
+ * not a content one, and getting it from the DB would let a bad edit break
+ * every canonical and OG URL at once.
+ */
+export async function generateMetadata(): Promise<Metadata> {
+  const settings = await getSiteSettings();
+  const { identity, seo } = settings;
+  const indexable = seo.indexingEnabled;
 
-export const metadata: Metadata = {
-  metadataBase: new URL(siteConfig.url),
-  title: {
-    default: `${siteConfig.name} - ${siteConfig.tagline}`,
-    template: `%s · ${siteConfig.name}`,
-  },
-  description: siteConfig.description,
-  applicationName: siteConfig.name,
-  keywords: [
-    "birthday reminder",
-    "birthday app",
-    "reminder app",
-    "anniversary reminder",
-    "shared family calendar",
-    "family birthday calendar",
-    "SMS birthday reminders",
-    "group birthday tracker",
-    "never miss a birthday",
-  ],
-  authors: [{ name: siteConfig.name }],
-  alternates: { canonical: "/" },
-  openGraph: {
-    type: "website",
-    siteName: siteConfig.name,
-    title: `${siteConfig.name} - ${siteConfig.tagline}`,
-    description: siteConfig.description,
-    url: siteConfig.url,
-    // US-first, with Canada signalled as an alternate (both share +1 / English).
-    locale: "en_US",
-    alternateLocale: ["en_CA"],
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: `${siteConfig.name} - ${siteConfig.tagline}`,
-    description: siteConfig.description,
-  },
-  robots: {
-    index: true,
-    follow: true,
-  },
-  verification: {
-    google: "xwM26jsFYgHe7X5juAC2xRjQJxjFQUyNrA0udEjiD74",
-  },
-};
+  return {
+    metadataBase: new URL(siteConfig.url),
+    title: {
+      default: seo.defaultTitle,
+      template: seo.titleTemplate,
+    },
+    description: seo.defaultDescription,
+    applicationName: identity.name,
+    keywords: seo.keywords,
+    authors: [{ name: identity.name }],
+    alternates: { canonical: "/" },
+    openGraph: {
+      type: "website",
+      siteName: identity.name,
+      title: seo.defaultTitle,
+      description: seo.defaultDescription,
+      url: siteConfig.url,
+      ...(seo.ogImage ? { images: [{ url: seo.ogImage }] } : {}),
+      // US-first, with Canada signalled as an alternate (both share +1 / English).
+      locale: "en_US",
+      alternateLocale: ["en_CA"],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: seo.defaultTitle,
+      description: seo.defaultDescription,
+      ...(seo.twitterHandle ? { site: seo.twitterHandle, creator: seo.twitterHandle } : {}),
+      ...(seo.ogImage ? { images: [seo.ogImage] } : {}),
+    },
+    // The sitewide kill-switch: one toggle in the admin's danger zone.
+    robots: {
+      index: indexable,
+      follow: indexable,
+      ...(indexable ? {} : { googleBot: { index: false, follow: false } }),
+    },
+    verification: {
+      ...(seo.verification.google ? { google: seo.verification.google } : {}),
+      ...(seo.verification.bing ? { other: { "msvalidate.01": seo.verification.bing } } : {}),
+      ...(seo.verification.pinterest ? { pinterest: seo.verification.pinterest } : {}),
+    },
+  };
+}
 
 export const viewport: Viewport = {
   themeColor: [
@@ -79,11 +89,13 @@ export const viewport: Viewport = {
   ],
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const { analytics } = await getSiteSettings();
+
   return (
     <html
       lang="en-US"
@@ -98,19 +110,8 @@ export default function RootLayout({
           <AppProviders>{children}</AppProviders>
         </ThemeProvider>
 
-        {/* Google Analytics 4 — loaded after hydration (Next.js gtag.js pattern). */}
-        <Script
-          src={`https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`}
-          strategy="afterInteractive"
-        />
-        <Script id="google-analytics" strategy="afterInteractive">
-          {`
-            window.dataLayer = window.dataLayer || [];
-            function gtag(){dataLayer.push(arguments);}
-            gtag('js', new Date());
-            gtag('config', '${GA_MEASUREMENT_ID}');
-          `}
-        </Script>
+        {/* Tag IDs come from Site settings; never a raw script blob. */}
+        <AnalyticsScripts analytics={analytics} />
       </body>
     </html>
   );

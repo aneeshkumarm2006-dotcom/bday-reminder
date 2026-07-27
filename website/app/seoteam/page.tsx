@@ -1,108 +1,299 @@
+import {
+  Activity,
+  AlertTriangle,
+  FileText,
+  Files,
+  Images,
+  LayoutTemplate,
+  Navigation,
+  Scale,
+  Settings2,
+  Shuffle,
+  Tags,
+} from "lucide-react";
 import type { Metadata } from "next";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 
-import { PostsTable, type PostRow } from "@/components/seoteam/posts-table";
+import { AdminPage, DbMissingNotice } from "@/components/seoteam/admin/layout";
 import { SeoTeamHeader } from "@/components/seoteam/seoteam-header";
 import { isDbConfigured } from "@/lib/blog/db";
 import { getAllPosts } from "@/lib/blog/posts";
 import type { Post } from "@/lib/blog/types";
 import { isScheduled } from "@/lib/blog/visibility";
+import { listAudit } from "@/lib/content/audit";
+import { getAllSitePages, getLandingContent } from "@/lib/content/get";
+import { analyzePageSeo } from "@/lib/content/page-seo";
+import { listNotFoundHits, listRedirects } from "@/lib/content/redirects";
+import { getRouteRows } from "@/lib/content/routes";
+import { derivePageVisibility } from "@/lib/content/schedule";
 import { isSeoAuthenticated } from "@/lib/seo-auth/server";
 import { getAutoSmsStats, type AutoSmsStats } from "@/lib/sms/stats";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = { title: "Posts" };
+export const metadata: Metadata = { title: "Overview" };
 
+/**
+ * The admin's front door: what exists, what's unpublished, what's broken.
+ *
+ * Every number here is a link — the panel's job is to surface the one thing
+ * that needs attention (an SEO warning, a spike in 404s, a landing draft nobody
+ * published) rather than to be a dashboard for its own sake.
+ */
 export default async function SeoDashboardPage() {
   // Defense in depth: enforce auth in the data layer, not just the proxy matcher.
   if (!(await isSeoAuthenticated())) redirect("/seoteam/login");
 
-  let posts: Post[] = [];
-  let dbReady = isDbConfigured();
-  if (dbReady) {
-    try {
-      posts = await getAllPosts();
-    } catch {
-      dbReady = false;
-    }
+  const dbReady = isDbConfigured();
+  if (!dbReady) {
+    return (
+      <>
+        <SeoTeamHeader />
+        <AdminPage wide title="Overview" description="Everything public, in one place.">
+          <DbMissingNotice what="site content" />
+        </AdminPage>
+      </>
+    );
   }
 
-  // Compute "scheduled" with the server clock (a published post with a future
-  // publishedAt) so the client never needs new Date() at first render. isScheduled
-  // reads its own `now` default, keeping this render free of impure calls.
-  const rows: PostRow[] = posts.map((p) => ({
-    ...p,
-    scheduled: isScheduled(p.status, p.publishedAt),
-  }));
-  const liveCount = rows.filter((r) => r.status === "published" && !r.scheduled).length;
-  const scheduledCount = rows.filter((r) => r.scheduled).length;
-  const draftCount = rows.filter((r) => r.status === "draft").length;
+  let posts: Post[] = [];
+  try {
+    posts = await getAllPosts();
+  } catch {
+    posts = [];
+  }
 
-  // Auto-send SMS spend snapshot (Stage 15) - best-effort; never breaks the page.
+  const [pages, routes, audit, redirects, hits, publishedLanding, draftLanding] =
+    await Promise.all([
+      getAllSitePages(),
+      getRouteRows(),
+      listAudit({ limit: 8 }),
+      listRedirects(),
+      listNotFoundHits(),
+      getLandingContent("published"),
+      getLandingContent("draft"),
+    ]);
+
+  const livePosts = posts.filter(
+    (p) => p.status === "published" && !isScheduled(p.status, p.publishedAt),
+  ).length;
+  const draftPosts = posts.filter((p) => p.status === "draft").length;
+  const livePages = pages.filter(
+    (p) => derivePageVisibility(p.status, p.publishedAt) === "published",
+  ).length;
+  const draftPages = pages.length - livePages;
+
+  // A landing draft that differs from what's live is the most common "someone
+  // edited and forgot to publish" case, so it gets its own warning.
+  const landingUnpublished =
+    JSON.stringify(draftLanding.sections) !== JSON.stringify(publishedLanding.sections);
+
+  const seoWarnings = routes
+    .map((route) => ({ route, analysis: analyzePageSeo(route.meta) }))
+    .filter(({ analysis }) => analysis.counts.fail > 0)
+    .slice(0, 6);
+
+  const topHits = hits.slice(0, 5);
+
   let smsStats: AutoSmsStats | null = null;
-  if (dbReady) {
-    try {
-      smsStats = await getAutoSmsStats();
-    } catch {
-      smsStats = null;
-    }
+  try {
+    smsStats = await getAutoSmsStats();
+  } catch {
+    smsStats = null;
   }
 
   return (
     <>
       <SeoTeamHeader />
-      <main className="mx-auto w-full max-w-6xl px-5 py-8">
-        <div className="mb-6">
-          <h1 className="font-display text-2xl font-semibold text-ink">Posts</h1>
-          <p className="text-sm text-ink-muted">
-            Create, manage, and publish SEO-optimized blog posts.
-          </p>
+      <AdminPage
+        wide
+        title="Overview"
+        description="Everything public on the site — content, SEO, navigation, and redirects."
+      >
+        <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <HubCard
+            href="/seoteam/posts"
+            icon={FileText}
+            title="Posts"
+            value={`${livePosts} live`}
+            hint={`${draftPosts} draft${draftPosts === 1 ? "" : "s"}`}
+          />
+          <HubCard
+            href="/seoteam/pages"
+            icon={Files}
+            title="Pages"
+            value={`${livePages} live`}
+            hint={`${draftPages} draft or scheduled`}
+          />
+          <HubCard
+            href="/seoteam/landing"
+            icon={LayoutTemplate}
+            title="Landing page"
+            value={`${publishedLanding.sections.filter((s) => s.visible).length} sections`}
+            hint={landingUnpublished ? "Unpublished draft changes" : "Draft matches live"}
+            warn={landingUnpublished}
+          />
+          <HubCard
+            href="/seoteam/meta"
+            icon={Tags}
+            title="Page SEO"
+            value={`${routes.length} routes`}
+            hint={
+              seoWarnings.length > 0
+                ? `${seoWarnings.length} needing attention`
+                : "No blocking issues"
+            }
+            warn={seoWarnings.length > 0}
+          />
+          <HubCard
+            href="/seoteam/redirects"
+            icon={Shuffle}
+            title="Redirects"
+            value={`${redirects.filter((r) => r.enabled).length} active`}
+            hint={topHits.length > 0 ? `${hits.length} logged 404s` : "No 404s logged"}
+            warn={topHits.length > 0}
+          />
+          <HubCard
+            href="/seoteam/media"
+            icon={Images}
+            title="Media"
+            value="Library"
+            hint="Images used across posts and pages"
+          />
+          <HubCard
+            href="/seoteam/site"
+            icon={Settings2}
+            title="Site settings"
+            value="Identity & SEO"
+            hint="Analytics, socials, announcement"
+          />
+          <HubCard
+            href="/seoteam/navigation"
+            icon={Navigation}
+            title="Navigation"
+            value="Header & footer"
+            hint="Links shown on every page"
+          />
+          <HubCard
+            href="/seoteam/legal"
+            icon={Scale}
+            title="Legal & contact"
+            value="3 pages"
+            hint="Privacy, terms, contact"
+          />
+        </div>
+
+        <div className="grid gap-6 lg:grid-cols-2">
+          <section className="rounded-lg border border-border-subtle bg-surface p-5">
+            <h2 className="mb-3 flex items-center gap-2 font-display text-base font-semibold text-ink">
+              <AlertTriangle size={16} className="text-warn-fg" aria-hidden="true" />
+              Needs attention
+            </h2>
+            {seoWarnings.length === 0 && !landingUnpublished && topHits.length === 0 ? (
+              <p className="text-sm text-ink-muted">
+                Nothing flagged — every route passes its SEO checks.
+              </p>
+            ) : (
+              <ul className="flex flex-col gap-2 text-sm">
+                {landingUnpublished && (
+                  <li>
+                    <Link
+                      href="/seoteam/landing"
+                      className="text-ink hover:text-biro"
+                    >
+                      The landing page has draft changes that aren&apos;t published.
+                    </Link>
+                  </li>
+                )}
+                {seoWarnings.map(({ route, analysis }) => (
+                  <li key={route.path}>
+                    <Link href="/seoteam/meta" className="text-ink hover:text-biro">
+                      <span className="font-medium">{route.path}</span>{" "}
+                      <span className="text-ink-muted">
+                        — {analysis.checks.find((c) => c.status === "fail")?.detail}
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+                {topHits.map((hit) => (
+                  <li key={hit.id}>
+                    <Link href="/seoteam/redirects" className="text-ink hover:text-biro">
+                      <span className="font-mono text-xs">{hit.path}</span>{" "}
+                      <span className="text-ink-muted">
+                        — {hit.count} 404{hit.count === 1 ? "" : "s"}, no redirect
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+
+          <section className="rounded-lg border border-border-subtle bg-surface p-5">
+            <h2 className="mb-3 flex items-center gap-2 font-display text-base font-semibold text-ink">
+              <Activity size={16} className="text-ink-muted" aria-hidden="true" />
+              Recent activity
+            </h2>
+            {audit.length === 0 ? (
+              <p className="text-sm text-ink-muted">No changes recorded yet.</p>
+            ) : (
+              <ul className="flex flex-col gap-2 text-sm">
+                {audit.map((entry) => (
+                  <li key={entry.id} className="flex flex-wrap gap-x-2">
+                    <span className="text-ink">{entry.summary}</span>
+                    <span className="text-xs text-ink-muted">
+                      {entry.editor || "Unknown"} ·{" "}
+                      <time dateTime={entry.createdAt}>
+                        {entry.createdAt.slice(0, 10)}
+                      </time>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <Link
+              href="/seoteam/activity"
+              className="mt-3 inline-block text-sm text-biro underline underline-offset-2"
+            >
+              View all activity
+            </Link>
+          </section>
         </div>
 
         {smsStats && <TwilioCapCard stats={smsStats} />}
-
-        {!dbReady ? (
-          <div className="rounded-lg border border-border-subtle bg-warn-bg p-5 text-sm text-warn-fg">
-            <p className="font-medium">The database isn&apos;t connected.</p>
-            <p className="mt-1">
-              Set <code>MONGODB_URI</code> in <code>website/.env.local</code> to
-              start publishing posts.
-            </p>
-          </div>
-        ) : (
-          <>
-            {rows.length > 0 && (
-              <div className="mb-6 grid grid-cols-3 gap-3">
-                <StatCard label="Published" value={liveCount} hint="Live now" />
-                <StatCard label="Scheduled" value={scheduledCount} hint="Future auto-publish" />
-                <StatCard label="Drafts" value={draftCount} hint="Not published" />
-              </div>
-            )}
-            <PostsTable initialPosts={rows} />
-          </>
-        )}
-      </main>
+      </AdminPage>
     </>
   );
 }
 
-/** Small headline metric card for the posts overview. */
-function StatCard({
-  label,
+function HubCard({
+  href,
+  icon: Icon,
+  title,
   value,
   hint,
+  warn,
 }: {
-  label: string;
-  value: number;
+  href: string;
+  icon: typeof FileText;
+  title: string;
+  value: string;
   hint: string;
+  warn?: boolean;
 }) {
   return (
-    <div className="rounded-lg border border-border-subtle bg-surface p-4">
-      <p className="text-2xl font-semibold tabular-nums text-ink">{value}</p>
-      <p className="text-sm font-medium text-ink">{label}</p>
-      <p className="text-xs text-ink-muted">{hint}</p>
-    </div>
+    <Link
+      href={href}
+      className="group rounded-lg border border-border-subtle bg-surface p-4 transition-[border-color,transform] hover:-translate-y-0.5 hover:border-biro/40"
+    >
+      <span className="inline-flex h-9 w-9 items-center justify-center rounded-md bg-biro-tint text-biro">
+        <Icon size={18} aria-hidden="true" />
+      </span>
+      <p className="mt-3 text-sm font-medium text-ink group-hover:text-biro">{title}</p>
+      <p className="text-lg font-semibold text-ink">{value}</p>
+      <p className={warn ? "text-xs text-warn-fg" : "text-xs text-ink-muted"}>{hint}</p>
+    </Link>
   );
 }
 
@@ -113,7 +304,7 @@ function TwilioCapCard({ stats }: { stats: AutoSmsStats }) {
   const atCap = hasCap && stats.used >= stats.cap;
 
   return (
-    <div className="mb-6 rounded-lg border border-border-subtle bg-surface p-5">
+    <div className="mt-6 rounded-lg border border-border-subtle bg-surface p-5">
       <div className="flex items-start justify-between gap-4">
         <div>
           <h2 className="text-sm font-medium text-ink">Auto-send SMS this month</h2>
@@ -126,7 +317,9 @@ function TwilioCapCard({ stats }: { stats: AutoSmsStats }) {
             {stats.used}
             {hasCap && <span className="text-ink-muted">{` / ${stats.cap}`}</span>}
           </p>
-          <p className="text-xs text-ink-muted">{hasCap ? "texts / cap" : "texts · no cap set"}</p>
+          <p className="text-xs text-ink-muted">
+            {hasCap ? "texts / cap" : "texts · no cap set"}
+          </p>
         </div>
       </div>
       {hasCap && (

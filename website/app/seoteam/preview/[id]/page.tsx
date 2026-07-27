@@ -4,8 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 
 import { PostArticle } from "@/components/blog/post-article";
-import { SiteFooter } from "@/components/site-footer";
-import { SiteHeader } from "@/components/site-header";
+import { PreviewBanner, SiteChrome } from "@/components/site-chrome";
 import { getPostById } from "@/lib/blog/posts";
 import type { Post } from "@/lib/blog/types";
 import { isSeoAuthenticated } from "@/lib/seo-auth/server";
@@ -44,28 +43,22 @@ export default async function PreviewPostPage({
   if (!post) notFound();
 
   return (
-    <div className="flex min-h-dvh flex-col">
-      <SiteHeader />
-
-      <div className="border-b border-border-subtle bg-warn-bg">
-        <div className="mx-auto flex w-full max-w-3xl flex-wrap items-center justify-between gap-2 px-5 py-2.5 text-sm text-warn-fg">
-          <span className="font-medium">
-            Preview — this is how the post will look. It is not published.
-          </span>
+    <SiteChrome>
+      <PreviewBanner
+        message="Preview — this is how the post will look. It is not published."
+        action={
           <Link
             href={`/seoteam/posts/${post.id}/edit`}
             className="inline-flex items-center gap-1.5 font-medium underline hover:no-underline"
           >
             <ArrowLeft size={15} aria-hidden="true" /> Back to editor
           </Link>
-        </div>
-      </div>
+        }
+      />
 
       <main className="flex-1">
         <PostArticle post={post} />
       </main>
-
-      <SiteFooter />
-    </div>
+    </SiteChrome>
   );
 }

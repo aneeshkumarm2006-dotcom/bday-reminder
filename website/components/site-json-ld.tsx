@@ -1,6 +1,6 @@
 import { jsonLdScript } from "@/lib/blog/url";
-import { siteConfig } from "@/lib/site";
-import { ORG_ID, WEBSITE_ID, organizationNode } from "@/lib/structured-data";
+import { getSiteSettings } from "@/lib/content/get";
+import { buildSiteJsonLd } from "@/lib/content/site-json-ld";
 
 /**
  * Site-level structured data for the homepage: an Organization, the WebSite it
@@ -9,37 +9,13 @@ import { ORG_ID, WEBSITE_ID, organizationNode } from "@/lib/structured-data";
  * <script type="application/ld+json"> with the same XSS-safe escaping the blog
  * schema uses.
  *
- * Note: no `aggregateRating` — we don't fabricate ratings — and no SearchAction,
- * since the marketing site has no search endpoint. `offers` reflects the real
- * "free forever, no paid tier" pricing.
+ * The nodes are built from admin settings (/seoteam/structured-data), falling
+ * back to `lib/content/defaults.ts`; the graph builder lives in
+ * `lib/content/site-json-ld.ts` so it can be unit-tested on its own.
  */
-export function SiteJsonLd() {
-  const graph = {
-    "@context": "https://schema.org",
-    "@graph": [
-      organizationNode(),
-      {
-        "@type": "WebSite",
-        "@id": WEBSITE_ID,
-        name: siteConfig.name,
-        url: siteConfig.url,
-        description: siteConfig.description,
-        inLanguage: "en-US",
-        publisher: { "@id": ORG_ID },
-      },
-      {
-        "@type": "WebApplication",
-        name: siteConfig.name,
-        url: siteConfig.url,
-        description: siteConfig.description,
-        applicationCategory: "LifestyleApplication",
-        operatingSystem: "Web browser",
-        browserRequirements: "Requires JavaScript.",
-        offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
-        publisher: { "@id": ORG_ID },
-      },
-    ],
-  };
+export async function SiteJsonLd() {
+  const settings = await getSiteSettings();
+  const graph = buildSiteJsonLd(settings);
 
   return (
     <script

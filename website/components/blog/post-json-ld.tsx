@@ -10,8 +10,11 @@ import { isHttpUrl, jsonLdScript } from "@/lib/blog/url";
  * fields are HTML-escaped via jsonLdScript() so a "</script>" in the title or
  * excerpt can't break out of the tag.
  */
-export function PostJsonLd({ post }: { post: Post }) {
+export async function PostJsonLd({ post }: { post: Post }) {
   const url = `${siteConfig.url}/blog/${post.slug}`;
+  // Admin-managed Organization (Site settings → Structured data), shared with
+  // the homepage graph so both resolve to one entity.
+  const publisher = await organizationNode();
   // Google's Article guidelines treat `image` as required and can't fetch data:
   // URIs — always give it a crawlable http(s) image, falling back to the site OG.
   const image = isHttpUrl(post.coverImage)
@@ -29,7 +32,7 @@ export function PostJsonLd({ post }: { post: Post }) {
     author: { "@type": "Person", name: post.author || siteConfig.name },
     // Same Organization entity as the homepage (matched by @id), with a real
     // crawlable logo — the old `/icon.svg` no longer exists.
-    publisher: organizationNode(),
+    publisher,
     mainEntityOfPage: { "@type": "WebPage", "@id": url },
   };
 

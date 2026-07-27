@@ -18,10 +18,17 @@ async function request<T>(input: string, init?: RequestInit): Promise<T> {
   return data as T;
 }
 
-export async function loginRequest(password: string): Promise<void> {
+/**
+ * `editorName` is attribution only — it's stamped on audit entries and content
+ * revisions so a shared-password dashboard can still say who made a change.
+ */
+export async function loginRequest(
+  password: string,
+  editorName?: string,
+): Promise<void> {
   await request("/seoteam/api/login", {
     method: "POST",
-    body: JSON.stringify({ password }),
+    body: JSON.stringify({ password, editorName }),
   });
 }
 
