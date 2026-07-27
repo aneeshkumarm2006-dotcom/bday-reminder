@@ -30,8 +30,7 @@
       ],
       "blockedPermissions": [
         "android.permission.WRITE_CONTACTS"
-      ],
-      "versionCode": 2
+      ]
     },
     "web": {
       "output": "static",
