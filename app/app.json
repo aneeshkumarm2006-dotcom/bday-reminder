@@ -26,8 +26,9 @@
       },
       "predictiveBackGestureEnabled": false,
       "permissions": [
-        "android.permission.RECORD_AUDIO",
-        "android.permission.READ_CONTACTS",
+        "android.permission.READ_CONTACTS"
+      ],
+      "blockedPermissions": [
         "android.permission.WRITE_CONTACTS"
       ]
     },
@@ -54,7 +55,9 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Allow Circle the date to add a photo to a person."
+          "photosPermission": "Allow Circle the date to add a photo to a person.",
+          "cameraPermission": false,
+          "microphonePermission": false
         }
       ],
       [
