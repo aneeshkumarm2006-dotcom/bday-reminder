@@ -30,13 +30,14 @@ export const revalidate = 3600;
 
 // Home-page-specific SEO. `title.absolute` opts out of the root layout's
 // `%s · <name>` template so the exact keyword-led title is used verbatim.
-const homeTitle = "Birthday Reminder App | Family Birthday Calendar";
+const homeTitle = "Birthday App | App For Birthdays | Birthday Reminders";
 const homeDescription =
-  "Never miss a birthday with a birthday reminder app. Use a birthday app and reminder app to manage a family birthday calendar, shared family calendar, anniversary reminder, SMS birthday reminders, and group birthday tracker.";
+  "Birthday Reminders is the birthday app that sends reminders before the big day simply one of the best birthday apps and app for birthdays around.";
 
 export const metadata: Metadata = {
   title: { absolute: homeTitle },
   description: homeDescription,
+  keywords: ["birthday app", "birthday apps", "app for birthdays", "birthday reminders"],
   openGraph: {
     title: homeTitle,
     description: homeDescription,
