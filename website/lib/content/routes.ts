@@ -1,4 +1,5 @@
 import { getAllSitePages, getAllPageMeta, defaultPageMeta } from "./get";
+import { SEO_LANDING_PAGES } from "./seo-pages";
 import type { PageMeta } from "./types";
 
 /**
@@ -27,6 +28,17 @@ export interface RegistryRoute {
 
 export const STATIC_ROUTES: RegistryRoute[] = [
   { path: "/", label: "Home", kind: "static", absoluteTitle: true },
+  // The keyword landing pages. Their copy is code, but their metadata is tuned
+  // here like any other route — and like the homepage they use their brief's
+  // title verbatim, so they opt out of the `%s · Site name` template too.
+  ...SEO_LANDING_PAGES.map(
+    (page): RegistryRoute => ({
+      path: `/${page.slug}`,
+      label: page.label,
+      kind: "static",
+      absoluteTitle: true,
+    }),
+  ),
   { path: "/blog", label: "Blog index", kind: "static" },
   { path: "/contact", label: "Contact", kind: "static" },
   { path: "/privacy", label: "Privacy policy", kind: "static" },

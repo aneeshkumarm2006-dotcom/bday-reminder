@@ -126,6 +126,41 @@ export const LandingContentModel: Model<LandingContentDoc> =
   (models.LandingContent as Model<LandingContentDoc>) ||
   model<LandingContentDoc>("LandingContent", landingContentSchema);
 
+/* ----------------------------- SeoPageContent ----------------------------- */
+
+/**
+ * Overrides for one keyword landing page, keyed by its slug.
+ *
+ * Same draft/published split as `LandingContent`, but per page rather than a
+ * singleton — the routes exist in code (`lib/content/seo-pages/`), so a document
+ * here is *only* ever a partial override of a page that already renders. That's
+ * what lets an editor blank a field and get the built-in copy back instead of
+ * an empty section.
+ */
+export interface SeoPageContentDoc {
+  _id: Types.ObjectId;
+  slug: string;
+  draft: Record<string, unknown>;
+  published: Record<string, unknown>;
+  publishedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+const seoPageContentSchema = new Schema<SeoPageContentDoc>(
+  {
+    slug: { type: String, required: true, unique: true, trim: true, lowercase: true },
+    draft: { type: Schema.Types.Mixed, default: () => ({}) },
+    published: { type: Schema.Types.Mixed, default: () => ({}) },
+    publishedAt: { type: Date, default: null },
+  },
+  { timestamps: true, minimize: false },
+);
+
+export const SeoPageContentModel: Model<SeoPageContentDoc> =
+  (models.SeoPageContent as Model<SeoPageContentDoc>) ||
+  model<SeoPageContentDoc>("SeoPageContent", seoPageContentSchema);
+
 /* -------------------------------- SitePage -------------------------------- */
 
 export interface SitePageDoc {

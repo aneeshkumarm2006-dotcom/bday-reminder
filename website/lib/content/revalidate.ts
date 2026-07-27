@@ -1,5 +1,6 @@
 import { revalidatePath } from "next/cache";
 
+import { SEO_LANDING_PATHS } from "./seo-pages";
 import type { EntityType } from "./types";
 
 /**
@@ -26,7 +27,7 @@ function safeRevalidate(path: string, type?: "page" | "layout"): void {
 export interface RevalidateTarget {
   /** For `meta` — the route whose metadata changed. */
   path?: string;
-  /** For `page` — the custom page's slug. */
+  /** For `page` and `seo-page` — the page's slug. */
   slug?: string;
   /** For `legal` — which document. */
   legalKey?: string;
@@ -58,6 +59,14 @@ export function revalidateFor(entity: EntityType, target: RevalidateTarget = {})
     case "page": {
       if (target.slug) safeRevalidate(`/${target.slug}`);
       safeRevalidate("/sitemap.xml");
+      break;
+    }
+    case "seo-page": {
+      // The edited page itself, plus its five siblings: every landing page
+      // renders the others' label and blurb in its cross-link strip, so a
+      // rename that only refreshed one page would leave the cluster
+      // disagreeing about what this page is called.
+      for (const path of SEO_LANDING_PATHS) safeRevalidate(path);
       break;
     }
     case "legal": {

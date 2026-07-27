@@ -10,6 +10,7 @@
  */
 import { siteConfig, navLinks } from "@/lib/site";
 
+import { SEO_LANDING_PAGES } from "./seo-pages";
 import type {
   LandingSection,
   LandingVariant,
@@ -421,12 +422,26 @@ export const DEFAULT_NAV: NavigationConfig = {
     },
   },
   footer: {
-    // One untitled group renders as today's flat link row; add a second group
-    // (or a title) and the footer switches to columns.
+    // One untitled group renders as a flat link row; a second group (or a
+    // title) switches the footer to columns — which is what the keyword landing
+    // pages need, since the footer is how they're linked from every other page
+    // on the site, the homepage included.
     groups: [
       {
+        id: "footer-explore",
+        title: "Explore",
+        links: SEO_LANDING_PAGES.map((page, i) => ({
+          id: `f-${page.slug}`,
+          label: page.label,
+          href: `/${page.slug}`,
+          order: i,
+          visible: true,
+          external: false,
+        })),
+      },
+      {
         id: "footer-main",
-        title: "",
+        title: "More",
         links: [
           { id: "f-blog", label: "Blog", href: "/blog", order: 0, visible: true, external: false },
           { id: "f-privacy", label: "Privacy", href: "/privacy", order: 1, visible: true, external: false },
@@ -510,6 +525,29 @@ export const DEFAULT_PAGE_META: Record<string, PageMeta> = {
     canonical: "/contact",
     sitemap: { exclude: false, changeFrequency: "yearly", priority: 0.5 },
   },
+  // The keyword landing pages carry their brief's title and description as the
+  // default. They're the site's second-most important URLs after the homepage,
+  // hence the 0.8 priority; the SEO team can still override any of it.
+  ...Object.fromEntries(
+    SEO_LANDING_PAGES.map((page) => {
+      const path = `/${page.slug}`;
+      return [
+        path,
+        {
+          ...emptyPageMeta(path),
+          title: page.title,
+          description: page.description,
+          keywords: [...page.keywords],
+          canonical: path,
+          sitemap: {
+            exclude: false,
+            changeFrequency: "monthly" as const,
+            priority: 0.8,
+          },
+        },
+      ];
+    }),
+  ),
 };
 
 /* ---------------------------------- legal --------------------------------- */

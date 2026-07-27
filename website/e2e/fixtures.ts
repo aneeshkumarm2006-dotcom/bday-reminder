@@ -185,12 +185,12 @@ export function okStatus(): StatusPayload {
   return {
     authed: true,
     setupComplete: true,
-    project: { name: "Circle the date", primaryColor: "#2c4bd8", accentColor: "#2e8b82" },
+    project: { name: "Birthday Reminders", primaryColor: "#2c4bd8", accentColor: "#2e8b82" },
     checks: OK_CHECKS,
     sources: SOURCES.map((s) => ({
       key: s.key,
       status: "ok",
-      label: s.key === "ga4" ? "properties/123456" : s.key === "gsc" ? "https://circlethedate.app/" : undefined,
+      label: s.key === "ga4" ? "properties/123456" : s.key === "gsc" ? "https://birthdayreminders.us/" : undefined,
     })),
   };
 }

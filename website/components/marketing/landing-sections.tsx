@@ -66,7 +66,7 @@ function LandingSectionRenderer({ section }: { section: LandingSection }) {
   }
 }
 
-function previewFor(preview: FeaturePreview) {
+export function previewFor(preview: FeaturePreview) {
   switch (preview) {
     case "app":
       return <AppPreview />;
@@ -77,6 +77,105 @@ function previewFor(preview: FeaturePreview) {
     default:
       return null;
   }
+}
+
+/* --------------------------- feature row & card --------------------------- */
+
+/**
+ * The two feature primitives are exported because the keyword landing pages
+ * (`components/marketing/seo-landing.tsx`) render the same shapes from their own
+ * content type. Structural props rather than the `FeatureRow`/`FeatureCard`
+ * content types, so both callers fit without either importing the other's model.
+ */
+export interface FeatureRowContent {
+  icon: string;
+  eyebrow: string;
+  title: string;
+  body: string;
+  points: string[];
+  preview: FeaturePreview;
+}
+
+export interface FeatureCardContent {
+  icon: string;
+  title: string;
+  body: string;
+  /** Landing cards have none; SEO pages carry the brief's bullets through. */
+  points?: string[];
+}
+
+/** A feature told at full width, beside its rendered product shot. */
+export function FeatureRowBlock({
+  row,
+  reverse = false,
+}: {
+  row: FeatureRowContent;
+  reverse?: boolean;
+}) {
+  return (
+    <div className="grid items-center gap-10 lg:grid-cols-2">
+      <Reveal className={`group ${reverse ? "lg:order-2" : ""}`}>
+        <span className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-biro-tint text-biro transition-transform duration-300 ease-out group-hover:-rotate-6 group-hover:scale-110">
+          <ContentIcon name={row.icon} />
+        </span>
+        <p className="mt-4 text-sm font-medium text-biro">{row.eyebrow}</p>
+        <h3 className="mt-1 font-display text-2xl font-semibold tracking-[-0.01em] text-ink">
+          {row.title}
+        </h3>
+        <p className="mt-3 text-pretty leading-relaxed text-ink-secondary">{row.body}</p>
+        <FeaturePoints points={row.points} />
+      </Reveal>
+
+      <Reveal delay={0.05} className={`flex justify-center ${reverse ? "lg:order-1" : ""}`}>
+        <div className="transition-transform duration-500 ease-out hover:scale-[1.02]">
+          {previewFor(row.preview)}
+        </div>
+      </Reveal>
+    </div>
+  );
+}
+
+/** A supporting feature, in the card grid. */
+export function FeatureCardBlock({ card }: { card: FeatureCardContent }) {
+  return (
+    <div className="group h-full rounded-lg border border-border-subtle bg-surface p-5 transition-[transform,border-color,box-shadow] duration-300 ease-out hover:-translate-y-1 hover:border-biro/40 hover:shadow-[0_14px_34px_-18px_rgba(44,75,216,0.45)]">
+      <span className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-biro-tint text-biro transition-transform duration-300 ease-out group-hover:-rotate-6 group-hover:scale-110">
+        <ContentIcon name={card.icon} />
+      </span>
+      <h3 className="mt-4 font-display text-lg font-semibold text-ink transition-colors duration-300 group-hover:text-biro">
+        {card.title}
+      </h3>
+      <p className="mt-2 text-sm leading-relaxed text-ink-secondary">{card.body}</p>
+      {card.points && card.points.length > 0 && <FeaturePoints points={card.points} compact />}
+    </div>
+  );
+}
+
+/** The biro-dot bullet list, shared by rows and cards. */
+export function FeaturePoints({
+  points,
+  compact = false,
+}: {
+  points: string[];
+  compact?: boolean;
+}) {
+  if (points.length === 0) return null;
+  return (
+    <ul className={`flex flex-col ${compact ? "mt-4 gap-2" : "mt-5 gap-2.5"}`}>
+      {points.map((point) => (
+        <li
+          key={point}
+          className="flex items-start gap-2.5 text-sm text-ink-secondary transition-colors duration-200 hover:text-ink [&:hover_span]:scale-150"
+        >
+          <span
+            aria-hidden="true"
+            className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-biro transition-transform duration-200 ease-out"
+          />
+          {point}
+        </li>
+      ))}
+    </ul>
+  );
 }
 
 /* ---------------------------------- hero ---------------------------------- */
@@ -187,43 +286,7 @@ export function Features({ content }: { content: FeaturesSectionContent }) {
       {content.rows.length > 0 && (
         <div className="mt-14 flex flex-col gap-20">
           {content.rows.map((row) => (
-              <div key={row.id} className="grid items-center gap-10 lg:grid-cols-2">
-                <Reveal className={`group ${row.reverse ? "lg:order-2" : ""}`}>
-                  <span className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-biro-tint text-biro transition-transform duration-300 ease-out group-hover:-rotate-6 group-hover:scale-110">
-                    <ContentIcon name={row.icon} />
-                  </span>
-                  <p className="mt-4 text-sm font-medium text-biro">{row.eyebrow}</p>
-                  <h3 className="mt-1 font-display text-2xl font-semibold tracking-[-0.01em] text-ink">
-                    {row.title}
-                  </h3>
-                  <p className="mt-3 text-pretty leading-relaxed text-ink-secondary">
-                    {row.body}
-                  </p>
-                  <ul className="mt-5 flex flex-col gap-2.5">
-                    {row.points.map((point) => (
-                      <li
-                        key={point}
-                        className="flex items-start gap-2.5 text-sm text-ink-secondary transition-colors duration-200 hover:text-ink [&:hover_span]:scale-150"
-                      >
-                        <span
-                          aria-hidden="true"
-                          className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-biro transition-transform duration-200 ease-out"
-                        />
-                        {point}
-                      </li>
-                    ))}
-                  </ul>
-                </Reveal>
-
-                <Reveal
-                  delay={0.05}
-                  className={`flex justify-center ${row.reverse ? "lg:order-1" : ""}`}
-                >
-                  <div className="transition-transform duration-500 ease-out hover:scale-[1.02]">
-                    {previewFor(row.preview)}
-                  </div>
-                </Reveal>
-              </div>
+            <FeatureRowBlock key={row.id} row={row} reverse={row.reverse} />
           ))}
         </div>
       )}
@@ -231,19 +294,9 @@ export function Features({ content }: { content: FeaturesSectionContent }) {
       {content.cards.length > 0 && (
         <div className="mt-20 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {content.cards.map((card) => (
-              <Reveal key={card.id}>
-                <div className="group h-full rounded-lg border border-border-subtle bg-surface p-5 transition-[transform,border-color,box-shadow] duration-300 ease-out hover:-translate-y-1 hover:border-biro/40 hover:shadow-[0_14px_34px_-18px_rgba(44,75,216,0.45)]">
-                  <span className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-biro-tint text-biro transition-transform duration-300 ease-out group-hover:-rotate-6 group-hover:scale-110">
-                    <ContentIcon name={card.icon} />
-                  </span>
-                  <h3 className="mt-4 font-display text-lg font-semibold text-ink transition-colors duration-300 group-hover:text-biro">
-                    {card.title}
-                  </h3>
-                  <p className="mt-2 text-sm leading-relaxed text-ink-secondary">
-                    {card.body}
-                  </p>
-                </div>
-              </Reveal>
+            <Reveal key={card.id}>
+              <FeatureCardBlock card={card} />
+            </Reveal>
           ))}
         </div>
       )}

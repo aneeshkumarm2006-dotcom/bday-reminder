@@ -15,6 +15,7 @@ import {
   Settings2,
   Shuffle,
   Tags,
+  Target,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -35,6 +36,7 @@ const SECTIONS = [
   { href: "/seoteam/posts", label: "Posts", icon: FileText },
   { href: "/seoteam/media", label: "Media", icon: Images },
   { href: "/seoteam/landing", label: "Landing", icon: LayoutTemplate },
+  { href: "/seoteam/seo-pages", label: "SEO pages", icon: Target },
   { href: "/seoteam/pages", label: "Pages", icon: Files },
   { href: "/seoteam/legal", label: "Legal", icon: Scale },
   { href: "/seoteam/site", label: "Site", icon: Settings2 },

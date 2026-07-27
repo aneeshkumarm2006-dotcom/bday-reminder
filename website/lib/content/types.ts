@@ -443,6 +443,7 @@ export type EntityType =
   | "site"
   | "landing"
   | "page"
+  | "seo-page"
   | "navigation"
   | "meta"
   | "structured-data"

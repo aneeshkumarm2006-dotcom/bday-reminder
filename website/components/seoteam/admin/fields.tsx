@@ -244,3 +244,71 @@ export function StringListEditor({
     </div>
   );
 }
+
+/**
+ * Multi-line bullet editor — one bullet per line, which beats a chip list for
+ * prose. Lives here rather than privately in an editor because both the
+ * homepage's feature rows and the keyword pages' do the same thing, and two
+ * copies of a textarea's parsing rules is two places for them to drift.
+ */
+export function BulletListEditor({
+  values,
+  onChange,
+}: {
+  values: string[];
+  onChange: (next: string[]) => void;
+}) {
+  const id = React.useId();
+  return (
+    <div>
+      <Label htmlFor={id}>Bullet points</Label>
+      <textarea
+        id={id}
+        rows={Math.max(3, values.length + 1)}
+        value={values.join("\n")}
+        onChange={(e) =>
+          onChange(
+            e.target.value
+              .split("\n")
+              .map((line) => line.replace(/^[-•]\s*/, ""))
+              // The last line survives while empty so Enter can start a bullet;
+              // every other blank one is the user deleting a row.
+              .filter((line, i, all) => line.trim() !== "" || i === all.length - 1),
+          )
+        }
+        className="w-full rounded-md border border-border-strong bg-surface px-3.5 py-2.5 text-[15px] text-ink transition-colors focus:border-biro"
+      />
+      <p className="mt-1.5 text-xs text-ink-muted">One bullet per line.</p>
+    </div>
+  );
+}
+
+/** Integer field — the ring-day offsets on both "How it works" editors. */
+export function NumberRow({
+  label,
+  value,
+  onChange,
+  helper,
+}: {
+  label: string;
+  value: number;
+  onChange: (next: number) => void;
+  helper?: string;
+}) {
+  const id = React.useId();
+  return (
+    <div>
+      <Label htmlFor={id}>{label}</Label>
+      <Input
+        id={id}
+        type="number"
+        value={String(value)}
+        onChange={(e) => {
+          const parsed = Number.parseInt(e.target.value, 10);
+          onChange(Number.isFinite(parsed) ? parsed : 0);
+        }}
+      />
+      {helper && <p className="mt-1.5 text-xs text-ink-muted">{helper}</p>}
+    </div>
+  );
+}

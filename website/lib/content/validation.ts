@@ -258,7 +258,10 @@ const valuePropSection = z.object({
     .object({
       lead: z.string().trim().max(200).default(""),
       muted: z.string().trim().max(120).default(""),
-      mid: z.string().trim().max(200).default(""),
+      // Untrimmed for the same reason as the SEO pages' contrast heading: the
+      // renderer emits `{muted}{mid}` with no separator, so a `mid` that starts
+      // with a word rather than punctuation needs its leading space kept.
+      mid: z.string().max(200).default(""),
       accent: z.string().trim().max(120).default(""),
       tail: z.string().trim().max(200).default(""),
     })
@@ -369,6 +372,124 @@ export const landingVariantSchema = z.object({
 
 export const saveLandingSchema = z.object({
   sections: z.array(landingSectionSchema).max(30),
+  /** "draft" saves; "publish" copies the incoming draft into `published` too. */
+  mode: z.enum(["draft", "publish"]).default("draft"),
+});
+
+/* ---------------------------- seo landing pages --------------------------- */
+
+/**
+ * The editable shape of a keyword landing page (`lib/content/seo-pages/`).
+ *
+ * Note what's *absent*: `slug`. The route is a real file, so the slug is the
+ * key, never a payload field — an editor rewriting the copy must not be able to
+ * move the page out from under its own URL.
+ *
+ * Every field defaults, as everywhere else here, because the stored document is
+ * a partial override deep-merged over the page's built-in copy: a blanked field
+ * falls back to what shipped rather than rendering an empty section.
+ */
+const seoVisual = z.enum(["app", "reminder", "widget"]);
+
+const seoFeatureRow = z.object({
+  id: idString,
+  icon: iconName,
+  eyebrow: z.string().trim().max(120).default(""),
+  title: z.string().trim().max(200).default(""),
+  body: z.string().trim().max(900).default(""),
+  points: z.array(z.string().trim().max(240)).max(12).default([]),
+  preview: seoVisual.default("app"),
+});
+
+const seoFeatureCard = z.object({
+  id: idString,
+  icon: iconName,
+  title: z.string().trim().max(200).default(""),
+  body: z.string().trim().max(900).default(""),
+  points: z.array(z.string().trim().max(240)).max(12).default([]),
+});
+
+export const seoPageContentSchema = z.object({
+  label: z.string().trim().max(80).default(""),
+  blurb: z.string().trim().max(240).default(""),
+  title: z.string().trim().max(200).default(""),
+  description: z.string().trim().max(500).default(""),
+  keywords: z.array(z.string().trim().max(120)).max(50).default([]),
+  hero: z
+    .object({
+      badge: z.string().trim().max(120).default(""),
+      heading: z.string().trim().max(200).default(""),
+      subheading: z.string().trim().max(600).default(""),
+      primaryCta: cta,
+      footnote: z.string().trim().max(200).default(""),
+      // At least one product shot, at most two — the hero layout has room for
+      // exactly that, and an empty array would render a blank band.
+      visuals: z.array(seoVisual).min(1).max(2).default(["app"]),
+    })
+    .prefault({}),
+  contrast: z
+    .object({
+      headingParts: z
+        .object({
+          lead: z.string().trim().max(200).default(""),
+          muted: z.string().trim().max(120).default(""),
+          // Deliberately NOT trimmed. The renderer joins `{muted}{mid}` with no
+          // space between them, so that `mid` can start with punctuation (". The
+          // point is to"). A heading that continues with a word instead has to
+          // carry its own leading space — trimming it would silently glue two
+          // words together the first time the page was saved.
+          mid: z.string().max(200).default(""),
+          accent: z.string().trim().max(120).default(""),
+          tail: z.string().trim().max(200).default(""),
+        })
+        .prefault({}),
+      body: z.string().trim().max(800).default(""),
+    })
+    .prefault({}),
+  features: z
+    .object({
+      heading: z.string().trim().max(200).default(""),
+      sub: z.string().trim().max(600).default(""),
+      rows: z.array(seoFeatureRow).max(6).default([]),
+      cards: z.array(seoFeatureCard).max(24).default([]),
+    })
+    .prefault({}),
+  howItWorks: z
+    .object({
+      heading: z.string().trim().max(200).default(""),
+      steps: z
+        .array(
+          z.object({
+            id: idString,
+            offset: z.number().int().min(-365).max(365).default(0),
+            title: z.string().trim().max(200).default(""),
+            body: z.string().trim().max(600).default(""),
+          }),
+        )
+        .max(8)
+        .default([]),
+    })
+    .prefault({}),
+  faq: z
+    .object({
+      heading: z.string().trim().max(200).default(""),
+      sub: z.string().trim().max(600).default(""),
+      items: z.array(faqItem).max(50).default([]),
+    })
+    .prefault({}),
+  cta: z
+    .object({
+      heading: z.string().trim().max(200).default(""),
+      body: z.string().trim().max(600).default(""),
+      ctaLabel: z.string().trim().max(80).default(""),
+      ctaHref: linkHref.default("/signup"),
+      footnote: z.string().trim().max(200).default(""),
+    })
+    .prefault({}),
+});
+
+export const saveSeoPageSchema = z.object({
+  content: seoPageContentSchema,
   /** "draft" saves; "publish" copies the incoming draft into `published` too. */
   mode: z.enum(["draft", "publish"]).default("draft"),
 });
@@ -687,12 +808,19 @@ export const importBundleSchema = z.object({
   navigation: navigationSchema.optional(),
   meta: z.array(pageMetaSchema).max(500).optional(),
   pages: z.array(createSitePageSchema).max(500).optional(),
+  // Keyed by slug, since the route files — not the bundle — own which pages exist.
+  seoPages: z
+    .array(z.object({ slug: z.string().trim().max(120), content: seoPageContentSchema }))
+    .max(50)
+    .optional(),
   redirects: z.array(redirectSchema).max(1000).optional(),
   legal: z.array(legalDocSchema).max(10).optional(),
 });
 
 export type SiteSettingsBody = z.infer<typeof siteSettingsSchema>;
 export type SaveLandingBody = z.infer<typeof saveLandingSchema>;
+export type SeoPageContentBody = z.infer<typeof seoPageContentSchema>;
+export type SaveSeoPageBody = z.infer<typeof saveSeoPageSchema>;
 export type PageMetaBody = z.infer<typeof pageMetaSchema>;
 export type NavigationBody = z.infer<typeof navigationSchema>;
 export type CreateSitePageBody = z.infer<typeof createSitePageSchema>;

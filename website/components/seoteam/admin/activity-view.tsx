@@ -19,6 +19,7 @@ const ENTITY_LABELS: Record<string, string> = {
   site: "Site settings",
   landing: "Landing page",
   page: "Custom page",
+  "seo-page": "Keyword page",
   navigation: "Navigation",
   meta: "Page SEO",
   "structured-data": "Structured data",

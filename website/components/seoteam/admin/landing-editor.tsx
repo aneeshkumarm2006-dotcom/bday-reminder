@@ -4,6 +4,8 @@ import { Eye, EyeOff, ExternalLink, GripVertical } from "lucide-react";
 import * as React from "react";
 
 import {
+  BulletListEditor,
+  NumberRow,
   TextAreaRow,
   TextRow,
 } from "@/components/seoteam/admin/fields";
@@ -16,7 +18,7 @@ import {
   useUnsavedGuard,
 } from "@/components/seoteam/admin/save-bar";
 import { Button } from "@/components/ui/button";
-import { Input, Label } from "@/components/ui/input";
+import { Label } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { ToggleRow } from "@/components/ui/switch";
 import { useToast } from "@/components/ui/toast";
@@ -742,67 +744,5 @@ function GetTheAppForm({
         onChange={(footnote) => patch({ footnote })}
       />
     </>
-  );
-}
-
-/* --------------------------------- helpers -------------------------------- */
-
-/** Multi-line bullet editor — one bullet per line, which beats a chip list for prose. */
-function BulletListEditor({
-  values,
-  onChange,
-}: {
-  values: string[];
-  onChange: (next: string[]) => void;
-}) {
-  const id = React.useId();
-  return (
-    <div>
-      <Label htmlFor={id}>Bullet points</Label>
-      <textarea
-        id={id}
-        rows={Math.max(3, values.length + 1)}
-        value={values.join("\n")}
-        onChange={(e) =>
-          onChange(
-            e.target.value
-              .split("\n")
-              .map((line) => line.replace(/^[-•]\s*/, ""))
-              .filter((line, i, all) => line.trim() !== "" || i === all.length - 1),
-          )
-        }
-        className="w-full rounded-md border border-border-strong bg-surface px-3.5 py-2.5 text-[15px] text-ink transition-colors focus:border-biro"
-      />
-      <p className="mt-1.5 text-xs text-ink-muted">One bullet per line.</p>
-    </div>
-  );
-}
-
-function NumberRow({
-  label,
-  value,
-  onChange,
-  helper,
-}: {
-  label: string;
-  value: number;
-  onChange: (next: number) => void;
-  helper?: string;
-}) {
-  const id = React.useId();
-  return (
-    <div>
-      <Label htmlFor={id}>{label}</Label>
-      <Input
-        id={id}
-        type="number"
-        value={String(value)}
-        onChange={(e) => {
-          const parsed = Number.parseInt(e.target.value, 10);
-          onChange(Number.isFinite(parsed) ? parsed : 0);
-        }}
-      />
-      {helper && <p className="mt-1.5 text-xs text-ink-muted">{helper}</p>}
-    </div>
   );
 }

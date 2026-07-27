@@ -9,6 +9,7 @@ import {
   NavigationConfigModel,
   PageMetaModel,
   SINGLETON,
+  SeoPageContentModel,
   SiteSettingsModel,
 } from "@/lib/content/models";
 import { updateSitePage } from "@/lib/content/pages";
@@ -20,6 +21,7 @@ import {
   notFound,
   serverError,
 } from "@/lib/content/route-utils";
+import { getSeoLandingPage } from "@/lib/content/seo-pages";
 import type { PageBlock } from "@/lib/content/types";
 
 export const dynamic = "force-dynamic";
@@ -27,12 +29,12 @@ export const dynamic = "force-dynamic";
 /**
  * Restore a snapshot.
  *
- * Restoring never publishes. Where an entity has a draft/published split
- * (the landing page) the snapshot lands in `draft`, so it can be previewed and
- * then published deliberately. Where a custom page is concerned, the *content*
- * comes back but its current status is left alone — restoring an old version of
- * a live page must not silently take it offline, and restoring an old version
- * of a draft must not silently put it online.
+ * Restoring never publishes. Where an entity has a draft/published split (the
+ * landing page, the keyword landing pages) the snapshot lands in `draft`, so it
+ * can be previewed and then published deliberately. Where a custom page is
+ * concerned, the *content* comes back but its current status is left alone —
+ * restoring an old version of a live page must not silently take it offline,
+ * and restoring an old version of a draft must not silently put it online.
  *
  * The remaining entities (site settings, navigation, per-page meta, structured
  * data, legal copy) have no draft concept; for those, applying the snapshot *is*
@@ -105,6 +107,32 @@ export async function POST(
           { upsert: true, setDefaultsOnInsert: true },
         );
         summary = "Restored a landing page revision as the current draft";
+        break;
+      }
+
+      case "seo-page": {
+        // The slug is the key, and the route files own which keys exist — a
+        // revision can outlive the page it belongs to (a deleted route file),
+        // and writing it back would be an override nothing reads.
+        const slug = revision.entityId;
+        if (!getSeoLandingPage(slug)) {
+          return badRequest(
+            "That landing page no longer exists, so its copy can't be restored.",
+          );
+        }
+        // A snapshot is *effective* content, so it carries the slug it was taken
+        // from. Strip it, the same way `meta` below strips its path: the key is
+        // the URL, and a stored override that carried its own slug could outvote
+        // it the next time the page is read.
+        const draft = { ...snapshot };
+        delete draft.slug;
+        // Draft only — the live URL is untouched until someone publishes.
+        await SeoPageContentModel.findOneAndUpdate(
+          { slug },
+          { $set: { slug, draft } },
+          { upsert: true, setDefaultsOnInsert: true },
+        );
+        summary = `Restored a /${slug} landing page revision as the current draft`;
         break;
       }
 

@@ -146,7 +146,7 @@ export function SiteSettingsForm({ initial }: { initial: SiteSettings }) {
           <TextRow
             label="Twitter handle"
             value={draft.seo.twitterHandle}
-            placeholder="@circlethedate"
+            placeholder="@birthdayreminders"
             onChange={(twitterHandle) => patch("seo", { ...draft.seo, twitterHandle })}
           />
         </FieldGrid>

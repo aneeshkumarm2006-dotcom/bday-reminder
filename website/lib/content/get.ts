@@ -18,10 +18,13 @@ import {
   NavigationConfigModel,
   PageMetaModel,
   SINGLETON,
+  SeoPageContentModel,
   SiteSettingsModel,
   SitePageModel,
   type SitePageDoc,
 } from "./models";
+import { SEO_LANDING_PAGES, getSeoLandingPage } from "./seo-pages";
+import type { SeoLandingPageDef } from "./seo-pages/types";
 import type {
   ContentVariant,
   LandingSection,
@@ -116,6 +119,83 @@ export const getLandingContent = cache(
         return mergeLanding(other);
       }
       return mergeLanding(stored);
+    }),
+);
+
+/* ---------------------------- seo landing pages --------------------------- */
+
+/** True for a stored variant that actually has copy in it. */
+function hasStoredContent(value: unknown): value is Record<string, unknown> {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    !Array.isArray(value) &&
+    Object.keys(value).length > 0
+  );
+}
+
+/**
+ * One keyword landing page's effective content: the admin's override deep-merged
+ * over the copy that ships in `lib/content/seo-pages/<slug>.ts`.
+ *
+ * Returns `null` only for a slug with no page file — the route files pass their
+ * own slug, so in practice this never happens there; it's the guard for the
+ * admin's `[slug]` routes, which take theirs from the URL.
+ *
+ * `draft` falls through to `published` (and from there to the built-in copy)
+ * exactly like the landing page, so the editor always opens on what's live.
+ */
+export const getSeoPageContent = cache(
+  async (
+    slug: string,
+    variant: ContentVariant = "published",
+  ): Promise<SeoLandingPageDef | null> => {
+    const fallback = getSeoLandingPage(slug);
+    if (!fallback) return null;
+
+    return safeRead<SeoLandingPageDef | null>(fallback, async () => {
+      const doc = await SeoPageContentModel.findOne({ slug }).lean();
+      if (!doc) return fallback;
+      const stored = variant === "draft" ? doc.draft : doc.published;
+      const other = variant === "draft" ? doc.published : doc.draft;
+      const source = hasStoredContent(stored) ? stored : other;
+      if (!hasStoredContent(source)) return fallback;
+      return deepMerge(fallback, source);
+    });
+  },
+);
+
+/** Every landing page's effective content, in display order. */
+export const getAllSeoPageContent = cache(
+  async (variant: ContentVariant = "published"): Promise<SeoLandingPageDef[]> => {
+    const pages = await Promise.all(
+      SEO_LANDING_PAGES.map((page) => getSeoPageContent(page.slug, variant)),
+    );
+    // `getSeoPageContent` only returns null for an unknown slug, and these come
+    // straight from the registry — the filter is for the type, not for reality.
+    return pages.filter((page): page is SeoLandingPageDef => page !== null);
+  },
+);
+
+/** Which pages have been edited, for the admin list's "customized" badge. */
+export const getSeoPageOverrides = cache(
+  async (): Promise<
+    Record<string, { hasDraft: boolean; hasPublished: boolean; updatedAt: string }>
+  > =>
+    safeRead({}, async () => {
+      const docs = await SeoPageContentModel.find({}).lean();
+      const out: Record<
+        string,
+        { hasDraft: boolean; hasPublished: boolean; updatedAt: string }
+      > = {};
+      for (const doc of docs) {
+        out[String(doc.slug)] = {
+          hasDraft: hasStoredContent(doc.draft),
+          hasPublished: hasStoredContent(doc.published),
+          updatedAt: new Date(doc.updatedAt).toISOString(),
+        };
+      }
+      return out;
     }),
 );
 

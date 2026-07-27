@@ -4,15 +4,15 @@
  * and the OG image. URLs read from env so deploys can point at the real hosts.
  */
 export const siteConfig = {
-  name: "Circle the date",
+  name: "Birthday Reminders",
   tagline: "Remember, and act.",
   description:
-    "Never miss a birthday, and actually do something about it. Circle the date stores birthdays and events for everyone you care about, reminds you across push, email, and SMS (US & Canada), and makes it one tap to send a greeting. Free on web, iOS, and Android.",
+    "Never miss a birthday, and actually do something about it. Birthday Reminders stores birthdays and events for everyone you care about, reminds you across push, email, and SMS (US & Canada), and makes it one tap to send a greeting. Free on web, iOS, and Android.",
   // The marketing site's own origin (used for canonical, OG, sitemap).
-  url: process.env.NEXT_PUBLIC_SITE_URL ?? "https://circlethedate.app",
+  url: process.env.NEXT_PUBLIC_SITE_URL ?? "https://birthdayreminders.us",
   // The web app (the deployed Expo web build) - the "open the app" target.
-  appUrl: process.env.NEXT_PUBLIC_APP_URL ?? "https://app.circlethedate.app",
-  contactEmail: "hello@circlethedate.app",
+  appUrl: process.env.NEXT_PUBLIC_APP_URL ?? "https://app.birthdayreminders.us",
+  contactEmail: "hello@birthdayreminders.us",
 } as const;
 
 export const navLinks = [

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import {
   getAllPageMeta,
+  getAllSeoPageContent,
   getAllSitePages,
   getLandingContent,
   getLegalDoc,
@@ -26,18 +27,29 @@ export async function GET() {
   if (guard) return guard;
 
   try {
-    const [settings, landing, navigation, meta, pages, redirects, privacy, terms, contact] =
-      await Promise.all([
-        getSiteSettings(),
-        getLandingContent("published"),
-        getNavigation(),
-        getAllPageMeta(),
-        getAllSitePages(),
-        listRedirects(),
-        getLegalDoc("privacy"),
-        getLegalDoc("terms"),
-        getLegalDoc("contact"),
-      ]);
+    const [
+      settings,
+      landing,
+      navigation,
+      meta,
+      pages,
+      seoPages,
+      redirects,
+      privacy,
+      terms,
+      contact,
+    ] = await Promise.all([
+      getSiteSettings(),
+      getLandingContent("published"),
+      getNavigation(),
+      getAllPageMeta(),
+      getAllSitePages(),
+      getAllSeoPageContent("published"),
+      listRedirects(),
+      getLegalDoc("privacy"),
+      getLegalDoc("terms"),
+      getLegalDoc("contact"),
+    ]);
 
     const bundle = {
       version: 1,
@@ -55,6 +67,10 @@ export async function GET() {
         showInSitemap: page.showInSitemap,
         author: page.author,
       })),
+      // Keyed by slug, and all six of them rather than only the edited ones:
+      // like every other section here this is the effective copy, so a page
+      // nobody has touched still exports what it currently renders.
+      seoPages: seoPages.map((page) => ({ slug: page.slug, content: page })),
       redirects: redirects.map((r) => ({
         from: r.from,
         to: r.to,

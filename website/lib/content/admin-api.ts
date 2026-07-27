@@ -1,3 +1,4 @@
+import type { SeoLandingPageDef } from "./seo-pages/types";
 import type {
   AuditEntry,
   ContentRevision,
@@ -61,6 +62,28 @@ export async function saveLanding(
     method: "PUT",
     body: JSON.stringify({ sections, mode }),
   });
+}
+
+/* ---------------------------- seo landing pages --------------------------- */
+
+/**
+ * The slug goes in the URL and never in the body — the route file owns which
+ * pages exist, so the handler ignores any `slug` inside `content`.
+ */
+export async function saveSeoPage(
+  slug: string,
+  content: SeoLandingPageDef,
+  mode: "draft" | "publish",
+): Promise<{ page: SeoLandingPageDef }> {
+  return request<{ page: SeoLandingPageDef }>(
+    `/seoteam/api/seo-pages/${encodeURIComponent(slug)}`,
+    { method: "PUT", body: JSON.stringify({ content, mode }) },
+  );
+}
+
+/** Discard the override; the page falls back to the copy that ships in the repo. */
+export async function resetSeoPage(slug: string): Promise<void> {
+  await request(`/seoteam/api/seo-pages/${encodeURIComponent(slug)}`, { method: "DELETE" });
 }
 
 /* -------------------------------- page meta ------------------------------- */

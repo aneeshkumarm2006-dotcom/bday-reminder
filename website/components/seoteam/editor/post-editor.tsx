@@ -577,7 +577,7 @@ export function PostEditor({
                 label="Author (optional)"
                 value={author}
                 onChange={(e) => setAuthor(e.target.value)}
-                placeholder="e.g. The Circle the date team"
+                placeholder="e.g. The Birthday Reminders team"
               />
             </section>
           </aside>

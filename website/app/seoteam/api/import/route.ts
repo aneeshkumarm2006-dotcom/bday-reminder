@@ -8,6 +8,7 @@ import {
   getLandingContent,
   getLegalDoc,
   getNavigation,
+  getSeoPageContent,
   getSiteSettings,
 } from "@/lib/content/get";
 import {
@@ -17,6 +18,7 @@ import {
   PageMetaModel,
   RedirectModel,
   SINGLETON,
+  SeoPageContentModel,
   SiteSettingsModel,
 } from "@/lib/content/models";
 import { createSitePage } from "@/lib/content/pages";
@@ -29,6 +31,7 @@ import {
   readJson,
   serverError,
 } from "@/lib/content/route-utils";
+import { getSeoLandingPage } from "@/lib/content/seo-pages";
 import { importBundleSchema } from "@/lib/content/validation";
 
 export const dynamic = "force-dynamic";
@@ -129,6 +132,30 @@ export async function POST(req: NextRequest) {
         revalidateFor("page", { slug: created.slug });
       }
       applied.push(`${bundle.pages.length} custom page(s)`);
+    }
+
+    if (bundle.seoPages && bundle.seoPages.length > 0) {
+      let restored = 0;
+      for (const entry of bundle.seoPages) {
+        // The route files — not the bundle — decide which keyword pages exist,
+        // so a slug from an older build is skipped rather than stored as an
+        // override nothing renders.
+        if (!getSeoLandingPage(entry.slug)) continue;
+        await saveRevision(
+          "seo-page",
+          entry.slug,
+          await getSeoPageContent(entry.slug, "published"),
+          editor,
+        );
+        // Draft only, like the landing page above — review and publish deliberately.
+        await SeoPageContentModel.findOneAndUpdate(
+          { slug: entry.slug },
+          { $set: { slug: entry.slug, draft: entry.content } },
+          { upsert: true, setDefaultsOnInsert: true },
+        );
+        restored += 1;
+      }
+      if (restored > 0) applied.push(`${restored} keyword landing page(s) (as drafts)`);
     }
 
     if (bundle.redirects && bundle.redirects.length > 0) {

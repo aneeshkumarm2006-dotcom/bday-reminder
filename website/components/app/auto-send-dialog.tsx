@@ -26,6 +26,7 @@ import {
   type GreetingChannel,
 } from "@/lib/greeting-templates";
 import { useAuth } from "@/providers/auth-provider";
+import { siteConfig } from "@/lib/site";
 import { timeZoneLabel } from "@/lib/timezones";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -372,8 +373,8 @@ export function AutoSendDialog({
                   <p className="text-sm text-ink-secondary">
                     Sends from <span className="font-medium text-ink">{user?.gmailEmail}</span> — as
                     you, once a year on their birthday at {effectiveTimeLabel}. Your note arrives as a
-                    designed birthday card, with a small &ldquo;Sent with Circle the date&rdquo; line
-                    at the bottom.
+                    designed birthday card, with a small &ldquo;Sent with {siteConfig.name}&rdquo;
+                    line at the bottom.
                   </p>
                 </div>
               ) : (

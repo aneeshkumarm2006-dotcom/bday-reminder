@@ -15,6 +15,13 @@ export const RESERVED_SLUGS: readonly string[] = [
   "contact",
   "privacy",
   "terms",
+  // Keyword landing pages (real route files — see lib/content/seo-pages/)
+  "birthday-calendar",
+  "birthday-countdown-app",
+  "birthday-tracker",
+  "birthday-alarm",
+  "family-birthday-calendar",
+  "free",
   // Authenticated app routes
   "dashboard",
   "people",

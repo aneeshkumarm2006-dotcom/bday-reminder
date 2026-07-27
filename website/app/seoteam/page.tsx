@@ -10,6 +10,7 @@ import {
   Settings2,
   Shuffle,
   Tags,
+  Target,
 } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -22,7 +23,11 @@ import { getAllPosts } from "@/lib/blog/posts";
 import type { Post } from "@/lib/blog/types";
 import { isScheduled } from "@/lib/blog/visibility";
 import { listAudit } from "@/lib/content/audit";
-import { getAllSitePages, getLandingContent } from "@/lib/content/get";
+import {
+  getAllSeoPageContent,
+  getAllSitePages,
+  getLandingContent,
+} from "@/lib/content/get";
 import { analyzePageSeo } from "@/lib/content/page-seo";
 import { listNotFoundHits, listRedirects } from "@/lib/content/redirects";
 import { getRouteRows } from "@/lib/content/routes";
@@ -64,16 +69,27 @@ export default async function SeoDashboardPage() {
     posts = [];
   }
 
-  const [pages, routes, audit, redirects, hits, publishedLanding, draftLanding] =
-    await Promise.all([
-      getAllSitePages(),
-      getRouteRows(),
-      listAudit({ limit: 8 }),
-      listRedirects(),
-      listNotFoundHits(),
-      getLandingContent("published"),
-      getLandingContent("draft"),
-    ]);
+  const [
+    pages,
+    routes,
+    audit,
+    redirects,
+    hits,
+    publishedLanding,
+    draftLanding,
+    publishedSeoPages,
+    draftSeoPages,
+  ] = await Promise.all([
+    getAllSitePages(),
+    getRouteRows(),
+    listAudit({ limit: 8 }),
+    listRedirects(),
+    listNotFoundHits(),
+    getLandingContent("published"),
+    getLandingContent("draft"),
+    getAllSeoPageContent("published"),
+    getAllSeoPageContent("draft"),
+  ]);
 
   const livePosts = posts.filter(
     (p) => p.status === "published" && !isScheduled(p.status, p.publishedAt),
@@ -88,6 +104,15 @@ export default async function SeoDashboardPage() {
   // edited and forgot to publish" case, so it gets its own warning.
   const landingUnpublished =
     JSON.stringify(draftLanding.sections) !== JSON.stringify(publishedLanding.sections);
+
+  // Same check per keyword landing page. Publishing writes both variants, so a
+  // difference here always means someone saved a draft and stopped.
+  const publishedSeoBySlug = new Map(
+    publishedSeoPages.map((page) => [page.slug, JSON.stringify(page)]),
+  );
+  const seoPagesUnpublished = draftSeoPages.filter(
+    (page) => publishedSeoBySlug.get(page.slug) !== JSON.stringify(page),
+  );
 
   const seoWarnings = routes
     .map((route) => ({ route, analysis: analyzePageSeo(route.meta) }))
@@ -133,6 +158,18 @@ export default async function SeoDashboardPage() {
             value={`${publishedLanding.sections.filter((s) => s.visible).length} sections`}
             hint={landingUnpublished ? "Unpublished draft changes" : "Draft matches live"}
             warn={landingUnpublished}
+          />
+          <HubCard
+            href="/seoteam/seo-pages"
+            icon={Target}
+            title="SEO pages"
+            value={`${publishedSeoPages.length} pages`}
+            hint={
+              seoPagesUnpublished.length > 0
+                ? `${seoPagesUnpublished.length} with unpublished drafts`
+                : "Keyword landing pages"
+            }
+            warn={seoPagesUnpublished.length > 0}
           />
           <HubCard
             href="/seoteam/meta"
@@ -190,7 +227,10 @@ export default async function SeoDashboardPage() {
               <AlertTriangle size={16} className="text-warn-fg" aria-hidden="true" />
               Needs attention
             </h2>
-            {seoWarnings.length === 0 && !landingUnpublished && topHits.length === 0 ? (
+            {seoWarnings.length === 0 &&
+            !landingUnpublished &&
+            seoPagesUnpublished.length === 0 &&
+            topHits.length === 0 ? (
               <p className="text-sm text-ink-muted">
                 Nothing flagged — every route passes its SEO checks.
               </p>
@@ -206,6 +246,19 @@ export default async function SeoDashboardPage() {
                     </Link>
                   </li>
                 )}
+                {seoPagesUnpublished.map((page) => (
+                  <li key={page.slug}>
+                    <Link
+                      href={`/seoteam/seo-pages/${page.slug}`}
+                      className="text-ink hover:text-biro"
+                    >
+                      <span className="font-medium">{page.label}</span>{" "}
+                      <span className="text-ink-muted">
+                        — draft changes that aren&apos;t published.
+                      </span>
+                    </Link>
+                  </li>
+                ))}
                 {seoWarnings.map(({ route, analysis }) => (
                   <li key={route.path}>
                     <Link href="/seoteam/meta" className="text-ink hover:text-biro">

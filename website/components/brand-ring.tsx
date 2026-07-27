@@ -5,9 +5,9 @@ import { monthAbbr } from "@/lib/dates";
 import { useToday } from "@/lib/use-today";
 
 /**
- * The brand ring, always circling *today* in the viewer's local timezone -
- * "circle the date" taken literally. Used as the logo/wordmark mark across the
- * site so the date is never a frozen "12 Jun".
+ * The brand ring, always circling *today* in the viewer's local timezone.
+ * Used as the logo/wordmark mark across the site so the date is never a
+ * frozen "12 Jun".
  *
  * It's a client component on purpose: the date must reflect the viewer's own
  * "today" regardless of when the page was built/cached, and it re-rolls at the

@@ -1,6 +1,6 @@
-# Circle the date - marketing website
+# Birthday Reminders - marketing website
 
-The public landing site for **Circle the date**, the free birthday & event
+The public landing site for **Birthday Reminders**, the free birthday & event
 reminder app. Built with **Next.js 16** (App Router, Turbopack) + **Tailwind
 CSS v4**, on-brand with the app's design system (`_ai_context/Bday_design`).
 

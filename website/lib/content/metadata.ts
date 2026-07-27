@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-import { getPageMeta, getSiteSettings } from "./get";
+import { defaultPageMeta, getPageMeta, getSeoPageContent, getSiteSettings } from "./get";
 import type { PageMeta, SiteSettings } from "./types";
 
 /**
@@ -70,4 +70,57 @@ export async function metadataForPath(
 ): Promise<Metadata> {
   const [meta, settings] = await Promise.all([getPageMeta(path), getSiteSettings()]);
   return buildPageMetadata(meta, settings, options);
+}
+
+/**
+ * True when the Page SEO screen actually set this field. `getPageMeta` has
+ * already collapsed the override into the route's shipped default, so "still
+ * byte-identical to what shipped" is the only signal left for "untouched".
+ */
+function isTuned(effective: string | string[], shipped: string | string[]): boolean {
+  return String(effective) !== String(shipped);
+}
+
+/**
+ * `generateMetadata` for a keyword landing page.
+ *
+ * Same precedence as every other route with one layer slipped into the middle:
+ * the Page SEO override still wins, but the default beneath it is the title and
+ * description held in the page's *own* editor, not the brief that shipped in
+ * `lib/content/seo-pages/`. Without this the fields the SEO page editor calls
+ * "this route's defaults" would be the only edits on that screen that never
+ * reach a visitor — the body copy would rename itself and the tab wouldn't.
+ *
+ * `absoluteTitle` is fixed rather than an option: these titles carry the brand
+ * already, so the `%s · Birthday Reminders` template would say it twice.
+ *
+ * The one ambiguous case is an override typed to match the shipped text exactly
+ * — it reads as untouched and the page editor's value wins. Same intent, more
+ * recently stated, so it resolves the way the editor would expect anyway.
+ */
+export async function seoLandingMetadata(slug: string): Promise<Metadata> {
+  const path = `/${slug}`;
+  const [meta, settings, page] = await Promise.all([
+    getPageMeta(path),
+    getSiteSettings(),
+    getSeoPageContent(slug, "published"),
+  ]);
+  // Null only for a slug with no page file; the callers hardcode their own.
+  if (!page) return buildPageMetadata(meta, settings, { absoluteTitle: true });
+
+  const shipped = defaultPageMeta(path);
+  return buildPageMetadata(
+    {
+      ...meta,
+      title: isTuned(meta.title, shipped.title) ? meta.title : page.title || meta.title,
+      description: isTuned(meta.description, shipped.description)
+        ? meta.description
+        : page.description || meta.description,
+      keywords: isTuned(meta.keywords, shipped.keywords)
+        ? meta.keywords
+        : [...page.keywords],
+    },
+    settings,
+    { absoluteTitle: true },
+  );
 }

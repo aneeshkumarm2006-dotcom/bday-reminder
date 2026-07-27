@@ -6,10 +6,14 @@ import type { EntityType } from "@/lib/content/types";
 
 export const dynamic = "force-dynamic";
 
+// The allowlist for the `entityType` filter. It has to name every member of
+// `EntityType` — an unlisted one isn't rejected, it's silently dropped, and the
+// caller gets every entity's revisions back believing they asked for one.
 const ENTITY_TYPES: EntityType[] = [
   "site",
   "landing",
   "page",
+  "seo-page",
   "navigation",
   "meta",
   "structured-data",
