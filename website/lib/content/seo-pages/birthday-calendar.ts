@@ -161,32 +161,32 @@ export const birthdayCalendarPage: SeoLandingPageDef = {
       {
         id: "faq-1",
         q: "What is a digital birthday calendar?",
-        a: "A digital birthday calendar is an app or synced calendar that stores everyone's birthdays in one place and shows them automatically, instead of requiring a printed template or manual spreadsheet. Birthday Reminder also adds automatic reminders and a one-tap way to send a greeting.",
+        a: "A digital birthday calendar stores birthdays and other important dates online instead of on paper, sending automatic reminders so you don't have to check it to remember what's coming up.",
       },
       {
         id: "faq-2",
         q: "How is an electronic birthday calendar different from a paper one?",
-        a: "An electronic birthday calendar updates itself, sorts dates automatically, and can send reminders through push, email, or SMS/WhatsApp — something a printed or PDF calendar can't do on its own.",
+        a: "An electronic birthday calendar updates automatically, sends reminders on its own, and syncs across devices, while a paper calendar only works if someone remembers to check it.",
       },
       {
         id: "faq-3",
         q: "Can I sync a birthday calendar app with Google or Apple Calendar?",
-        a: "Yes. Birthday Reminder lets you subscribe to your birthday calendar in Apple Calendar, Google Calendar, or Outlook, and it stays in sync as you make changes.",
+        a: "Yes. Birthday Reminder syncs with Apple Calendar, Google Calendar, and Outlook, staying up to date as you add, edit, or remove people.",
       },
       {
         id: "faq-4",
         q: "Is there a birthday reminder calendar that notifies me before the date?",
-        a: "Yes. You can set a lead time — for example, 7 days before and on the day — and choose which channel (push, email, SMS/WhatsApp) sends the reminder.",
+        a: "Yes. You can set reminders for multiple lead times, such as seven days before and on the day itself, delivered at your own timezone.",
       },
       {
         id: "faq-5",
         q: "Can a birthday calendar app track anniversaries and pets too?",
-        a: "Yes. Birthday Reminder handles birthdays, anniversaries, pets, and any custom event, each with its own independent reminders.",
+        a: "Yes. Birthday Reminder tracks birthdays, anniversaries, pets, and custom events, each reminding you independently.",
       },
       {
         id: "faq-6",
         q: "Can my family share the same birthday calendar?",
-        a: "Yes. Shared lists let family members add and manage birthdays together, while each person keeps their own reminder preferences.",
+        a: "Yes. Invite family members to the same calendar so everyone can add and edit dates together.",
       },
       {
         id: "faq-7",

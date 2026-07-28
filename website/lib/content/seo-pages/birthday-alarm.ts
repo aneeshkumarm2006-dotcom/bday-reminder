@@ -148,32 +148,32 @@ export const birthdayAlarmPage: SeoLandingPageDef = {
       {
         id: "faq-1",
         q: "What is a birthday alarm app?",
-        a: "A birthday alarm app schedules an automatic alert for someone's birthday, so you're notified without having to remember to set a reminder yourself each year. Birthday Reminder schedules these alarms once and repeats them annually.",
+        a: "A birthday alarm app sets a recurring alert for each birthday so you're notified automatically every year, instead of relying on a one-time reminder you have to reset.",
       },
       {
         id: "faq-2",
         q: "How is a birthday scheduler different from a regular phone alarm?",
-        a: "A regular phone alarm has to be reset manually for each event and each year. A birthday scheduler like Birthday Reminder automates this: set it once for a person, and it fires every year on the dates and channels you choose.",
+        a: "A birthday scheduler repeats automatically every year and can notify you across multiple channels, while a regular phone alarm has to be reset manually and only rings on the device where it was set.",
       },
       {
         id: "faq-3",
         q: "Can I set more than one alarm for the same birthday?",
-        a: "Yes. You can schedule multiple lead times for the same person — for example, one alert a week before and another on the day itself.",
+        a: "Yes. You can set multiple lead times for the same birthday, such as a reminder a week before and again on the day itself.",
       },
       {
         id: "faq-4",
         q: "What channels can a birthday alarm use to notify me?",
-        a: "Birthday Reminder can send alarms through push notifications, email, SMS/WhatsApp, or a persistent in-app feed, in your own timezone.",
+        a: "Push, email, SMS/WhatsApp, and an in-app feed, individually or in any combination you choose.",
       },
       {
         id: "faq-5",
         q: "Does a birthday alarm app work for more than birthdays?",
-        a: "Yes. Birthday Reminder schedules alerts for birthdays, anniversaries, pets, and any custom event you add.",
+        a: "Yes. Birthday Reminder's alarms also cover anniversaries, pets, and custom events, not just birthdays.",
       },
       {
         id: "faq-6",
         q: "Is there a widget to see upcoming birthday alarms without opening the app?",
-        a: "Yes. A home-screen widget shows the next three scheduled birthdays, their dates, and days remaining.",
+        a: "Yes. The home-screen widget shows the next three birthdays and updates on its own as the days pass.",
       },
       {
         id: "faq-7",

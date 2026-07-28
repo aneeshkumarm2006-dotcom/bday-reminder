@@ -143,27 +143,27 @@ export const birthdayCountdownAppPage: SeoLandingPageDef = {
       {
         id: "faq-1",
         q: "What is a birthday countdown app?",
-        a: "A birthday countdown app tracks how many days remain until someone's birthday and shows that countdown at a glance. Birthday Reminder goes a step further, pairing the countdown with reminders and a one-tap way to send a greeting when the day arrives.",
+        a: "A birthday countdown app tracks how many days are left until each birthday and shows a running countdown, so you always know what's coming up instead of checking a calendar each time.",
       },
       {
         id: "faq-2",
         q: "How does a birthday countdown app remind you before the day arrives?",
-        a: "A good countdown app lets you set a lead time — for example, 7 days before and on the day — and sends a reminder through push, email, or SMS/WhatsApp at a time you choose, in your own timezone.",
+        a: "Birthday Reminder sends reminders on the channel and lead time you choose, whether that's push, email, or SMS/WhatsApp, arriving days before the date or on the day itself.",
       },
       {
         id: "faq-3",
         q: "Can a birthday countdown app track more than one person?",
-        a: "Yes. Birthday Reminder shows a countdown for every birthday, anniversary, pet, or custom event you add, automatically sorted so the soonest one appears first.",
+        a: "Yes. Birthday Reminder counts down to every birthday you add, sorted automatically so the nearest date always shows first.",
       },
       {
         id: "faq-4",
         q: "Is there a widget that shows the countdown without opening the app?",
-        a: "Yes. The home-screen widget shows the next three countdowns — name, date, and days remaining — and updates on its own.",
+        a: "Yes. The home-screen widget shows the next three birthdays and updates itself as the days pass, so the countdown is visible without opening the app.",
       },
       {
         id: "faq-5",
         q: "Can family members see the same countdown together?",
-        a: "Yes. Shared lists let family or friends add and manage birthdays together, while each person keeps their own reminder settings.",
+        a: "Yes. Invite family members to the same list and everyone sees the same countdown, while each person keeps their own reminder settings.",
       },
       {
         id: "faq-6",
