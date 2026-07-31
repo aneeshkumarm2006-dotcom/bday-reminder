@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { CalendarPlus, Mail, MessageSquare, PawPrint, Pencil, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { AddEventDialog } from "@/components/app/add-event-dialog";
 import { AutoSendDialog, type AutoSendDraft } from "@/components/app/auto-send-dialog";
@@ -32,6 +32,7 @@ import {
   monthAbbr,
   nextOccurrence,
 } from "@/lib/dates";
+import { saveGmailReturn, takeGmailReturn } from "@/lib/gmail-return";
 import { formatPhone } from "@/lib/phone";
 import { cn } from "@/lib/utils";
 
@@ -44,9 +45,43 @@ export default function PersonProfilePage() {
   const confirm = useConfirm();
   const [addOpen, setAddOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<EventItem | null>(null);
-  const [emailDialogOpen, setEmailDialogOpen] = useState(false);
+  // Coming back from Gmail consent (Settings bounces here with ?resume=gmail):
+  // reopen the auto-send popup where it was left. Read once at first render —
+  // the person's own fields come from the query, so only the popup needs this.
+  // Safe to read synchronously: the app shell renders a spinner until auth
+  // resolves client-side, so this page's first render is never a hydration one.
+  const [restoredDialog] = useState<AutoSendDraft | null>(() => {
+    if (typeof window === "undefined") return null;
+    if (new URLSearchParams(window.location.search).get("resume") !== "gmail") return null;
+    return takeGmailReturn<{ dialogDraft: AutoSendDraft | null }>()?.draft?.dialogDraft ?? null;
+  });
+  const [emailDialogOpen, setEmailDialogOpen] = useState(!!restoredDialog);
   const [smsDialogOpen, setSmsDialogOpen] = useState(false);
   const [savingChannel, setSavingChannel] = useState<"email" | "sms" | null>(null);
+  // Optimistic override for the "in my calendar" switch, so it answers before the
+  // round-trip. Null means "no local opinion yet - use whatever the server says";
+  // declared up here with the other hooks, above the loading early-return below.
+  const [calendarOverride, setCalendarOverride] = useState<boolean | null>(null);
+  // Restored popup values - they seed the dialog instead of the person's stored
+  // values, so a greeting typed just before connecting isn't lost.
+  const [emailDialogSeed, setEmailDialogSeed] = useState<AutoSendDraft | null>(restoredDialog);
+
+  // The resume query has done its job above - strip it so a refresh doesn't look
+  // like another return trip, and say so if Google balked.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("resume") !== "gmail") return;
+    const outcome = params.get("gmail");
+    params.delete("resume");
+    params.delete("gmail");
+    const query = params.toString();
+    window.history.replaceState({}, "", `${window.location.pathname}${query ? `?${query}` : ""}`);
+    if (outcome && outcome !== "connected") {
+      toast({ message: "Couldn't connect Gmail. Please try again.", tone: "error" });
+    }
+    // Runs once on mount; the query is stripped above so it can't re-fire.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const personQ = useQuery({ queryKey: ["person", id], queryFn: () => peopleApi.get(id) });
   const notesQ = useQuery({ queryKey: ["notes", id], queryFn: () => notesApi.list(id) });
@@ -99,6 +134,28 @@ export default function PersonProfilePage() {
   const invalidatePerson = () => {
     qc.invalidateQueries({ queryKey: ["person", id] });
     qc.invalidateQueries({ queryKey: ["people"] });
+  };
+
+  // "In my calendar" for someone who reached you through a shared list.
+  const inMyCalendar = calendarOverride ?? person.inMyCalendar !== false;
+  const firstName = person.fullName.split(" ")[0] || person.fullName;
+
+  const onCalendarToggle = async (next: boolean) => {
+    setCalendarOverride(next);
+    try {
+      await peopleApi.setCalendar(next ? { add: [person.id] } : { remove: [person.id] });
+      invalidatePerson();
+      for (const key of ["upcoming", "reminders", "calendar-events"]) {
+        qc.invalidateQueries({ queryKey: [key] });
+      }
+      toast({
+        message: next ? "Added to your calendar." : "Removed from your calendar.",
+        tone: "success",
+      });
+    } catch {
+      setCalendarOverride(!next);
+      toast({ message: "Couldn't save that. Try again.", tone: "error" });
+    }
   };
 
   // Live mode: changes here persist immediately (unlike the edit form's
@@ -217,6 +274,30 @@ export default function PersonProfilePage() {
         </div>
       </section>
 
+      {/* Someone else's entry, reaching you through a list you're both in. Joining
+          a list hands you everyone in it; this is how you keep only who you want
+          (the same choice the catch-up screen offers in bulk). */}
+      {person.isMine === false ? (
+        <section className="mt-8">
+          <h2 className="mb-3 font-display text-lg font-semibold text-ink">Shared with you</h2>
+          <div className="flex items-center gap-3 rounded-lg border border-border-subtle bg-surface p-4">
+            <div className="min-w-0 flex-1">
+              <p className="font-medium text-ink">In my calendar</p>
+              <p className="mt-0.5 text-sm text-ink-muted">
+                {inMyCalendar
+                  ? `You'll get reminders for ${firstName}, and they'll show in your calendar.`
+                  : `${firstName} stays in the list, but won't remind you.`}
+              </p>
+            </div>
+            <Switch
+              checked={inMyCalendar}
+              onCheckedChange={onCalendarToggle}
+              aria-label={`Keep ${firstName} in my calendar`}
+            />
+          </div>
+        </section>
+      ) : null}
+
       {/* Auto-send greetings (Stage 14/15) — interactive: the switch opens the
           setup popup to turn on, and changes persist immediately. */}
       <section className="mt-8">
@@ -326,14 +407,22 @@ export default function PersonProfilePage() {
       <AutoSendDialog
         channel="email"
         open={emailDialogOpen}
-        onClose={() => setEmailDialogOpen(false)}
+        onClose={() => {
+          setEmailDialogOpen(false);
+          setEmailDialogSeed(null);
+        }}
         personName={person.fullName}
         available={config ? !!config.gmailAutoSendAvailable : configFailed ? false : undefined}
-        initialRecipient={person.email ?? ""}
-        initialMessage={person.autoBirthdayEmail?.message ?? ""}
-        initialSendTime={person.autoBirthdayEmail?.sendTime ?? ""}
-        initialSendTimeZone={person.autoBirthdayEmail?.sendTimeZone ?? ""}
+        initialRecipient={emailDialogSeed?.recipient ?? person.email ?? ""}
+        initialMessage={emailDialogSeed?.message ?? person.autoBirthdayEmail?.message ?? ""}
+        initialSendTime={emailDialogSeed?.sendTime ?? person.autoBirthdayEmail?.sendTime ?? ""}
+        initialSendTimeZone={
+          emailDialogSeed?.sendTimeZone ?? person.autoBirthdayEmail?.sendTimeZone ?? ""
+        }
         alreadyEnabled={!!person.autoBirthdayEmail?.enabled}
+        onBeforeConnect={(dialogDraft) =>
+          saveGmailReturn({ returnTo: window.location.pathname, draft: { dialogDraft } })
+        }
         onConfirm={confirmAutoEmail}
       />
       <AutoSendDialog

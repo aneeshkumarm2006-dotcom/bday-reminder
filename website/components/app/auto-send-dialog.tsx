@@ -16,6 +16,7 @@ import { Dialog } from "@/components/ui/dialog";
 import { Label, Textarea, TextField } from "@/components/ui/input";
 import { useToast } from "@/components/ui/toast";
 import { ApiError, gmailApi, type SmsChannel } from "@/lib/api";
+import { clearGmailReturn } from "@/lib/gmail-return";
 import {
   defaultGreeting,
   EMAIL_MAX,
@@ -70,6 +71,7 @@ export function AutoSendDialog({
   initialSmsChannel = "sms",
   alreadyEnabled,
   onConfirm,
+  onBeforeConnect,
 }: {
   channel: GreetingChannel;
   open: boolean;
@@ -92,6 +94,13 @@ export function AutoSendDialog({
   /** true → editing an existing setup ("Save"); false → enabling ("Turn on"). */
   alreadyEnabled: boolean;
   onConfirm: (draft: AutoSendDraft) => void | Promise<void>;
+  /**
+   * Called with the dialog's current values just before the Gmail consent flow
+   * opens (email channel only). The consent tab can end up replacing this one
+   * on a phone, so the parent uses this to park its own draft plus these values
+   * and restore both on the way back.
+   */
+  onBeforeConnect?: (draft: AutoSendDraft) => void;
 }) {
   const { toast } = useToast();
   const { user, refreshUser } = useAuth();
@@ -148,7 +157,11 @@ export function AutoSendDialog({
     let cancelled = false;
     const check = () => {
       void refreshUser().then((me) => {
-        if (!cancelled && me?.gmailConnected) setConnectWaiting(false);
+        if (cancelled || !me?.gmailConnected) return;
+        setConnectWaiting(false);
+        // This tab kept its state through the round-trip, so the parked copy is
+        // spent — drop it before it can redirect an unrelated connect later.
+        clearGmailReturn();
       });
     };
     window.addEventListener("focus", check);
@@ -161,6 +174,10 @@ export function AutoSendDialog({
   }, [open, isEmail, connectWaiting, gmailReady, refreshUser]);
 
   const startConnect = async () => {
+    // Park the page before the browser leaves for Google. On a phone the consent
+    // tab replaces this view, so the way back is a fresh page load — without this
+    // the form behind the dialog would come back empty.
+    onBeforeConnect?.(currentDraft());
     // Open the tab synchronously inside the click gesture — Safari revokes the
     // popup allowance after an await — then point it at the consent URL.
     const tab = window.open("about:blank", "_blank");
@@ -179,6 +196,7 @@ export function AutoSendDialog({
     const me = await refreshUser();
     if (me?.gmailConnected) {
       setConnectWaiting(false);
+      clearGmailReturn();
     } else {
       toast({ message: "Gmail isn't connected yet. Finish the Google sign-in first.", tone: "error" });
     }
@@ -186,6 +204,16 @@ export function AutoSendDialog({
 
   const matched = matchTemplateId(message, channel, fillOpts);
   const activeTemplate = customPicked ? null : matched;
+
+  /** The dialog exactly as it stands - parked before an auth hand-off, saved on confirm. */
+  const currentDraft = (): AutoSendDraft => ({
+    recipient: recipient.trim(),
+    message: message.trim(),
+    sendTime,
+    sendTimeZone,
+    smsChannel,
+    smsTemplateId: isEmail ? null : activeTemplate,
+  });
 
   // A half-typed number is stored happily but silently skipped at send time, so
   // the text rails require a complete E.164 number before this can be turned on.
@@ -198,14 +226,7 @@ export function AutoSendDialog({
     if (!canConfirm) return;
     setBusy(true);
     try {
-      await onConfirm({
-        recipient: recipient.trim(),
-        message: message.trim(),
-        sendTime,
-        sendTimeZone,
-        smsChannel,
-        smsTemplateId: isEmail ? null : activeTemplate,
-      });
+      await onConfirm(currentDraft());
       onClose();
     } catch (e) {
       toast({

@@ -15,12 +15,13 @@ import {
   X,
 } from 'lucide-react-native';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Platform, Pressable, ScrollView, View } from 'react-native';
+import { Platform, Pressable, View } from 'react-native';
 
 import {
   Button,
   Card,
   Chip,
+  FormScrollView,
   Icon,
   Input,
   Screen,
@@ -507,10 +508,7 @@ function InputPhase({
   error: string | null;
 }) {
   return (
-    <ScrollView
-      showsVerticalScrollIndicator={false}
-      keyboardShouldPersistTaps="handled"
-      contentContainerStyle={{ paddingBottom: 32, gap: 20 }}>
+    <FormScrollView contentContainerStyle={{ paddingBottom: 32, gap: 20 }}>
       {googleAvailable ? (
         <Pressable
           onPress={onImportGoogle}
@@ -597,7 +595,7 @@ function InputPhase({
           {error}
         </Text>
       ) : null}
-    </ScrollView>
+    </FormScrollView>
   );
 }
 
@@ -634,10 +632,7 @@ function PreviewPhase({
 
   return (
     <View className="flex-1">
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-        contentContainerStyle={{ paddingBottom: 16, gap: 12 }}>
+      <FormScrollView contentContainerStyle={{ paddingBottom: 16, gap: 12 }}>
         <View className="gap-0.5">
           <Text variant="body" className="text-ink-secondary">
             Edit anyone, remove rows you don’t want, or add someone we missed — then import.
@@ -679,7 +674,7 @@ function PreviewPhase({
             {error}
           </Text>
         ) : null}
-      </ScrollView>
+      </FormScrollView>
 
       <View className="gap-2 border-t border-border-subtle pt-3">
         <Button fullWidth loading={busy} disabled={importCount === 0} onPress={onImport}>

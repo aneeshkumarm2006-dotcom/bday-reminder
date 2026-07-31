@@ -8,6 +8,12 @@ import { Schema, model, models, type Model, type Types } from 'mongoose';
 
 export interface ListMember {
   user: Types.ObjectId;
+  /**
+   * When this member accepted their invite - drives the "joined recently" marker
+   * on the list screen. Unset on members who joined before the field existed;
+   * that reads as "not new" rather than being backfilled with a made-up date.
+   */
+  joinedAt?: Date;
 }
 
 export interface SharedListDoc {
@@ -22,6 +28,7 @@ export interface SharedListDoc {
 const memberSchema = new Schema<ListMember>(
   {
     user: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    joinedAt: { type: Date, default: () => new Date() },
   },
   { _id: false },
 );

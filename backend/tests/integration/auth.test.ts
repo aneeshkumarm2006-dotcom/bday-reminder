@@ -16,23 +16,58 @@ describe('auth flow (FR-1/4)', () => {
     expect(res.body.status).toBe('ok');
   });
 
-  it('signs up, lowercases email, stores timezone, never leaks the hash', async () => {
-    const res = await api
-      .post('/auth/signup')
-      .send({ name: 'Michael', email: 'Michael@Example.com', password: 'supersecret', timezone: 'Asia/Kolkata' });
+  it('signs up, lowercases email, stores timezone + birthday, never leaks the hash', async () => {
+    const res = await api.post('/auth/signup').send({
+      name: 'Michael',
+      email: 'Michael@Example.com',
+      password: 'supersecret',
+      birthday: { month: 3, day: 12, year: 1988 },
+      timezone: 'Asia/Kolkata',
+    });
     expect(res.status).toBe(201);
     expect(res.body.user.email).toBe('michael@example.com');
     expect(res.body.user.timezone).toBe('Asia/Kolkata');
+    expect(res.body.user.birthday).toEqual({ month: 3, day: 12, year: 1988 });
     expect(res.body.user.passwordHash).toBeUndefined();
     expect(typeof res.body.accessToken).toBe('string');
     expect(typeof res.body.refreshToken).toBe('string');
   });
 
-  it('rejects a duplicate email with 409', async () => {
-    await signUp(api, { email: 'dupe@example.com' });
+  it('keeps the birth year optional, and rejects a date that never happens', async () => {
+    const noYear = await api.post('/auth/signup').send({
+      name: 'Yearless',
+      email: 'yearless@example.com',
+      password: 'supersecret',
+      birthday: { month: 7, day: 4 },
+    });
+    expect(noYear.status).toBe(201);
+    expect(noYear.body.user.birthday).toEqual({ month: 7, day: 4, year: null });
+
+    const feb30 = await api.post('/auth/signup').send({
+      name: 'Impossible',
+      email: 'feb30@example.com',
+      password: 'supersecret',
+      birthday: { month: 2, day: 30 },
+    });
+    expect(feb30.status).toBe(400);
+  });
+
+  it('requires a birthday to sign up', async () => {
     const res = await api
       .post('/auth/signup')
-      .send({ name: 'Other', email: 'dupe@example.com', password: 'supersecret' });
+      .send({ name: 'Nobirthday', email: 'nobd@example.com', password: 'supersecret' });
+    expect(res.status).toBe(400);
+    expect(res.body.details.some((d: { path: string }) => d.path === 'birthday')).toBe(true);
+  });
+
+  it('rejects a duplicate email with 409', async () => {
+    await signUp(api, { email: 'dupe@example.com' });
+    const res = await api.post('/auth/signup').send({
+      name: 'Other',
+      email: 'dupe@example.com',
+      password: 'supersecret',
+      birthday: { month: 1, day: 1 },
+    });
     expect(res.status).toBe(409);
   });
 

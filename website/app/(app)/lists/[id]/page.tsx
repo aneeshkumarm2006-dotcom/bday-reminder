@@ -1,7 +1,8 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Copy, LogOut, Trash2, UserPlus, X } from "lucide-react";
+import { Cake, Copy, LogOut, Trash2, UserPlus, X } from "lucide-react";
+import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -14,8 +15,16 @@ import { Input } from "@/components/ui/input";
 import { LoadingBlock } from "@/components/ui/spinner";
 import { useToast } from "@/components/ui/toast";
 import { listsApi } from "@/lib/api";
+import { monthAbbr } from "@/lib/dates";
 
 /** Shared list detail (FR-42/46/47) — members, invites, leave/remove/delete. */
+/** Joined within the last fortnight — long enough that a weekly visitor sees it. */
+function isNewMember(joinedAt: string | null): boolean {
+  if (!joinedAt) return false;
+  const at = Date.parse(joinedAt);
+  return Number.isFinite(at) && Date.now() - at < 14 * 86_400_000;
+}
+
 export default function ListDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
@@ -126,6 +135,17 @@ export default function ListDetailPage() {
         action={<Badge tone={isOwner ? "biro" : "neutral"}>{list.role}</Badge>}
       />
 
+      {/* Back into the catch-up: joining hands you everyone in the list, and this
+          is how you revise that choice later. */}
+      {list.peopleCount > 0 ? (
+        <Link
+          href={`/lists/${id}/catch-up`}
+          className="mb-6 inline-block text-sm font-medium text-biro hover:underline"
+        >
+          Choose who&apos;s in my calendar
+        </Link>
+      ) : null}
+
       {/* Members */}
       <section>
         <h2 className="mb-3 font-display text-lg font-semibold text-ink">Members</h2>
@@ -137,8 +157,20 @@ export default function ListDetailPage() {
             >
               <Avatar name={m.name} size={36} />
               <div className="min-w-0 flex-1">
-                <p className="truncate font-medium text-ink">{m.name}</p>
+                <div className="flex items-center gap-2">
+                  <p className="truncate font-medium text-ink">{m.name}</p>
+                  {isNewMember(m.joinedAt) ? <Badge tone="biro">New</Badge> : null}
+                </div>
                 <p className="truncate text-sm text-ink-muted">{m.email}</p>
+                {/* Their own birthday, once they've shared it — the other half of
+                    what a list is for. Nothing shows when they haven't; never
+                    nag for someone else's data. */}
+                {m.birthday ? (
+                  <p className="mt-0.5 flex items-center gap-1.5 text-xs text-ink-muted">
+                    <Cake size={13} aria-hidden="true" />
+                    {monthAbbr(m.birthday.month)} {m.birthday.day}
+                  </p>
+                ) : null}
               </div>
               {m.isOwner ? (
                 <Badge tone="biro">Owner</Badge>

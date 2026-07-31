@@ -9,6 +9,7 @@ export {
   REMINDER_STATUSES,
 } from './Reminder';
 export { Note, type NoteDoc } from './Note';
+export { PersonMute, type PersonMuteDoc } from './PersonMute';
 export { SharedList, type SharedListDoc, type ListMember } from './SharedList';
 export { Invite, type InviteDoc, type InviteStatus } from './Invite';
 export { RefreshToken, type RefreshTokenDoc } from './RefreshToken';

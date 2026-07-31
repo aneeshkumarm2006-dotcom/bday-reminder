@@ -105,6 +105,7 @@ async function main(): Promise<void> {
       name: 'Ana',
       email: 'ana@example.com',
       password: 'supersecret',
+      birthday: { month: 6, day: 15, year: 1990 },
       timezone: 'UTC',
     });
     const token: string = (await res.json()).accessToken;

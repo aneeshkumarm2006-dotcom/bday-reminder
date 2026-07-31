@@ -78,7 +78,7 @@ async function main(): Promise<void> {
   const get = (p: string, t?: string) => req('GET', p, undefined, t);
 
   const signup = async (name: string, email: string, timezone = 'UTC'): Promise<string> => {
-    const res = await post('/auth/signup', { name, email, password: 'supersecret', timezone });
+    const res = await post('/auth/signup', { name, email, password: 'supersecret', birthday: { month: 6, day: 15, year: 1990 }, timezone });
     if (res.status !== 201) throw new Error(`signup ${email} → ${res.status}`);
     return (await res.json()).accessToken as string;
   };

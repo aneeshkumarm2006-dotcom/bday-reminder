@@ -3,6 +3,7 @@ import { z } from 'zod';
 
 import { asyncHandler } from '../lib/async-handler';
 import { startSession, rotateRefreshToken, revokeRefreshToken } from '../lib/auth-tokens';
+import { dobSchema, toDateParts } from '../lib/dob-schema';
 import { conflict, unauthorized } from '../lib/http-error';
 import { hashPassword, verifyPassword } from '../lib/password';
 import { DEFAULT_TIMEZONE } from '../lib/region';
@@ -20,6 +21,10 @@ const signupSchema = z.object({
   name: z.string().trim().min(1, 'Add your name so reminders can greet you.'),
   email: z.string().trim().toLowerCase().email('Enter a valid email address.'),
   password: z.string().min(8, 'Use a password of at least 8 characters.'),
+  // The user's own birthday, asked up front so the lists they join can celebrate
+  // them back. The year stays optional inside `dobSchema` (FR-14). Google sign-ups
+  // skip this route entirely and are asked on a follow-up step instead.
+  birthday: dobSchema,
   // Auto-detected on the client; falls back to the US/CA-first default if absent.
   timezone: z.string().trim().min(1).optional(),
 });
@@ -37,7 +42,7 @@ authRouter.post(
   '/signup',
   validateBody(signupSchema),
   asyncHandler(async (req, res) => {
-    const { name, email, password, timezone } = req.body as z.infer<typeof signupSchema>;
+    const { name, email, password, birthday, timezone } = req.body as z.infer<typeof signupSchema>;
 
     const existing = await User.findOne({ email });
     if (existing) {
@@ -45,7 +50,15 @@ authRouter.post(
     }
 
     const passwordHash = await hashPassword(password);
-    const user = await User.create({ name, email, passwordHash, timezone: timezone || DEFAULT_TIMEZONE });
+    // No self-card here: a birthday is only published to a list when the user
+    // joins one and chooses to share it (see lib/self-person.ts).
+    const user = await User.create({
+      name,
+      email,
+      passwordHash,
+      birthday: toDateParts(birthday),
+      timezone: timezone || DEFAULT_TIMEZONE,
+    });
 
     const tokens = await startSession(user._id.toString());
     res.status(201).json({ user: serializeUser(user), ...tokens });

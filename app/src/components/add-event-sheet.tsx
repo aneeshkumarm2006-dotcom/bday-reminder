@@ -8,6 +8,7 @@ import {
 import {
   Button,
   Chip,
+  FormScrollView,
   Input,
   Label,
   Select,
@@ -176,101 +177,105 @@ export function AddEventSheet({
 
   return (
     <Sheet visible={visible} onClose={close} title={isEdit ? 'Edit event' : 'Add event'}>
-      <View className="gap-4 pb-2">
-        {!isEdit ? (
+      {/* Scrolls (and shrinks) so the fields stay reachable once the keyboard
+          lifts the sheet on a short screen. */}
+      <FormScrollView style={{ flexShrink: 1 }}>
+        <View className="gap-4 pb-2">
+          {!isEdit ? (
+            <View>
+              <Label>Type</Label>
+              <View className="flex-row gap-2">
+                <Chip
+                  label="Anniversary"
+                  selected={type === 'anniversary'}
+                  onPress={() => setType('anniversary')}
+                />
+                <Chip label="Custom" selected={type === 'custom'} onPress={() => setType('custom')} />
+              </View>
+            </View>
+          ) : null}
+
+          {type === 'custom' ? (
+            <TextField
+              label="Event name"
+              value={customName}
+              onChangeText={setCustomName}
+              placeholder="e.g. Met on this day"
+              error={errors.name}
+              autoCapitalize="sentences"
+              maxLength={60}
+            />
+          ) : null}
+
           <View>
-            <Label>Type</Label>
+            <Label>Date</Label>
             <View className="flex-row gap-2">
-              <Chip
-                label="Anniversary"
-                selected={type === 'anniversary'}
-                onPress={() => setType('anniversary')}
-              />
-              <Chip label="Custom" selected={type === 'custom'} onPress={() => setType('custom')} />
+              <View className="flex-1">
+                <Select
+                  value={month || undefined}
+                  options={MONTH_OPTIONS}
+                  onChange={setMonth}
+                  placeholder="Month"
+                />
+              </View>
+              <View className="w-[72px]">
+                <Input
+                  value={day}
+                  onChangeText={setDay}
+                  placeholder="Day"
+                  keyboardType="number-pad"
+                  maxLength={2}
+                  error={!!errors.dob}
+                  accessibilityLabel="Day"
+                />
+              </View>
+              <View className="w-[92px]">
+                <Input
+                  value={year}
+                  onChangeText={setYear}
+                  placeholder="Year"
+                  keyboardType="number-pad"
+                  maxLength={4}
+                  error={!!errors.year}
+                  accessibilityLabel="Year (optional)"
+                />
+              </View>
             </View>
+            {errors.dob ? (
+              <Text variant="caption" className="mt-1.5 text-danger-fg">
+                {errors.dob}
+              </Text>
+            ) : errors.year ? (
+              <Text variant="caption" className="mt-1.5 text-danger-fg">
+                {errors.year}
+              </Text>
+            ) : (
+              <Text variant="caption" className="mt-1.5 text-ink-muted">
+                Year is optional.
+              </Text>
+            )}
           </View>
-        ) : null}
 
-        {type === 'custom' ? (
-          <TextField
-            label="Event name"
-            value={customName}
-            onChangeText={setCustomName}
-            placeholder="e.g. Met on this day"
-            error={errors.name}
-            autoCapitalize="sentences"
-            maxLength={60}
-          />
-        ) : null}
-
-        <View>
-          <Label>Date</Label>
-          <View className="flex-row gap-2">
-            <View className="flex-1">
-              <Select
-                value={month || undefined}
-                options={MONTH_OPTIONS}
-                onChange={setMonth}
-                placeholder="Month"
-              />
-            </View>
-            <View className="w-[72px]">
-              <Input
-                value={day}
-                onChangeText={setDay}
-                placeholder="Day"
-                keyboardType="number-pad"
-                maxLength={2}
-                error={!!errors.dob}
-                accessibilityLabel="Day"
-              />
-            </View>
-            <View className="w-[92px]">
-              <Input
-                value={year}
-                onChangeText={setYear}
-                placeholder="Year"
-                keyboardType="number-pad"
-                maxLength={4}
-                error={!!errors.year}
-                accessibilityLabel="Year (optional)"
-              />
-            </View>
+          <View>
+            <Label>Reminder time</Label>
+            <ReminderTimePicker
+              value={reminderTime}
+              onChange={setReminderTime}
+              inheritLabel={defaultTimeInheritLabel(user?.defaultReminderTime)}
+            />
           </View>
-          {errors.dob ? (
-            <Text variant="caption" className="mt-1.5 text-danger-fg">
-              {errors.dob}
+
+          {submitError ? (
+            <Text variant="caption" className="text-danger-fg">
+              {submitError}
             </Text>
-          ) : errors.year ? (
-            <Text variant="caption" className="mt-1.5 text-danger-fg">
-              {errors.year}
-            </Text>
-          ) : (
-            <Text variant="caption" className="mt-1.5 text-ink-muted">
-              Year is optional.
-            </Text>
-          )}
+          ) : null}
+
+          <Button fullWidth loading={saving} onPress={submit}>
+            {isEdit ? 'Save changes' : 'Add event'}
+          </Button>
         </View>
-
-        <View>
-          <Label>Reminder time</Label>
-          <ReminderTimePicker
-            value={reminderTime}
-            onChange={setReminderTime}
-            inheritLabel={defaultTimeInheritLabel(user?.defaultReminderTime)}
-          />
-        </View>
-
-        {submitError ? (
-          <Text variant="caption" className="text-danger-fg">
-            {submitError}
-          </Text>
-        ) : null}
-
-        <Button fullWidth loading={saving} onPress={submit}>
-          {isEdit ? 'Save changes' : 'Add event'}
-        </Button>
-      </View>
+      </FormScrollView>
     </Sheet>
   );
 }

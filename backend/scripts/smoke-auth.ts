@@ -65,6 +65,7 @@ async function main(): Promise<void> {
       name: 'Michael',
       email: 'Michael@Example.com',
       password: 'supersecret',
+      birthday: { month: 6, day: 15, year: 1990 },
       timezone: 'Asia/Kolkata',
     });
     body = await res.json();
@@ -78,7 +79,7 @@ async function main(): Promise<void> {
     );
 
     // Duplicate signup
-    res = await post('/auth/signup', { name: 'Michael2', email: 'michael@example.com', password: 'supersecret' });
+    res = await post('/auth/signup', { name: 'Michael2', email: 'michael@example.com', password: 'supersecret', birthday: { month: 6, day: 15, year: 1990 } });
     check(res.status === 409, 'duplicate email → 409');
 
     // Validation
@@ -90,7 +91,7 @@ async function main(): Promise<void> {
     check(res.status === 401, 'wrong password → 401');
 
     // Login
-    res = await post('/auth/login', { email: 'michael@example.com', password: 'supersecret' });
+    res = await post('/auth/login', { email: 'michael@example.com', password: 'supersecret', birthday: { month: 6, day: 15, year: 1990 } });
     body = await res.json();
     check(res.status === 200 && !!body.accessToken && !!body.refreshToken, 'login → 200 + tokens');
     const access: string = body.accessToken;

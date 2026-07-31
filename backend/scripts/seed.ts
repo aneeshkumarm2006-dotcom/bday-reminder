@@ -18,6 +18,7 @@ const DEMO = {
   name: 'Demo Tester',
   email: 'demo@circlethedate.app',
   password: 'demopassword123',
+  birthday: { month: 6, day: 15, year: 1990 },
   timezone: 'UTC',
 };
 

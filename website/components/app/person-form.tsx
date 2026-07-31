@@ -3,10 +3,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { CalendarPlus, ImagePlus, Loader2, X } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { AddEventDialog } from "@/components/app/add-event-dialog";
-import { AutoSendDialog } from "@/components/app/auto-send-dialog";
+import { AutoSendDialog, type AutoSendDraft } from "@/components/app/auto-send-dialog";
 import { DatePartsField, type DatePartsValue } from "@/components/app/date-parts-field";
 import { PhoneField } from "@/components/app/phone-field";
 import { Avatar } from "@/components/ui/avatar";
@@ -29,6 +29,7 @@ import {
 } from "@/lib/api";
 import { monthAbbr } from "@/lib/dates";
 import { eventTypeMeta } from "@/lib/event-style";
+import { saveGmailReturn, takeGmailReturn } from "@/lib/gmail-return";
 import { formatPhone, isE164 } from "@/lib/phone";
 import { useAuth } from "@/providers/auth-provider";
 
@@ -46,6 +47,38 @@ function formatEventDate(date: { month: number; day: number; year?: number | nul
  * members see the person. Photo uploads through the backend (Cloudinary or a
  * data-URL fallback).
  */
+
+/**
+ * Everything typed into this form, parked while the Gmail consent flow runs so a
+ * return that lands as a fresh page load doesn't throw it away.
+ * `openDialog`/`dialogDraft` reopen the auto-send popup exactly as it was.
+ */
+type PersonFormDraft = {
+  fullName: string;
+  type: PersonType;
+  date: DatePartsValue;
+  feb29Rule: Feb29Rule;
+  tag: string;
+  customTag: string;
+  useCustom: boolean;
+  phone: string;
+  email: string;
+  photoUrl: string | null;
+  selectedLists: string[];
+  pendingEvents: CreatePersonEventInput[];
+  autoSendOn: boolean;
+  autoSendMessage: string;
+  autoSendTime: string;
+  autoSendTz: string;
+  autoSmsOn: boolean;
+  autoSmsChannel: SmsChannel;
+  autoSmsTemplateId: string | null;
+  autoSmsMessage: string;
+  autoSmsTime: string;
+  autoSmsTz: string;
+  openDialog: "email" | null;
+  dialogDraft: AutoSendDraft | null;
+};
 
 const RELATIONSHIP_PRESETS = ["Family", "Friend", "Colleague", "Partner", "Other"];
 const FEB29_OPTIONS: { value: Feb29Rule; label: string }[] = [
@@ -69,47 +102,93 @@ export function PersonForm({
 
   const birthday = existing?.events.find((e) => e.type === "birthday");
 
-  const [fullName, setFullName] = useState(person?.fullName ?? "");
-  const [type, setType] = useState<PersonType>(person?.type ?? "human");
+  // Coming back from Gmail consent, Settings bounces here with ?resume=gmail.
+  // Read the parked draft once, at first render, so it seeds the fields below
+  // rather than overwriting them a beat later. Safe to read synchronously: the
+  // app shell renders a spinner until auth resolves client-side, so this form's
+  // first render is never a server or hydration render.
+  const [restored] = useState<PersonFormDraft | null>(() => {
+    if (typeof window === "undefined") return null;
+    if (new URLSearchParams(window.location.search).get("resume") !== "gmail") return null;
+    return takeGmailReturn<PersonFormDraft>()?.draft ?? null;
+  });
+
+  const [fullName, setFullName] = useState(restored?.fullName ?? person?.fullName ?? "");
+  const [type, setType] = useState<PersonType>(restored?.type ?? person?.type ?? "human");
   const [date, setDate] = useState<DatePartsValue>(
-    birthday
-      ? { month: birthday.date.month, day: birthday.date.day, year: birthday.date.year }
-      : initialDate
-        ? { month: initialDate.month, day: initialDate.day, year: null }
-        : { month: 1, day: 1, year: null },
+    restored?.date ??
+      (birthday
+        ? { month: birthday.date.month, day: birthday.date.day, year: birthday.date.year }
+        : initialDate
+          ? { month: initialDate.month, day: initialDate.day, year: null }
+          : { month: 1, day: 1, year: null }),
   );
-  const [feb29Rule, setFeb29Rule] = useState<Feb29Rule>(person?.feb29Rule ?? "feb28");
+  const [feb29Rule, setFeb29Rule] = useState<Feb29Rule>(
+    restored?.feb29Rule ?? person?.feb29Rule ?? "feb28",
+  );
   const presetTag = person?.relationshipTag && RELATIONSHIP_PRESETS.includes(person.relationshipTag);
-  const [tag, setTag] = useState<string>(presetTag ? person!.relationshipTag! : "");
-  const [customTag, setCustomTag] = useState<string>(presetTag ? "" : (person?.relationshipTag ?? ""));
-  const [useCustom, setUseCustom] = useState<boolean>(!!person?.relationshipTag && !presetTag);
-  const [phone, setPhone] = useState(person?.phone ?? "");
-  const [email, setEmail] = useState(person?.email ?? "");
-  const [autoSendOn, setAutoSendOn] = useState(person?.autoBirthdayEmail?.enabled ?? false);
-  const [autoSendMessage, setAutoSendMessage] = useState(person?.autoBirthdayEmail?.message ?? "");
-  const [autoSendTime, setAutoSendTime] = useState(person?.autoBirthdayEmail?.sendTime ?? "");
-  const [autoSendTz, setAutoSendTz] = useState(person?.autoBirthdayEmail?.sendTimeZone ?? "");
-  const [autoSmsOn, setAutoSmsOn] = useState(person?.autoBirthdaySms?.enabled ?? false);
+  const [tag, setTag] = useState<string>(restored?.tag ?? (presetTag ? person!.relationshipTag! : ""));
+  const [customTag, setCustomTag] = useState<string>(
+    restored?.customTag ?? (presetTag ? "" : (person?.relationshipTag ?? "")),
+  );
+  const [useCustom, setUseCustom] = useState<boolean>(
+    restored?.useCustom ?? (!!person?.relationshipTag && !presetTag),
+  );
+  const [phone, setPhone] = useState(restored?.phone ?? person?.phone ?? "");
+  const [email, setEmail] = useState(restored?.email ?? person?.email ?? "");
+  const [autoSendOn, setAutoSendOn] = useState(
+    restored?.autoSendOn ?? person?.autoBirthdayEmail?.enabled ?? false,
+  );
+  const [autoSendMessage, setAutoSendMessage] = useState(
+    restored?.autoSendMessage ?? person?.autoBirthdayEmail?.message ?? "",
+  );
+  const [autoSendTime, setAutoSendTime] = useState(
+    restored?.autoSendTime ?? person?.autoBirthdayEmail?.sendTime ?? "",
+  );
+  const [autoSendTz, setAutoSendTz] = useState(
+    restored?.autoSendTz ?? person?.autoBirthdayEmail?.sendTimeZone ?? "",
+  );
+  const [autoSmsOn, setAutoSmsOn] = useState(
+    restored?.autoSmsOn ?? person?.autoBirthdaySms?.enabled ?? false,
+  );
   const [autoSmsChannel, setAutoSmsChannel] = useState<SmsChannel>(
-    person?.autoBirthdaySms?.channel ?? "sms",
+    restored?.autoSmsChannel ?? person?.autoBirthdaySms?.channel ?? "sms",
   );
   const [autoSmsTemplateId, setAutoSmsTemplateId] = useState<string | null>(
-    person?.autoBirthdaySms?.templateId ?? null,
+    restored?.autoSmsTemplateId ?? person?.autoBirthdaySms?.templateId ?? null,
   );
-  const [autoSmsMessage, setAutoSmsMessage] = useState(person?.autoBirthdaySms?.message ?? "");
-  const [autoSmsTime, setAutoSmsTime] = useState(person?.autoBirthdaySms?.sendTime ?? "");
-  const [autoSmsTz, setAutoSmsTz] = useState(person?.autoBirthdaySms?.sendTimeZone ?? "");
-  const [emailDialogOpen, setEmailDialogOpen] = useState(false);
+  const [autoSmsMessage, setAutoSmsMessage] = useState(
+    restored?.autoSmsMessage ?? person?.autoBirthdaySms?.message ?? "",
+  );
+  const [autoSmsTime, setAutoSmsTime] = useState(
+    restored?.autoSmsTime ?? person?.autoBirthdaySms?.sendTime ?? "",
+  );
+  const [autoSmsTz, setAutoSmsTz] = useState(
+    restored?.autoSmsTz ?? person?.autoBirthdaySms?.sendTimeZone ?? "",
+  );
+  // Reopen the auto-send popup right where it was left off.
+  const [emailDialogOpen, setEmailDialogOpen] = useState(restored?.openDialog === "email");
   const [smsDialogOpen, setSmsDialogOpen] = useState(false);
-  const [photoUrl, setPhotoUrl] = useState<string | null>(person?.photoUrl ?? null);
-  const [selectedLists, setSelectedLists] = useState<string[]>(person?.lists ?? []);
+  // Restored popup values - they seed the dialog instead of the form's fields,
+  // so a half-written greeting comes back too.
+  const [emailDialogSeed, setEmailDialogSeed] = useState<AutoSendDraft | null>(
+    restored?.dialogDraft ?? null,
+  );
+  const [photoUrl, setPhotoUrl] = useState<string | null>(
+    restored?.photoUrl ?? person?.photoUrl ?? null,
+  );
+  const [selectedLists, setSelectedLists] = useState<string[]>(
+    restored?.selectedLists ?? person?.lists ?? [],
+  );
   const [uploading, setUploading] = useState(false);
   const [busy, setBusy] = useState(false);
 
   // Extra dates (anniversary/custom) added while creating the person; held
   // locally and saved atomically with them (add mode only - editing manages
   // events from the profile). Reuses the detail page's AddEventDialog.
-  const [pendingEvents, setPendingEvents] = useState<CreatePersonEventInput[]>([]);
+  const [pendingEvents, setPendingEvents] = useState<CreatePersonEventInput[]>(
+    restored?.pendingEvents ?? [],
+  );
   const [eventDialogOpen, setEventDialogOpen] = useState(false);
 
   const { data: listsData } = useQuery({ queryKey: ["lists"], queryFn: () => listsApi.list() });
@@ -117,6 +196,38 @@ export function PersonForm({
     queryKey: ["config"],
     queryFn: () => configApi.get(),
   });
+
+  // The resume query has done its job in the initializers above - strip it so a
+  // refresh doesn't look like another return trip, and say so if Google balked.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("resume") !== "gmail") return;
+    const outcome = params.get("gmail");
+    params.delete("resume");
+    params.delete("gmail");
+    const query = params.toString();
+    window.history.replaceState({}, "", `${window.location.pathname}${query ? `?${query}` : ""}`);
+    if (outcome && outcome !== "connected") {
+      toast({ message: "Couldn't connect Gmail. Please try again.", tone: "error" });
+    }
+    // Runs once on mount; the query is stripped above so it can't re-fire.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Park the whole form (plus the open popup's own values) before the browser
+  // leaves for Google.
+  const parkForGmail = (dialogDraft: AutoSendDraft) =>
+    saveGmailReturn<PersonFormDraft>({
+      returnTo: window.location.pathname,
+      draft: {
+        fullName, type, date, feb29Rule, tag, customTag, useCustom, phone, email,
+        photoUrl, selectedLists, pendingEvents,
+        autoSendOn, autoSendMessage, autoSendTime, autoSendTz,
+        autoSmsOn, autoSmsChannel, autoSmsTemplateId, autoSmsMessage, autoSmsTime, autoSmsTz,
+        openDialog: "email",
+        dialogDraft,
+      },
+    });
 
   // The greeting templates personalize with the person's first name, so ask for
   // the name before opening the setup popup — otherwise "Happy birthday, there!"
@@ -486,14 +597,18 @@ export function PersonForm({
       <AutoSendDialog
         channel="email"
         open={emailDialogOpen}
-        onClose={() => setEmailDialogOpen(false)}
+        onClose={() => {
+          setEmailDialogOpen(false);
+          setEmailDialogSeed(null);
+        }}
         personName={fullName}
         available={config ? !!config.gmailAutoSendAvailable : configFailed ? false : undefined}
-        initialRecipient={email}
-        initialMessage={autoSendMessage}
-        initialSendTime={autoSendTime}
-        initialSendTimeZone={autoSendTz}
+        initialRecipient={emailDialogSeed?.recipient ?? email}
+        initialMessage={emailDialogSeed?.message ?? autoSendMessage}
+        initialSendTime={emailDialogSeed?.sendTime ?? autoSendTime}
+        initialSendTimeZone={emailDialogSeed?.sendTimeZone ?? autoSendTz}
         alreadyEnabled={autoSendOn}
+        onBeforeConnect={parkForGmail}
         onConfirm={({ recipient, message, sendTime, sendTimeZone }) => {
           setEmail(recipient);
           setAutoSendMessage(message);

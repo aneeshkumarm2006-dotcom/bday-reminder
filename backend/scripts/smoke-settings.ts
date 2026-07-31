@@ -79,9 +79,9 @@ async function main(): Promise<void> {
     check(smsMonthlyCap() === CAP, 'smsMonthlyCap() reads the configured value');
 
     // --- Account A: SMS-only channels, fire-now reminder time ----------------
-    res = await post('/auth/signup', { name: 'Sam', email: 'sam@example.com', password: 'supersecret', timezone: 'UTC' });
+    res = await post('/auth/signup', { name: 'Sam', email: 'sam@example.com', password: 'supersecret', birthday: { month: 6, day: 15, year: 1990 }, timezone: 'UTC' });
     const tokenA: string = (await res.json()).accessToken;
-    res = await post('/auth/signup', { name: 'Lee', email: 'lee@example.com', password: 'supersecret', timezone: 'UTC' });
+    res = await post('/auth/signup', { name: 'Lee', email: 'lee@example.com', password: 'supersecret', birthday: { month: 6, day: 15, year: 1990 }, timezone: 'UTC' });
     const tokenB: string = (await res.json()).accessToken;
 
     // Persist global defaults (FR-21/22): lead [0], time 00:00, SMS-only channel.

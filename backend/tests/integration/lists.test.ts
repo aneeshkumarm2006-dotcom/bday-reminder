@@ -13,6 +13,11 @@ import { Reminder } from '../../src/models/Reminder';
  *
  * "Today" in UTC so a person born now is day-of and yields exactly one reminder
  * per recipient (each account uses a single day-of lead `[0]`).
+ *
+ * Both accounts have their own birthday, so being in a list together means each
+ * member also carries a shared card of themselves that the *other* one gets
+ * reminded about. That's why the counts below are "the shared people, plus one
+ * per other member" rather than just the shared people.
  */
 describe('shared lists (FR-41/47)', () => {
   useTestDb();
@@ -28,10 +33,13 @@ describe('shared lists (FR-41/47)', () => {
 
   const reminderCount = (userId: string) => Reminder.countDocuments({ user: userId });
 
+  const ADA_BIRTHDAY = { month: 3, day: 12, year: 1985 };
+  const BO_BIRTHDAY = { month: 9, day: 4, year: 1990 };
+
   /** Sign up Ada (owner) + Bo (invitee), each with a single day-of lead. */
   async function twoUsers() {
-    const ada = await signUp(api, { name: 'Ada', timezone: 'UTC' });
-    const bo = await signUp(api, { name: 'Bo', timezone: 'UTC' });
+    const ada = await signUp(api, { name: 'Ada', timezone: 'UTC', birthday: ADA_BIRTHDAY });
+    const bo = await signUp(api, { name: 'Bo', timezone: 'UTC', birthday: BO_BIRTHDAY });
     await api.patch('/me').set('Authorization', ada.auth).send({ defaultLeadDays: [0] });
     await api.patch('/me').set('Authorization', bo.auth).send({ defaultLeadDays: [0] });
     return { ada, bo };
@@ -131,14 +139,24 @@ describe('shared lists (FR-41/47)', () => {
       accept.body.list.members.some((m: { id: string }) => m.id === bo.id),
     ).toBe(true);
 
-    // Now Bo sees Mom and got his OWN day-of reminder.
+    // Now Bo sees Mom and got his OWN day-of reminder - plus one for Ada, whose
+    // birthday has been in the list since she created it.
     people = (await api.get('/people').set('Authorization', bo.auth)).body.people as {
       id: string;
+      fullName: string;
+      selfUserId: string | null;
     }[];
     const mumForBo = people.find((p) => p.id === mum.id);
     expect(mumForBo).toBeTruthy();
-    expect(await reminderCount(bo.id)).toBe(1);
-    expect(await reminderCount(ada.id)).toBe(1);
+    expect(people.find((p) => p.selfUserId === ada.id)?.fullName).toBe('Ada');
+    expect(await reminderCount(bo.id)).toBe(2);
+    // And joining ran the exchange the other way: Ada now gets reminded about Bo.
+    const adaSees = (await api.get('/people').set('Authorization', ada.auth)).body.people as {
+      fullName: string;
+      selfUserId: string | null;
+    }[];
+    expect(adaSees.find((p) => p.selfUserId === bo.id)?.fullName).toBe('Bo');
+    expect(await reminderCount(ada.id)).toBe(2);
 
     // The invite is no longer pending for the owner.
     const ownerView = (await api.get(`/lists/${list.id}`).set('Authorization', ada.auth)).body.list;
@@ -210,19 +228,20 @@ describe('shared lists (FR-41/47)', () => {
     ).body.invite;
     await api.post(`/invites/${invite.token}/accept`).set('Authorization', bo.auth);
 
-    // Bo (a member) adds an event; both members get an instance for it.
+    // Bo (a member) adds an event; both members get an instance for it. Each
+    // already had Mom's birthday plus the other member's shared card.
     await api
       .post('/events')
       .set('Authorization', bo.auth)
       .send({ person: mum.id, type: 'anniversary', date: utcTodayDob() });
-    expect(await reminderCount(ada.id)).toBe(2);
-    expect(await reminderCount(bo.id)).toBe(2);
+    expect(await reminderCount(ada.id)).toBe(3);
+    expect(await reminderCount(bo.id)).toBe(3);
 
     // Each member's reminder is a distinct per-recipient instance, fired at
     // their own configured time (Ada 09:00 default, Bo 18:00).
     await api.patch('/me').set('Authorization', bo.auth).send({ defaultReminderTime: '18:00' });
-    expect(await reminderCount(ada.id)).toBe(2);
-    expect(await reminderCount(bo.id)).toBe(2);
+    expect(await reminderCount(ada.id)).toBe(3);
+    expect(await reminderCount(bo.id)).toBe(3);
 
     const adaBday = await Reminder.findOne({ user: ada.id, leadDays: 0 }).sort({ scheduledFor: 1 });
     const boBday = await Reminder.findOne({ user: bo.id, leadDays: 0 }).sort({ scheduledFor: 1 });
@@ -249,7 +268,7 @@ describe('shared lists (FR-41/47)', () => {
         .send({ invitedEmailOrPhone: 'bo@example.com' })
     ).body.invite;
     await api.post(`/invites/${invite.token}/accept`).set('Authorization', bo.auth);
-    expect(await reminderCount(bo.id)).toBe(1);
+    expect(await reminderCount(bo.id)).toBe(2); // Mom + Ada's shared birthday
 
     // The owner can't leave their own list.
     expect((await api.post(`/lists/${list.id}/leave`).set('Authorization', ada.auth)).status).toBe(
@@ -265,6 +284,11 @@ describe('shared lists (FR-41/47)', () => {
     }[];
     expect(people.some((p) => p.id === mum.id)).toBe(false);
     expect(await reminderCount(bo.id)).toBe(0);
+    // Bo's birthday left with him, so Ada is back to just Mom.
+    const adaSees = (await api.get('/people').set('Authorization', ada.auth)).body.people as {
+      selfUserId: string | null;
+    }[];
+    expect(adaSees.some((p) => p.selfUserId === bo.id)).toBe(false);
     expect(await reminderCount(ada.id)).toBe(1);
   });
 
@@ -285,7 +309,7 @@ describe('shared lists (FR-41/47)', () => {
         .send({ invitedEmailOrPhone: 'bo@example.com' })
     ).body.invite;
     await api.post(`/invites/${invite.token}/accept`).set('Authorization', bo.auth);
-    expect(await reminderCount(bo.id)).toBe(1);
+    expect(await reminderCount(bo.id)).toBe(2); // Mom + Ada's shared birthday
 
     // A member (non-owner) cannot rename, delete, or invite to the list.
     expect(
@@ -340,7 +364,7 @@ describe('shared lists (FR-41/47)', () => {
         .send({ invitedEmailOrPhone: 'bo@example.com' })
     ).body.invite;
     await api.post(`/invites/${invite.token}/accept`).set('Authorization', bo.auth);
-    expect(await reminderCount(bo.id)).toBe(1);
+    expect(await reminderCount(bo.id)).toBe(2); // Mom + Ada's shared birthday
 
     // The owner deletes the list → 204; every member loses access + reminders.
     expect((await api.delete(`/lists/${list.id}`).set('Authorization', ada.auth)).status).toBe(204);

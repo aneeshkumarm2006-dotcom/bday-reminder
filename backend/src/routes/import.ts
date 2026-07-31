@@ -15,7 +15,7 @@ import {
   type ExistingPerson,
   type RawCandidate,
 } from '../lib/import';
-import { normalizePhone } from '../lib/phone';
+import { defaultDialCode, normalizePhone } from '../lib/phone';
 import { decryptToken } from '../lib/token-crypto';
 import { requireAuth } from '../middleware/require-auth';
 import { validateBody } from '../middleware/validate';
@@ -195,6 +195,11 @@ importRouter.post(
     // Normalize an item's email once ('' / whitespace clears to undefined).
     const cleanEmail = (raw: string | null | undefined) =>
       raw && raw.trim() ? raw.trim().toLowerCase() : undefined;
+    // Imported rows rarely carry a country code (a CSV of local numbers, say), and
+    // there's no picker to ask - complete them with the importer's own dial code
+    // rather than a blind +1, which would be undeliverable outside the US/CA.
+    const ownerDial = defaultDialCode(user.timezone);
+    const cleanPhone = (raw: string | null | undefined) => normalizePhone(raw, ownerDial);
     // Dedupe key for an event (matches lib/google-import so merge doesn't re-add).
     const evKey = (type: string, customName: string | null | undefined, month: number, day: number) =>
       `${type}|${(customName ?? '').toLowerCase()}|${month}-${day}`;
@@ -214,7 +219,7 @@ importRouter.post(
         }
         // Fill only empty fields - never overwrite populated data without asking (§10).
         let changed = false;
-        const phone = normalizePhone(item.phone);
+        const phone = cleanPhone(item.phone);
         if (!target.phone && phone) {
           target.phone = phone;
           changed = true;
@@ -268,7 +273,7 @@ importRouter.post(
         photoUrl: item.photoUrl ?? undefined,
         dob: { month: item.dob.month, day: item.dob.day, year: item.dob.year ?? undefined },
         feb29Rule: 'feb28',
-        phone: normalizePhone(item.phone) ?? undefined,
+        phone: cleanPhone(item.phone) ?? undefined,
         email: cleanEmail(item.email),
         createdBy: userId,
         updatedBy: userId,

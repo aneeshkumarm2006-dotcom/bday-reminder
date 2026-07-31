@@ -1,5 +1,6 @@
 import { Schema, model, models, type Model, type Types } from 'mongoose';
 
+import { dateParts, type DateParts } from './common';
 import { DEFAULT_TIMEZONE } from '../lib/region';
 
 /**
@@ -73,6 +74,14 @@ export interface UserDoc {
    */
   googleId?: string;
   phone?: string;
+  /**
+   * The user's own birthday. Asked at signup and editable in Settings; unset on
+   * every account created before the field existed, and on Google sign-ups until
+   * they complete the follow-up step. Sharing it is per-list and opt-in: joining
+   * a list can publish it there as a Person (see `lib/self-person.ts`), and it is
+   * never exposed to anyone the user hasn't shared a list with.
+   */
+  birthday?: DateParts;
   timezone: string;
   channelPreferences: ChannelPreferences;
   /** Default lead times as "days before" (e.g. [0, 7] = on the day + 1 week). */
@@ -148,6 +157,11 @@ const userSchema = new Schema<UserDoc>(
     // no two accounts can claim the same Google identity.
     googleId: { type: String },
     phone: { type: String, trim: true },
+    // `dateParts(true)` on an optional path: Mongoose only runs the sub-path
+    // validators when the subdoc exists, so the field is either absent or a
+    // complete month+day. `dateParts(false)` would happily persist a half-date
+    // like { month: 3 }, which blows up downstream in resolveOccurrence.
+    birthday: { type: dateParts(true), default: undefined },
     // US/CA-first soft default; the app overwrites it with the detected device
     // zone on signup and whenever it drifts (FR-52).
     timezone: { type: String, default: DEFAULT_TIMEZONE },

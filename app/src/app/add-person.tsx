@@ -2,10 +2,12 @@ import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { CalendarPlus, Camera, X } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from 'react-native';
+import { ActivityIndicator, Pressable, View } from 'react-native';
 
 import { AddEventSheet } from '@/components/add-event-sheet';
-import { AutoSendSheet } from '@/components/auto-send-sheet';
+import { AutoSendSheet, type AutoSendDraft } from '@/components/auto-send-sheet';
+import { DatePartsField, MAX_DAY } from '@/components/date-parts-field';
+import { PhoneField } from '@/components/phone-field';
 import {
   ChannelToggles,
   DEFAULT_CHANNELS,
@@ -16,8 +18,8 @@ import {
 import {
   Button,
   Chip,
+  FormScrollView,
   Icon,
-  Input,
   Label,
   Screen,
   Select,
@@ -42,8 +44,10 @@ import {
   type SharedListView,
   type SmsChannel,
 } from '@/lib/api';
+import { monthAbbr } from '@/lib/dates';
 import { eventTypeMeta } from '@/lib/event-style';
-import { formatNanp } from '@/lib/phone';
+import { savePendingReturn, takePendingReturn } from '@/lib/pending-return';
+import { formatPhone, isE164 } from '@/lib/phone';
 import { pickAndUploadPhoto } from '@/lib/photo';
 import { useAuth } from '@/providers/auth-provider';
 import { useTokens } from '@/theme/theme-provider';
@@ -58,13 +62,6 @@ import { useTokens } from '@/theme/theme-provider';
  * the person appears immediately in the feed. Photo + notes arrive in Stage 6.
  */
 
-const MONTHS = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December',
-];
-const MONTH_OPTIONS: SelectOption[] = MONTHS.map((label, i) => ({ label, value: String(i + 1) }));
-const MAX_DAY = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-
 // User-editable tag set (FR-9, §8.7): presets + a "Custom…" entry that reveals a
 // free-text field, so the relationship list isn't a fixed enum.
 const CUSTOM_TAG = '__custom__';
@@ -75,12 +72,6 @@ const RELATIONSHIP_OPTIONS: SelectOption[] = [
   { label: 'Custom…', value: CUSTOM_TAG },
 ];
 const PRESET_TAGS = new Set(RELATIONSHIP_PRESETS);
-
-const FEB29_OPTIONS: SelectOption[] = [
-  { label: 'Feb 28 in common years', value: 'feb28' },
-  { label: 'Mar 1 in common years', value: 'mar1' },
-  { label: 'Only in leap years', value: 'feb29only' },
-];
 
 const CURRENT_YEAR = new Date().getFullYear();
 
@@ -97,9 +88,49 @@ function seedDatePart(raw: string | undefined, min: number, max: number): string
 
 /** Short human date for a pending-event row, e.g. "Jun 12" or "Jun 12, 1990". */
 function formatEventDate(date: { month: number; day: number; year?: number | null }): string {
-  const mon = MONTHS[date.month - 1]?.slice(0, 3) ?? '';
-  return `${mon} ${date.day}${date.year != null ? `, ${date.year}` : ''}`;
+  return `${monthAbbr(date.month)} ${date.day}${date.year != null ? `, ${date.year}` : ''}`;
 }
+
+/**
+ * Everything typed into this form, parked while the Gmail consent flow runs so
+ * an Android deep-link return that resets the navigation stack doesn't throw it
+ * away. `openSheet`/`sheetDraft` reopen the auto-send popup exactly as it was.
+ */
+type PersonFormDraft = {
+  name: string;
+  type: PersonType;
+  month: string;
+  day: string;
+  year: string;
+  relationship: string;
+  customTag: boolean;
+  phone: string;
+  email: string;
+  photoUrl: string | null;
+  feb29Rule: Feb29Rule;
+  pendingEvents: CreatePersonEventInput[];
+  autoSendOn: boolean;
+  autoSendMessage: string;
+  autoSendTime: string;
+  autoSendTz: string;
+  autoSmsOn: boolean;
+  autoSmsChannel: SmsChannel;
+  autoSmsTemplateId: string | null;
+  autoSmsMessage: string;
+  autoSmsTime: string;
+  autoSmsTz: string;
+  birthdayEventId: string | null;
+  overrideOn: boolean;
+  overrideLeadDays: number[];
+  overrideChannels: ChannelPreferences;
+  overrideTime: string;
+  overrideSeeded: boolean;
+  availableLists: { id: string; name: string }[];
+  selectedLists: string[];
+  preservedLists: string[];
+  openSheet: 'email' | null;
+  sheetDraft: AutoSendDraft | null;
+};
 
 /** Lists the caller may add people to - every list they own or belong to (FR-43/45). */
 function writableLists(lists: SharedListView[]): { id: string; name: string }[] {
@@ -124,10 +155,14 @@ export default function AddPersonScreen() {
   const toast = useToast();
   const t = useTokens();
   const { user } = useAuth();
-  const { id, month: monthParam, day: dayParam } = useLocalSearchParams<{
+  const { id, month: monthParam, day: dayParam, resume, gmail } = useLocalSearchParams<{
     id?: string;
     month?: string;
     day?: string;
+    /** '1' → came back from Gmail consent; restore the parked draft. */
+    resume?: string;
+    /** 'error' → that consent round-trip failed; say so once we're back. */
+    gmail?: string;
   }>();
   const isEdit = !!id;
 
@@ -166,6 +201,9 @@ export default function AddPersonScreen() {
   const [autoSendTz, setAutoSendTz] = useState('');
   const [emailSheetOpen, setEmailSheetOpen] = useState(false);
   const [gmailAvailable, setGmailAvailable] = useState<boolean | undefined>(undefined);
+  // Restored sheet values after a Gmail round-trip - they seed the sheet instead
+  // of the form's fields, so a half-written greeting comes back untouched.
+  const [emailSheetSeed, setEmailSheetSeed] = useState<AutoSendDraft | null>(null);
 
   // Auto-send birthday SMS (Stage 15). Texts a greeting to `phone` on the
   // birthday via one shared Twilio account - no per-user connect step, so it
@@ -206,6 +244,13 @@ export default function AddPersonScreen() {
   const [saving, setSaving] = useState(false);
   const [hydrating, setHydrating] = useState(isEdit);
 
+  // 'pending' → a parked draft is being read back, so the normal seeding (server
+  // hydrate, list fetch) holds off and can't race it; 'restored' → the draft won
+  // and that seeding must stay off; 'none' → nothing parked, seed as usual.
+  const [resumeState, setResumeState] = useState<'pending' | 'restored' | 'none'>(
+    resume === '1' ? 'pending' : 'none',
+  );
+
   useEffect(() => {
     let active = true;
     configApi
@@ -230,6 +275,68 @@ export default function AddPersonScreen() {
     };
   }, []);
 
+  // Coming back from Gmail consent: put the form back exactly as it was left and
+  // reopen the auto-send sheet on top of it. Consuming the parked record here is
+  // what keeps it from leaking into an unrelated visit later.
+  useEffect(() => {
+    if (resumeState !== 'pending') return;
+    let active = true;
+    (async () => {
+      const parked = await takePendingReturn<PersonFormDraft>();
+      if (!active) return;
+      const d = parked?.draft;
+      if (d) {
+        setName(d.name);
+        setType(d.type);
+        setMonth(d.month);
+        setDay(d.day);
+        setYear(d.year);
+        setRelationship(d.relationship);
+        setCustomTag(d.customTag);
+        setPhone(d.phone);
+        setEmail(d.email);
+        setPhotoUrl(d.photoUrl);
+        setFeb29Rule(d.feb29Rule);
+        setPendingEvents(d.pendingEvents);
+        setAutoSendOn(d.autoSendOn);
+        setAutoSendMessage(d.autoSendMessage);
+        setAutoSendTime(d.autoSendTime);
+        setAutoSendTz(d.autoSendTz);
+        setAutoSmsOn(d.autoSmsOn);
+        setAutoSmsChannel(d.autoSmsChannel);
+        setAutoSmsTemplateId(d.autoSmsTemplateId);
+        setAutoSmsMessage(d.autoSmsMessage);
+        setAutoSmsTime(d.autoSmsTime);
+        setAutoSmsTz(d.autoSmsTz);
+        setBirthdayEventId(d.birthdayEventId);
+        setOverrideOn(d.overrideOn);
+        setOverrideLeadDays(d.overrideLeadDays);
+        setOverrideChannels(d.overrideChannels);
+        setOverrideTime(d.overrideTime);
+        setOverrideSeeded(d.overrideSeeded);
+        setAvailableLists(d.availableLists);
+        setSelectedLists(d.selectedLists);
+        setPreservedLists(d.preservedLists);
+        if (d.openSheet === 'email') {
+          setEmailSheetSeed(d.sheetDraft);
+          setEmailSheetOpen(true);
+        }
+        setHydrating(false);
+        // 'restored' keeps the server hydrate and list fetch off - the draft is
+        // authoritative, including any edits made before leaving for Google.
+        setResumeState('restored');
+        if (gmail === 'error') toast.show("Couldn't connect Gmail. Please try again.");
+        return;
+      }
+      // Nothing parked (expired, or storage failed) - seed the normal way.
+      setResumeState('none');
+    })();
+    return () => {
+      active = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resumeState]);
+
   // The greeting templates personalize with the person's first name, so ask for
   // the name before opening the setup sheet — otherwise "Happy birthday, there!"
   // gets baked into the saved message.
@@ -245,6 +352,7 @@ export default function AddPersonScreen() {
   // When adding (not editing), load the lists the user can place people into.
   useEffect(() => {
     if (isEdit) return; // the edit hydrate below loads lists alongside the person
+    if (resumeState !== 'none') return; // a restore owns the fields
     let active = true;
     listsApi
       .list()
@@ -253,7 +361,7 @@ export default function AddPersonScreen() {
     return () => {
       active = false;
     };
-  }, [isEdit]);
+  }, [isEdit, resumeState]);
 
   const toggleList = (id: string) =>
     setSelectedLists((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]));
@@ -261,6 +369,7 @@ export default function AddPersonScreen() {
   // Prefill when editing (person fields + the birthday event's override).
   useEffect(() => {
     if (!id) return;
+    if (resumeState !== 'none') return; // a restore owns the fields
     let active = true;
     (async () => {
       try {
@@ -278,8 +387,8 @@ export default function AddPersonScreen() {
         setRelationship(tag);
         // A stored tag that isn't a preset is a custom one - show the text field.
         setCustomTag(!!tag && !PRESET_TAGS.has(tag));
-        // Stored as E.164 (+1…); show it in the familiar (XXX) XXX-XXXX shape.
-        setPhone(formatNanp(person.phone));
+        // Stored as E.164; PhoneField splits it back into country + number.
+        setPhone(person.phone ?? '');
         setEmail(person.email ?? '');
         setAutoSendOn(person.autoBirthdayEmail?.enabled ?? false);
         setAutoSendMessage(person.autoBirthdayEmail?.message ?? '');
@@ -328,7 +437,7 @@ export default function AddPersonScreen() {
     return () => {
       active = false;
     };
-  }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [id, resumeState]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const isLeapDay = month === '2' && day === '29';
 
@@ -358,6 +467,10 @@ export default function AddPersonScreen() {
 
     if (autoSmsOn && !phone.trim())
       next.phone = 'Add a phone so the birthday SMS has somewhere to go.';
+    // A half-typed number would save fine and then be skipped at send time, so
+    // catch it here while the country picker is still on screen.
+    else if (phone.trim() && !isE164(phone))
+      next.phone = 'That number looks incomplete — check the digits.';
 
     setErrors(next);
     if (Object.keys(next).length > 0) return { ok: false };
@@ -443,6 +556,32 @@ export default function AddPersonScreen() {
     );
   };
 
+  // Closing / finishing this screen. After a deep-link resume the stack can be
+  // just this screen, so back() has nowhere to go - land somewhere sensible.
+  const leave = () => {
+    if (router.canGoBack()) router.back();
+    else if (id) router.replace({ pathname: '/person/[id]', params: { id } });
+    else router.replace('/');
+  };
+
+  // Park the whole form (plus the open sheet's own values) before the Gmail
+  // consent flow takes the browser - and, on Android, often the nav stack too.
+  const parkForGmail = (sheetDraft: AutoSendDraft) =>
+    savePendingReturn<PersonFormDraft>({
+      pathname: '/add-person',
+      params: id ? { id } : {},
+      draft: {
+        name, type, month, day, year, relationship, customTag, phone, email,
+        photoUrl, feb29Rule, pendingEvents,
+        autoSendOn, autoSendMessage, autoSendTime, autoSendTz,
+        autoSmsOn, autoSmsChannel, autoSmsTemplateId, autoSmsMessage, autoSmsTime, autoSmsTz,
+        birthdayEventId, overrideOn, overrideLeadDays, overrideChannels, overrideTime,
+        overrideSeeded, availableLists, selectedLists, preservedLists,
+        openSheet: 'email',
+        sheetDraft,
+      },
+    });
+
   const submit = async () => {
     setSubmitError(null);
     const result = validate();
@@ -469,7 +608,7 @@ export default function AddPersonScreen() {
         if (overrideOn && birthday) await applyOverride(birthday.id);
         toast.show('Person added.');
       }
-      router.back();
+      leave();
     } catch (e) {
       setSubmitError(
         e instanceof ApiError ? e.message : "Couldn't save. Check your connection and try again.",
@@ -484,7 +623,7 @@ export default function AddPersonScreen() {
       <View className="flex-row items-center justify-between pb-2 pt-3">
         <Text variant="title">{isEdit ? 'Edit person' : 'Add person'}</Text>
         <Pressable
-          onPress={() => router.back()}
+          onPress={leave}
           hitSlop={10}
           accessibilityRole="button"
           accessibilityLabel="Close"
@@ -493,367 +632,313 @@ export default function AddPersonScreen() {
         </Pressable>
       </View>
 
-      {hydrating ? (
+      {hydrating || resumeState === 'pending' ? (
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator />
         </View>
       ) : (
         <>
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          style={{ flex: 1 }}>
-          <ScrollView
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-            contentContainerStyle={{ paddingBottom: 32, gap: 20 }}>
-            <TextField
-              label="Name"
-              value={name}
-              onChangeText={setName}
-              placeholder="Emma Carter"
-              error={errors.name}
-              autoCapitalize="words"
-              returnKeyType="next"
-            />
+        <FormScrollView contentContainerStyle={{ paddingBottom: 32, gap: 20 }}>
+          <TextField
+            label="Name"
+            value={name}
+            onChangeText={setName}
+            placeholder="Emma Carter"
+            error={errors.name}
+            autoCapitalize="words"
+            returnKeyType="next"
+          />
 
-            {/* Person vs pet (FR-17). Everything else in the form is shared —
-                pet-specific rendering (paw icon, no age) lives on the feed and
-                profile, keyed off this type. */}
-            <View>
-              <Label>Type</Label>
-              <View className="flex-row gap-2">
-                <Chip label="Person" selected={type === 'human'} onPress={() => setType('human')} />
-                <Chip label="Pet" selected={type === 'pet'} onPress={() => setType('pet')} />
-              </View>
+          {/* Person vs pet (FR-17). Everything else in the form is shared —
+              pet-specific rendering (paw icon, no age) lives on the feed and
+              profile, keyed off this type. */}
+          <View>
+            <Label>Type</Label>
+            <View className="flex-row gap-2">
+              <Chip label="Person" selected={type === 'human'} onPress={() => setType('human')} />
+              <Chip label="Pet" selected={type === 'pet'} onPress={() => setType('pet')} />
             </View>
+          </View>
 
+          <DatePartsField
+            value={{ month, day, year }}
+            onChange={(next) => {
+              setMonth(next.month);
+              setDay(next.day);
+              setYear(next.year);
+            }}
+            error={errors.dob}
+            yearError={errors.year}
+            feb29Rule={feb29Rule}
+            onFeb29RuleChange={(v) => setFeb29Rule(v as Feb29Rule)}
+          />
+
+          {/* Other dates - anniversaries / custom events created with the
+              person (FR-16). Add mode only; editing manages these on the
+              profile, which already supports it. */}
+          {!isEdit ? (
             <View>
-              <Label>Date of birth</Label>
-              <View className="flex-row gap-2">
-                <View className="flex-1">
-                  <Select
-                    value={month || undefined}
-                    options={MONTH_OPTIONS}
-                    onChange={setMonth}
-                    placeholder="Month"
-                  />
-                </View>
-                <View className="w-[72px]">
-                  <Input
-                    value={day}
-                    onChangeText={setDay}
-                    placeholder="Day"
-                    keyboardType="number-pad"
-                    maxLength={2}
-                    error={!!errors.dob}
-                    accessibilityLabel="Day of birth"
-                  />
-                </View>
-                <View className="w-[92px]">
-                  <Input
-                    value={year}
-                    onChangeText={setYear}
-                    placeholder="Year"
-                    keyboardType="number-pad"
-                    maxLength={4}
-                    error={!!errors.year}
-                    accessibilityLabel="Year of birth (optional)"
-                  />
-                </View>
-              </View>
-              {errors.dob ? (
-                <Text variant="caption" className="mt-1.5 text-danger-fg">
-                  {errors.dob}
-                </Text>
-              ) : errors.year ? (
-                <Text variant="caption" className="mt-1.5 text-danger-fg">
-                  {errors.year}
-                </Text>
-              ) : (
-                <Text variant="caption" className="mt-1.5 text-ink-muted">
-                  {"Year is optional; leave it blank if you don't know it."}
-                </Text>
-              )}
-            </View>
-
-            {isLeapDay ? (
-              <Select
-                label="Observe this birthday"
-                value={feb29Rule}
-                options={FEB29_OPTIONS}
-                onChange={(v) => setFeb29Rule(v as Feb29Rule)}
-              />
-            ) : null}
-
-            {/* Other dates - anniversaries / custom events created with the
-                person (FR-16). Add mode only; editing manages these on the
-                profile, which already supports it. */}
-            {!isEdit ? (
-              <View>
-                <Label optional>Other dates</Label>
-                <View className="gap-2">
-                  {pendingEvents.map((ev, i) => {
-                    const meta = eventTypeMeta({ eventType: ev.type, customName: ev.customName ?? null });
-                    return (
-                      <View
-                        key={`${ev.type}-${i}`}
-                        className="flex-row items-center gap-3 rounded-md border border-border-subtle bg-surface px-3 py-2.5">
-                        <Icon icon={meta.Icon} size={18} color={t[meta.tokenKey]} />
-                        <View className="flex-1">
-                          <Text variant="body">{meta.label}</Text>
-                          <Text variant="caption" className="text-ink-muted">
-                            {formatEventDate(ev.date)}
-                          </Text>
-                        </View>
-                        <Pressable
-                          onPress={() => setPendingEvents((cur) => cur.filter((_, j) => j !== i))}
-                          hitSlop={8}
-                          accessibilityRole="button"
-                          accessibilityLabel={`Remove ${meta.label}`}
-                          className={cn('rounded-full p-1', focusRing)}>
-                          <Icon icon={X} size={18} color={t.inkMuted} />
-                        </Pressable>
+              <Label optional>Other dates</Label>
+              <View className="gap-2">
+                {pendingEvents.map((ev, i) => {
+                  const meta = eventTypeMeta({ eventType: ev.type, customName: ev.customName ?? null });
+                  return (
+                    <View
+                      key={`${ev.type}-${i}`}
+                      className="flex-row items-center gap-3 rounded-md border border-border-subtle bg-surface px-3 py-2.5">
+                      <Icon icon={meta.Icon} size={18} color={t[meta.tokenKey]} />
+                      <View className="flex-1">
+                        <Text variant="body">{meta.label}</Text>
+                        <Text variant="caption" className="text-ink-muted">
+                          {formatEventDate(ev.date)}
+                        </Text>
                       </View>
-                    );
-                  })}
-                  <Pressable
-                    onPress={() => setEventSheetOpen(true)}
-                    accessibilityRole="button"
-                    accessibilityLabel="Add event"
-                    className={cn(
-                      'flex-row items-center justify-center gap-2 rounded-md border border-dashed border-border-strong py-3',
-                      focusRing,
-                    )}>
-                    <Icon icon={CalendarPlus} size={18} color={t.biro} />
-                    <Text variant="button" className="text-biro">
-                      Add event
-                    </Text>
-                  </Pressable>
-                </View>
-                <Text variant="caption" className="mt-1.5 text-ink-muted">
-                  Anniversaries or custom dates. They appear on the calendar and remind you like
-                  birthdays.
-                </Text>
-              </View>
-            ) : null}
-
-            <View>
-              <Select
-                label="Relationship"
-                value={customTag ? CUSTOM_TAG : relationship}
-                options={RELATIONSHIP_OPTIONS}
-                onChange={onChangeRelationship}
-                placeholder="No tag"
-              />
-              {customTag ? (
-                <View className="mt-2">
-                  <TextField
-                    value={relationship}
-                    onChangeText={setRelationship}
-                    placeholder="e.g. Neighbor, Mentor"
-                    autoCapitalize="words"
-                    maxLength={40}
-                    hint="Your own label, it joins the filter chips on the feed."
-                  />
-                </View>
-              ) : null}
-            </View>
-
-            <View>
-              <Label optional>Photo</Label>
-              <View className="flex-row items-center gap-4">
+                      <Pressable
+                        onPress={() => setPendingEvents((cur) => cur.filter((_, j) => j !== i))}
+                        hitSlop={8}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Remove ${meta.label}`}
+                        className={cn('rounded-full p-1', focusRing)}>
+                        <Icon icon={X} size={18} color={t.inkMuted} />
+                      </Pressable>
+                    </View>
+                  );
+                })}
                 <Pressable
-                  onPress={onPickPhoto}
+                  onPress={() => setEventSheetOpen(true)}
                   accessibilityRole="button"
-                  accessibilityLabel={photoUrl ? 'Change photo' : 'Add photo'}
+                  accessibilityLabel="Add event"
                   className={cn(
-                    'h-16 w-16 items-center justify-center overflow-hidden rounded-full bg-surface-sunken active:scale-95',
+                    'flex-row items-center justify-center gap-2 rounded-md border border-dashed border-border-strong py-3',
                     focusRing,
                   )}>
-                  {photoBusy ? (
-                    <ActivityIndicator color={t.biro} />
-                  ) : photoUrl ? (
-                    <Image source={{ uri: photoUrl }} style={{ width: 64, height: 64 }} contentFit="cover" />
-                  ) : (
-                    <Icon icon={Camera} size={24} color={t.inkMuted} />
-                  )}
+                  <Icon icon={CalendarPlus} size={18} color={t.biro} />
+                  <Text variant="button" className="text-biro">
+                    Add event
+                  </Text>
                 </Pressable>
-                <View className="flex-row gap-2">
-                  <Button variant="secondary" onPress={onPickPhoto} loading={photoBusy}>
-                    {photoUrl ? 'Change' : 'Add photo'}
-                  </Button>
-                  {photoUrl ? (
-                    <Button variant="ghost" onPress={() => setPhotoUrl(null)}>
-                      Remove
-                    </Button>
-                  ) : null}
-                </View>
               </View>
-            </View>
-
-            <TextField
-              label="Phone"
-              optional
-              value={phone}
-              onChangeText={setPhone}
-              placeholder="(555) 123-4567"
-              keyboardType="phone-pad"
-              error={errors.phone}
-              hint="Used for the day-of greeting shortcut and auto-send SMS. Add a country code for numbers outside the US and Canada."
-            />
-
-            <TextField
-              label="Email"
-              optional
-              value={email}
-              onChangeText={setEmail}
-              placeholder="emma@example.com"
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-              error={errors.email}
-              hint="Where an auto-sent birthday greeting would go."
-            />
-
-            {/* Auto-send birthday email (Stage 14) — turning it on opens the
-                setup sheet (template, message, Gmail permission); the toggle
-                only flips ON once that's confirmed there. */}
-            <View>
-              <ToggleRow
-                title="Auto-send birthday email"
-                helper="Email a greeting on their birthday, sent from your Gmail as you."
-                value={autoSendOn}
-                onValueChange={(on) => (on ? openAutoSendSheet('email') : setAutoSendOn(false))}
-              />
-              {autoSendOn ? (
-                <View className="mt-1 flex-row flex-wrap items-center gap-x-1">
-                  <Text variant="caption" className="text-ink-muted">
-                    {`To ${email.trim() || 'their email'}${
-                      user?.gmailEmail ? ` from ${user.gmailEmail}` : ''
-                    }, every year.`}
-                  </Text>
-                  <Pressable
-                    onPress={() => setEmailSheetOpen(true)}
-                    hitSlop={6}
-                    accessibilityRole="button"
-                    accessibilityLabel="Edit the birthday email message"
-                    className={cn('rounded-sm', focusRing)}>
-                    <Text variant="caption" className="font-body-medium text-biro">
-                      Edit message
-                    </Text>
-                  </Pressable>
-                </View>
-              ) : (
-                <Text variant="caption" className="mt-1 text-ink-muted">
-                  {user?.gmailConnected
-                    ? 'Off. Your Gmail is connected and ready.'
-                    : "Off. You'll connect your Gmail when you turn this on."}
-                </Text>
-              )}
-            </View>
-
-            {/* Auto-send birthday SMS (Stage 15) — same sheet flow, no per-user
-                account to connect (one shared Twilio number). */}
-            <View>
-              <ToggleRow
-                title="Auto-send birthday text"
-                helper="Send a greeting on their birthday by SMS or WhatsApp, signed with your name."
-                value={autoSmsOn}
-                onValueChange={(on) => (on ? openAutoSendSheet('sms') : setAutoSmsOn(false))}
-              />
-              {autoSmsOn ? (
-                <View className="mt-1 flex-row flex-wrap items-center gap-x-1">
-                  <Text variant="caption" className="text-ink-muted">
-                    {`By ${autoSmsChannel === 'whatsapp' ? 'WhatsApp' : 'SMS'} to ${phone.trim() || 'their phone'}, signed ${user?.name || 'you'}, every year.`}
-                  </Text>
-                  <Pressable
-                    onPress={() => setSmsSheetOpen(true)}
-                    hitSlop={6}
-                    accessibilityRole="button"
-                    accessibilityLabel="Edit the birthday SMS message"
-                    className={cn('rounded-sm', focusRing)}>
-                    <Text variant="caption" className="font-body-medium text-biro">
-                      Edit message
-                    </Text>
-                  </Pressable>
-                </View>
-              ) : (
-                <Text variant="caption" className="mt-1 text-ink-muted">
-                  Off. Sent from a shared number, signed with your name.
-                </Text>
-              )}
-            </View>
-
-            {/* Shared with - add to shared lists the user can edit (Stage 8). */}
-            {availableLists.length > 0 ? (
-              <View>
-                <Label optional>Shared with</Label>
-                <View className="flex-row flex-wrap gap-2">
-                  {availableLists.map((list) => (
-                    <Chip
-                      key={list.id}
-                      label={list.name}
-                      selected={selectedLists.includes(list.id)}
-                      onPress={() => toggleList(list.id)}
-                    />
-                  ))}
-                </View>
-                <Text variant="caption" className="mt-1.5 text-ink-muted">
-                  Everyone in a list sees this person and gets their own reminders.
-                </Text>
-              </View>
-            ) : null}
-
-            {/* Reminder override - collapsed by default (§8.4, FR-21/24). */}
-            <View>
-              <ToggleRow
-                title="Reminder override"
-                helper="Use custom lead times, channels and time of day just for this person."
-                value={overrideOn}
-                onValueChange={onToggleOverride}
-              />
-              {overrideOn ? (
-                <View className="mt-1 gap-4 border-l-2 border-border-subtle pl-3">
-                  <View>
-                    <Label>Remind me ahead of time</Label>
-                    <LeadTimeChips value={overrideLeadDays} onChange={setOverrideLeadDays} />
-                  </View>
-                  <View>
-                    <Label>Reminder time</Label>
-                    <ReminderTimePicker
-                      value={overrideTime}
-                      onChange={setOverrideTime}
-                      inheritLabel={defaultTimeInheritLabel(user?.defaultReminderTime)}
-                    />
-                  </View>
-                  <View>
-                    <Label>Notify me by</Label>
-                    <ChannelToggles
-                      value={overrideChannels}
-                      onChange={setOverrideChannels}
-                      smsCap={smsCap}
-                      zeroMessage="You won't be reminded for this event."
-                    />
-                  </View>
-                </View>
-              ) : (
-                <Text variant="caption" className="mt-1 text-ink-muted">
-                  Uses your default reminders.
-                </Text>
-              )}
-            </View>
-
-            {submitError ? (
-              <Text variant="caption" className="text-danger-fg">
-                {submitError}
+              <Text variant="caption" className="mt-1.5 text-ink-muted">
+                Anniversaries or custom dates. They appear on the calendar and remind you like
+                birthdays.
               </Text>
-            ) : null}
+            </View>
+          ) : null}
 
-            <Button fullWidth loading={saving} onPress={submit}>
-              {isEdit ? 'Save changes' : 'Save person'}
-            </Button>
-          </ScrollView>
-        </KeyboardAvoidingView>
+          <View>
+            <Select
+              label="Relationship"
+              value={customTag ? CUSTOM_TAG : relationship}
+              options={RELATIONSHIP_OPTIONS}
+              onChange={onChangeRelationship}
+              placeholder="No tag"
+            />
+            {customTag ? (
+              <View className="mt-2">
+                <TextField
+                  value={relationship}
+                  onChangeText={setRelationship}
+                  placeholder="e.g. Neighbor, Mentor"
+                  autoCapitalize="words"
+                  maxLength={40}
+                  hint="Your own label, it joins the filter chips on the feed."
+                />
+              </View>
+            ) : null}
+          </View>
+
+          <View>
+            <Label optional>Photo</Label>
+            <View className="flex-row items-center gap-4">
+              <Pressable
+                onPress={onPickPhoto}
+                accessibilityRole="button"
+                accessibilityLabel={photoUrl ? 'Change photo' : 'Add photo'}
+                className={cn(
+                  'h-16 w-16 items-center justify-center overflow-hidden rounded-full bg-surface-sunken active:scale-95',
+                  focusRing,
+                )}>
+                {photoBusy ? (
+                  <ActivityIndicator color={t.biro} />
+                ) : photoUrl ? (
+                  <Image source={{ uri: photoUrl }} style={{ width: 64, height: 64 }} contentFit="cover" />
+                ) : (
+                  <Icon icon={Camera} size={24} color={t.inkMuted} />
+                )}
+              </Pressable>
+              <View className="flex-row gap-2">
+                <Button variant="secondary" onPress={onPickPhoto} loading={photoBusy}>
+                  {photoUrl ? 'Change' : 'Add photo'}
+                </Button>
+                {photoUrl ? (
+                  <Button variant="ghost" onPress={() => setPhotoUrl(null)}>
+                    Remove
+                  </Button>
+                ) : null}
+              </View>
+            </View>
+          </View>
+
+          <PhoneField
+            label="Phone"
+            optional
+            value={phone}
+            onChange={setPhone}
+            error={errors.phone}
+            hint="Used for the day-of greeting shortcut and auto-send SMS. Pick their country — the code is part of the number."
+          />
+
+          <TextField
+            label="Email"
+            optional
+            value={email}
+            onChangeText={setEmail}
+            placeholder="emma@example.com"
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoCorrect={false}
+            error={errors.email}
+            hint="Where an auto-sent birthday greeting would go."
+          />
+
+          {/* Auto-send birthday email (Stage 14) — turning it on opens the
+              setup sheet (template, message, Gmail permission); the toggle
+              only flips ON once that's confirmed there. */}
+          <View>
+            <ToggleRow
+              title="Auto-send birthday email"
+              helper="Email a greeting on their birthday, sent from your Gmail as you."
+              value={autoSendOn}
+              onValueChange={(on) => (on ? openAutoSendSheet('email') : setAutoSendOn(false))}
+            />
+            {autoSendOn ? (
+              <View className="mt-1 flex-row flex-wrap items-center gap-x-1">
+                <Text variant="caption" className="text-ink-muted">
+                  {`To ${email.trim() || 'their email'}${
+                    user?.gmailEmail ? ` from ${user.gmailEmail}` : ''
+                  }, every year.`}
+                </Text>
+                <Pressable
+                  onPress={() => setEmailSheetOpen(true)}
+                  hitSlop={6}
+                  accessibilityRole="button"
+                  accessibilityLabel="Edit the birthday email message"
+                  className={cn('rounded-sm', focusRing)}>
+                  <Text variant="caption" className="font-body-medium text-biro">
+                    Edit message
+                  </Text>
+                </Pressable>
+              </View>
+            ) : (
+              <Text variant="caption" className="mt-1 text-ink-muted">
+                {user?.gmailConnected
+                  ? 'Off. Your Gmail is connected and ready.'
+                  : "Off. You'll connect your Gmail when you turn this on."}
+              </Text>
+            )}
+          </View>
+
+          {/* Auto-send birthday SMS (Stage 15) — same sheet flow, no per-user
+              account to connect (one shared Twilio number). */}
+          <View>
+            <ToggleRow
+              title="Auto-send birthday text"
+              helper="Send a greeting on their birthday by SMS or WhatsApp, signed with your name."
+              value={autoSmsOn}
+              onValueChange={(on) => (on ? openAutoSendSheet('sms') : setAutoSmsOn(false))}
+            />
+            {autoSmsOn ? (
+              <View className="mt-1 flex-row flex-wrap items-center gap-x-1">
+                <Text variant="caption" className="text-ink-muted">
+                  {`By ${autoSmsChannel === 'whatsapp' ? 'WhatsApp' : 'SMS'} to ${formatPhone(phone) || 'their phone'}, signed ${user?.name || 'you'}, every year.`}
+                </Text>
+                <Pressable
+                  onPress={() => setSmsSheetOpen(true)}
+                  hitSlop={6}
+                  accessibilityRole="button"
+                  accessibilityLabel="Edit the birthday SMS message"
+                  className={cn('rounded-sm', focusRing)}>
+                  <Text variant="caption" className="font-body-medium text-biro">
+                    Edit message
+                  </Text>
+                </Pressable>
+              </View>
+            ) : (
+              <Text variant="caption" className="mt-1 text-ink-muted">
+                Off. Sent from a shared number, signed with your name.
+              </Text>
+            )}
+          </View>
+
+          {/* Shared with - add to shared lists the user can edit (Stage 8). */}
+          {availableLists.length > 0 ? (
+            <View>
+              <Label optional>Shared with</Label>
+              <View className="flex-row flex-wrap gap-2">
+                {availableLists.map((list) => (
+                  <Chip
+                    key={list.id}
+                    label={list.name}
+                    selected={selectedLists.includes(list.id)}
+                    onPress={() => toggleList(list.id)}
+                  />
+                ))}
+              </View>
+              <Text variant="caption" className="mt-1.5 text-ink-muted">
+                Everyone in a list sees this person and gets their own reminders.
+              </Text>
+            </View>
+          ) : null}
+
+          {/* Reminder override - collapsed by default (§8.4, FR-21/24). */}
+          <View>
+            <ToggleRow
+              title="Reminder override"
+              helper="Use custom lead times, channels and time of day just for this person."
+              value={overrideOn}
+              onValueChange={onToggleOverride}
+            />
+            {overrideOn ? (
+              <View className="mt-1 gap-4 border-l-2 border-border-subtle pl-3">
+                <View>
+                  <Label>Remind me ahead of time</Label>
+                  <LeadTimeChips value={overrideLeadDays} onChange={setOverrideLeadDays} />
+                </View>
+                <View>
+                  <Label>Reminder time</Label>
+                  <ReminderTimePicker
+                    value={overrideTime}
+                    onChange={setOverrideTime}
+                    inheritLabel={defaultTimeInheritLabel(user?.defaultReminderTime)}
+                  />
+                </View>
+                <View>
+                  <Label>Notify me by</Label>
+                  <ChannelToggles
+                    value={overrideChannels}
+                    onChange={setOverrideChannels}
+                    smsCap={smsCap}
+                    zeroMessage="You won't be reminded for this event."
+                  />
+                </View>
+              </View>
+            ) : (
+              <Text variant="caption" className="mt-1 text-ink-muted">
+                Uses your default reminders.
+              </Text>
+            )}
+          </View>
+
+          {submitError ? (
+            <Text variant="caption" className="text-danger-fg">
+              {submitError}
+            </Text>
+          ) : null}
+
+          <Button fullWidth loading={saving} onPress={submit}>
+            {isEdit ? 'Save changes' : 'Save person'}
+          </Button>
+        </FormScrollView>
         {!isEdit ? (
           <AddEventSheet
             visible={eventSheetOpen}
@@ -868,14 +953,18 @@ export default function AddPersonScreen() {
         <AutoSendSheet
           channel="email"
           visible={emailSheetOpen}
-          onClose={() => setEmailSheetOpen(false)}
+          onClose={() => {
+            setEmailSheetOpen(false);
+            setEmailSheetSeed(null);
+          }}
           personName={name}
           available={gmailAvailable}
-          initialRecipient={email}
-          initialMessage={autoSendMessage}
-          initialSendTime={autoSendTime}
-          initialSendTimeZone={autoSendTz}
+          initialRecipient={emailSheetSeed?.recipient ?? email}
+          initialMessage={emailSheetSeed?.message ?? autoSendMessage}
+          initialSendTime={emailSheetSeed?.sendTime ?? autoSendTime}
+          initialSendTimeZone={emailSheetSeed?.sendTimeZone ?? autoSendTz}
           alreadyEnabled={autoSendOn}
+          onBeforeConnect={parkForGmail}
           onConfirm={({ recipient, message, sendTime, sendTimeZone }) => {
             setEmail(recipient);
             setAutoSendMessage(message);

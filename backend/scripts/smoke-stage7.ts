@@ -64,9 +64,9 @@ async function main(): Promise<void> {
 
   try {
     // --- Accounts -----------------------------------------------------------
-    let res = await post('/auth/signup', { name: 'Ada', email: 'ada@example.com', password: 'supersecret', timezone: 'UTC' });
+    let res = await post('/auth/signup', { name: 'Ada', email: 'ada@example.com', password: 'supersecret', birthday: { month: 6, day: 15, year: 1990 }, timezone: 'UTC' });
     const tokenA: string = (await res.json()).accessToken;
-    res = await post('/auth/signup', { name: 'Bo', email: 'bo@example.com', password: 'supersecret', timezone: 'UTC' });
+    res = await post('/auth/signup', { name: 'Bo', email: 'bo@example.com', password: 'supersecret', birthday: { month: 6, day: 15, year: 1990 }, timezone: 'UTC' });
     const tokenB: string = (await res.json()).accessToken;
 
     // One day-of lead so every created person yields exactly one reminder.

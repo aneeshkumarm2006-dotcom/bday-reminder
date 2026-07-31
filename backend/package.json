@@ -30,6 +30,7 @@
     "smoke:stage6": "tsx scripts/smoke-stage6.ts",
     "smoke:stage7": "tsx scripts/smoke-stage7.ts",
     "smoke:stage8": "tsx scripts/smoke-stage8.ts",
+    "smoke:shared-birthday": "tsx scripts/smoke-shared-birthday.ts",
     "smoke:stage9": "tsx scripts/smoke-stage9.ts",
     "smoke:stage12": "tsx scripts/smoke-stage12.ts",
     "smoke:autosend": "tsx scripts/smoke-autosend.ts",

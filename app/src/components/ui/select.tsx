@@ -60,7 +60,7 @@ export function Select({
       <Sheet visible={open} onClose={() => setOpen(false)} title={a11yName ?? 'Select'}>
         {/* Cap the height so long lists (e.g. the 48-slot time picker) scroll
             inside the sheet instead of overflowing the screen. */}
-        <ScrollView style={{ maxHeight: 360 }} showsVerticalScrollIndicator={false}>
+        <ScrollView style={{ maxHeight: 360, flexShrink: 1 }} showsVerticalScrollIndicator={false}>
           {options.map((option) => {
             const isSelected = option.value === value;
             return (

@@ -34,6 +34,13 @@ test('sign up, add a person, receive and complete a reminder', async ({ page, re
   await page.getByPlaceholder('Your name').fill('E2E Tester');
   await page.getByPlaceholder('you@example.com').fill(email);
   await page.getByPlaceholder('At least 8 characters').fill(password);
+  // Signing up now asks for your own birthday, so a shared list can celebrate
+  // you back. Distinct labels from add-person's date fields below, which take
+  // their accessible names from their placeholders.
+  await page.getByLabel('Birthday month').click();
+  await page.getByRole('button', { name: 'March', exact: true }).click();
+  await page.getByLabel('Birthday day').fill('12');
+  await page.getByLabel('Birthday year, optional').fill('1988');
   await page.getByRole('button', { name: 'Create account' }).click();
 
   // --- Add a person with a birthday today (onboarding removed - land on feed) --

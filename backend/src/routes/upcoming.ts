@@ -1,6 +1,6 @@
 import { Router } from 'express';
 
-import { accessiblePeopleFilter } from '../lib/access';
+import { remindablePeopleFilter } from '../lib/access';
 import { asyncHandler } from '../lib/async-handler';
 import { resolveOccurrence, todayInTimeZone, type ProximityGroup } from '../lib/dates';
 import { requireAuth } from '../middleware/require-auth';
@@ -41,7 +41,7 @@ upcomingRouter.get(
     const user = req.user!;
     const today = todayInTimeZone(user.timezone);
 
-    const people = await Person.find(await accessiblePeopleFilter(user._id));
+    const people = await Person.find(await remindablePeopleFilter(user._id));
     const peopleById = new Map(people.map((p) => [p._id.toString(), p]));
     const events = await Event.find({ person: { $in: people.map((p) => p._id) } });
 

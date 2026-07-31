@@ -20,6 +20,12 @@ jest.mock('react-native-safe-area-context', () => {
   return { __esModule: true, ...(mock.default ?? mock) };
 });
 
+// Keyboard controller: the library's own jest mock (pass-through views + zeroed
+// keyboard state) so form screens render without the native module.
+jest.mock('react-native-keyboard-controller', () =>
+  require('react-native-keyboard-controller/jest'),
+);
+
 // Silence the act(...) / animation warnings that the reanimated mock can emit;
 // keep real errors visible.
 const originalWarn = console.warn;

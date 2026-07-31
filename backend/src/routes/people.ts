@@ -10,21 +10,22 @@ import {
   assertWritableLists,
   accessiblePeopleFilterFor,
   getUserListAccess,
+  mutedPersonIds,
   resolvePersonAccess,
   usersOfLists,
 } from '../lib/access';
 import { asyncHandler } from '../lib/async-handler';
-import { maxDayInMonth, resolveOccurrence, todayInTimeZone } from '../lib/dates';
-import { badRequest } from '../lib/http-error';
-import { normalizePhone } from '../lib/phone';
+import { resolveOccurrence, todayInTimeZone } from '../lib/dates';
+import { dobSchema } from '../lib/dob-schema';
+import { badRequest, forbidden, notFound } from '../lib/http-error';
+import { deletePersonCascade, syncBirthdayEvent } from '../lib/person-cascade';
+import { defaultDialCode, normalizePhone } from '../lib/phone';
 import { serializeEvent, serializePerson, type PersonExtras } from '../lib/serialize';
 import { requireAuth } from '../middleware/require-auth';
 import { validateBody } from '../middleware/validate';
 import type { Feb29Rule } from '../models/common';
 import { Event, type EventDoc } from '../models/Event';
-import { Note } from '../models/Note';
 import { Person, type PersonDoc } from '../models/Person';
-import { Reminder } from '../models/Reminder';
 import { User, type UserDoc } from '../models/User';
 
 /**
@@ -36,26 +37,6 @@ import { User, type UserDoc } from '../models/User';
  * stamps `updatedBy` for the "Last edited by" attribution (FR-45) and fans
  * reminder changes out to every member who receives reminders for the person.
  */
-
-const CURRENT_YEAR = new Date().getUTCFullYear();
-
-const dobSchema = z
-  .object({
-    month: z.number().int().min(1, 'Pick a month.').max(12, 'Pick a month.'),
-    day: z.number().int().min(1, 'Pick a day.').max(31, 'Pick a day.'),
-    // Year is optional (FR-14); reject the future and absurdly old years.
-    year: z
-      .number()
-      .int()
-      .min(1900)
-      .max(CURRENT_YEAR, 'That year is in the future.')
-      .nullable()
-      .optional(),
-  })
-  .refine((d) => d.day <= maxDayInMonth(d.month), {
-    message: "That day doesn't exist in the chosen month.",
-    path: ['day'],
-  });
 
 // A hosted https URL (Cloudinary) or the data-URL fallback when it's unconfigured.
 const photoUrlSchema = z
@@ -144,8 +125,9 @@ const baseFields = {
   relationshipTag: z.string().trim().min(1).max(40).nullable().optional(),
   photoUrl: photoUrlSchema,
   feb29Rule: z.enum(['feb28', 'feb29only', 'mar1']).optional(),
-  // Stored loosely (any region works); a bare 10-digit number is normalized to
-  // NANP E.164 (+1) on save - see lib/phone.ts. No pattern, so we never reject.
+  // Stored loosely (any region works); the clients send E.164 from the country
+  // picker, and a country-code-less number is completed with the owner's own
+  // dial code on save - see lib/phone.ts. No pattern, so we never reject.
   phone: z.string().trim().min(1).max(40).nullable().optional(),
   email: emailSchema,
   autoBirthdayEmail: autoBirthdayEmailSchema,
@@ -273,6 +255,27 @@ function assertAutoSmsAllowed(phone: string | undefined, enabled: boolean): void
 }
 
 /**
+ * A card that represents another member (`selfUser`) belongs to them, even though
+ * every member can edit it. Their own name, birthday and list memberships are
+ * theirs to change: a member "correcting" them would be silently reverted by the
+ * owner's next profile save, and un-sharing someone else's birthday isn't a call
+ * their listmates get to make. Everything else - phone, photo, tag, notes, extra
+ * events - stays open to the whole list (FR-43/45).
+ */
+function assertSelfCardWritable(
+  person: PersonDoc,
+  userId: string,
+  action: 'edit' | 'delete',
+): void {
+  if (!person.selfUser || person.selfUser.equals(userId)) return;
+  throw forbidden(
+    action === 'delete'
+      ? `${person.fullName} shared this birthday with the list. Take them out of your calendar instead, or remove them from the list.`
+      : `Only ${person.fullName} can change their own name, birthday, or lists.`,
+  );
+}
+
+/**
  * POST /people - create a Person and auto-create their Birthday Event (FR-5/12).
  * Name + DOB month/day are required; the year is optional. An optional `lists`
  * places the person into shared lists the caller can write to.
@@ -294,7 +297,7 @@ peopleRouter.post(
     const enabled = !!body.autoBirthdayEmail?.enabled;
     assertAutoSendAllowed(req.user!, email, enabled);
 
-    const phone = normalizePhone(body.phone) ?? undefined;
+    const phone = normalizePhone(body.phone, defaultDialCode(req.user!.timezone)) ?? undefined;
     const smsEnabled = !!body.autoBirthdaySms?.enabled;
     assertAutoSmsAllowed(phone, smsEnabled);
 
@@ -362,7 +365,12 @@ peopleRouter.post(
     await generateForPersonViewers(person);
 
     res.status(201).json({
-      person: serializePerson(person, { lastEditedBy: await lastEditedBy(person) }),
+      // Freshly created by the caller, so both viewer flags are settled.
+      person: serializePerson(person, {
+        lastEditedBy: await lastEditedBy(person),
+        inMyCalendar: true,
+        isMine: true,
+      }),
       events: events.map(serializeEvent),
     });
   }),
@@ -370,24 +378,41 @@ peopleRouter.post(
 
 /**
  * GET /people - everyone the caller can see (FR-9/44): their own people plus
- * anyone in a shared list they belong to. Optional `?tag=` relationship filter
- * and `?sort=next|name` (default `next`, ascending by soonest occurrence).
+ * anyone in a shared list they belong to. Optional `?tag=` relationship filter,
+ * `?list=` to scope to one shared list, and `?sort=next|name` (default `next`,
+ * ascending by soonest occurrence).
+ *
+ * Deliberately NOT filtered by the caller's calendar exclusions - this is the
+ * directory, and you have to be able to see someone to put them back. Each row
+ * carries `inMyCalendar` instead.
  */
 peopleRouter.get(
   '/',
   asyncHandler(async (req, res) => {
     const user = req.user!;
+    const userId = user._id.toString();
     const tag = typeof req.query.tag === 'string' ? req.query.tag : undefined;
+    const listId = typeof req.query.list === 'string' ? req.query.list : undefined;
     const sort = req.query.sort === 'name' ? 'name' : 'next';
     const today = todayInTimeZone(user.timezone);
 
     const access = await getUserListAccess(user._id);
-    const filter: Record<string, unknown> = accessiblePeopleFilterFor(user._id.toString(), access);
+    let filter: Record<string, unknown>;
+    if (listId) {
+      // Membership IS the authorization, so scope straight to the list rather
+      // than intersecting with the accessible-$or. 404 rather than 403 on a list
+      // the caller isn't in, matching `loadAccessibleList` - don't leak existence.
+      if (!access.accessibleListIds.includes(listId)) throw notFound("We couldn't find that list.");
+      filter = { lists: listId };
+    } else {
+      filter = accessiblePeopleFilterFor(userId, access);
+    }
     if (tag) filter.relationshipTag = tag;
 
     const people = await Person.find(filter);
     const events = await Event.find({ person: { $in: people.map((p) => p._id) } });
     const eventsByPerson = groupByPerson(events);
+    const muted = new Set(await mutedPersonIds(user._id));
 
     // Batch-resolve editor names for the attribution line.
     const editorIds = [...new Set(people.map((p) => p.updatedBy.toString()))];
@@ -399,6 +424,8 @@ peopleRouter.get(
       return {
         ...serializePerson(person, {
           lastEditedBy: editor ? { id: editor._id.toString(), name: editor.name } : null,
+          inMyCalendar: !muted.has(person._id.toString()),
+          isMine: person.owner.equals(user._id),
         }),
         next: nextAcrossEvents(eventsByPerson.get(person._id.toString()) ?? [], person.feb29Rule, today),
       };
@@ -419,10 +446,16 @@ peopleRouter.get(
 peopleRouter.get(
   '/:id',
   asyncHandler(async (req, res) => {
-    const { person } = await resolvePersonAccess(req.params.id, req.userId!);
+    const user = req.user!;
+    const { person } = await resolvePersonAccess(req.params.id, user._id.toString());
     const events = await Event.find({ person: person._id });
+    const muted = await mutedPersonIds(user._id);
     res.json({
-      person: serializePerson(person, { lastEditedBy: await lastEditedBy(person) }),
+      person: serializePerson(person, {
+        lastEditedBy: await lastEditedBy(person),
+        inMyCalendar: !muted.includes(person._id.toString()),
+        isMine: person.owner.equals(user._id),
+      }),
       events: events.map(serializeEvent),
     });
   }),
@@ -444,13 +477,19 @@ peopleRouter.patch(
     const { person, access } = await resolvePersonAccess(req.params.id, userId);
     const patch = req.body as z.infer<typeof updateSchema>;
 
+    // Another member's own entry: theirs to name, date and share.
+    if (patch.fullName !== undefined || patch.dob !== undefined || patch.lists !== undefined) {
+      assertSelfCardWritable(person, userId, 'edit');
+    }
+
     const prevListIds = person.lists.map((l) => l.toString());
 
     if (patch.fullName !== undefined) person.fullName = patch.fullName;
     if (patch.type !== undefined) person.type = patch.type;
     if (patch.relationshipTag !== undefined) person.relationshipTag = patch.relationshipTag ?? undefined;
     if (patch.photoUrl !== undefined) person.photoUrl = patch.photoUrl ?? undefined;
-    if (patch.phone !== undefined) person.phone = normalizePhone(patch.phone) ?? undefined;
+    if (patch.phone !== undefined)
+      person.phone = normalizePhone(patch.phone, defaultDialCode(req.user!.timezone)) ?? undefined;
     if (patch.email !== undefined) person.email = normalizeEmail(patch.email);
     if (patch.autoBirthdayEmail !== undefined) {
       if (patch.autoBirthdayEmail === null) {
@@ -560,16 +599,7 @@ peopleRouter.patch(
     const listsChanged = patch.lists !== undefined;
 
     // Keep the birthday event in step with the DOB / Feb-29 rule.
-    if (schedulingChanged) {
-      const birthday = await Event.findOne({ person: person._id, type: 'birthday' });
-      if (birthday) {
-        birthday.date = { month: person.dob.month, day: person.dob.day, year: person.dob.year };
-        await birthday.save();
-        // The date moved: drop future not-yet-acted reminders across *every*
-        // recipient, then refill from the new date (sent history left intact, §10).
-        await Reminder.deleteMany({ event: birthday._id, status: { $in: ['pending', 'snoozed'] } });
-      }
-    }
+    if (schedulingChanged) await syncBirthdayEvent(person);
 
     if (schedulingChanged || listsChanged) {
       // Refill/anchor reminders for everyone who can currently see the person.
@@ -585,8 +615,13 @@ peopleRouter.patch(
     }
 
     const events = await Event.find({ person: person._id });
+    const muted = await mutedPersonIds(user._id);
     res.json({
-      person: serializePerson(person, { lastEditedBy: await lastEditedBy(person) }),
+      person: serializePerson(person, {
+        lastEditedBy: await lastEditedBy(person),
+        inMyCalendar: !muted.includes(person._id.toString()),
+        isMine: person.owner.equals(user._id),
+      }),
       events: events.map(serializeEvent),
     });
   }),
@@ -602,14 +637,9 @@ peopleRouter.delete(
   '/:id',
   asyncHandler(async (req, res) => {
     const { person } = await resolvePersonAccess(req.params.id, req.userId!);
+    assertSelfCardWritable(person, req.user!._id.toString(), 'delete');
 
-    const events = await Event.find({ person: person._id });
-    const eventIds = events.map((e) => e._id);
-
-    await Reminder.deleteMany({ event: { $in: eventIds } });
-    await Event.deleteMany({ person: person._id });
-    await Note.deleteMany({ person: person._id });
-    await person.deleteOne();
+    await deletePersonCascade(person);
 
     res.status(204).end();
   }),

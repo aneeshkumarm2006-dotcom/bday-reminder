@@ -20,6 +20,11 @@ export function serializeUser(user: UserDoc) {
     name: user.name,
     email: user.email,
     phone: user.phone ?? null,
+    // The user's own birthday, in the same shape as `serializePerson`'s dob so
+    // one client date component serves both. Null until they give one.
+    birthday: user.birthday
+      ? { month: user.birthday.month, day: user.birthday.day, year: user.birthday.year ?? null }
+      : null,
     timezone: user.timezone,
     channelPreferences: user.channelPreferences,
     defaultLeadDays: user.defaultLeadDays,
@@ -64,10 +69,21 @@ export function serializeCalendarSync(user: UserDoc, accessibleLists: SharedList
   };
 }
 
-/** Attribution attached to a Person on read (Stage 8). */
+/** Viewer-dependent facts attached to a Person on read (Stage 8). */
 export interface PersonExtras {
   /** Who last edited this entry, for the "Last edited by …" line (FR-45). */
   lastEditedBy?: { id: string; name: string } | null;
+  /**
+   * Whether this person is in the *viewer's* calendar and reminders. False for
+   * someone they excluded from a shared list. Absent on contexts with no viewer.
+   */
+  inMyCalendar?: boolean;
+  /**
+   * Whether the viewer owns this person. Served rather than shipping `owner` for
+   * the client to compare, so the same id-check isn't reimplemented in two
+   * codebases. Gates the "in my calendar" control, which is shared-people-only.
+   */
+  isMine?: boolean;
 }
 
 /** Public Person shape (TODO Stage 3). `dob.year` stays optional (FR-14). */
@@ -113,8 +129,14 @@ export function serializePerson(person: PersonDoc, extras: PersonExtras = {}) {
           sendTimeZone: null,
         },
     lists: person.lists.map((id) => id.toString()),
+    // The account this card represents, when it's a shared-list member's own
+    // birthday rather than someone they track. Viewer-independent - clients
+    // compare it against their own id to badge "You".
+    selfUserId: person.selfUser?.toString() ?? null,
     // Shared-list attribution (Stage 8); omitted on personal-only contexts that don't pass it.
     ...(extras.lastEditedBy !== undefined ? { lastEditedBy: extras.lastEditedBy } : {}),
+    ...(extras.inMyCalendar !== undefined ? { inMyCalendar: extras.inMyCalendar } : {}),
+    ...(extras.isMine !== undefined ? { isMine: extras.isMine } : {}),
     createdAt: person.createdAt.toISOString(),
     updatedAt: person.updatedAt.toISOString(),
   };

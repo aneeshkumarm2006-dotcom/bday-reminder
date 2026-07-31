@@ -1,10 +1,10 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 
 import { DateRing } from '@/components/date-ring';
 import { GoogleSignInButton } from '@/components/google-sign-in-button';
-import { Button, Screen, Text, TextField } from '@/components/ui';
+import { Button, FormScrollView, Screen, Text, TextField } from '@/components/ui';
 import { cn, focusRing } from '@/lib/cn';
 import { ApiError } from '@/lib/api';
 import { monthAbbr, todayLocal } from '@/lib/dates';
@@ -39,79 +39,73 @@ export default function LoginScreen() {
 
   return (
     <Screen edges={['top', 'bottom']}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={{ flex: 1 }}>
-        <ScrollView
-          contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}
-          keyboardShouldPersistTaps="handled">
-          <View className="gap-8 py-8">
-            {/* The signature ring on today's date doubles as the brand mark. */}
-            <View className="items-center gap-3">
-              <DateRing
-                day={today.getDate()}
-                month={monthAbbr(today.getMonth() + 1)}
-                size="lg"
-                state="today"
-              />
-              <Text variant="title" className="text-center">
-                Circle the date
-              </Text>
-              <Text variant="body" className="max-w-[300px] text-center text-ink-secondary">
-                Remember every birthday - and actually do something about it.
-              </Text>
-            </View>
-
-            <View className="gap-4">
-              <TextField
-                label="Email"
-                value={email}
-                onChangeText={setEmail}
-                placeholder="you@example.com"
-                autoCapitalize="none"
-                autoCorrect={false}
-                keyboardType="email-address"
-                autoComplete="email"
-                textContentType="emailAddress"
-              />
-              <TextField
-                label="Password"
-                value={password}
-                onChangeText={setPassword}
-                placeholder="Your password"
-                secureToggle
-                autoComplete="password"
-                textContentType="password"
-              />
-              {error ? (
-                <Text variant="caption" className="text-danger-fg">
-                  {error}
-                </Text>
-              ) : null}
-              <Button fullWidth loading={loading} onPress={submit}>
-                Log in
-              </Button>
-              <GoogleSignInButton label="Sign in with Google" />
-            </View>
-
-            <View className="flex-row items-center justify-center gap-1.5">
-              <Text variant="body" className="text-ink-secondary">
-                New here?
-              </Text>
-              <Pressable
-                onPress={() => router.push('/(auth)/sign-up')}
-                hitSlop={8}
-                accessibilityRole="button"
-                accessibilityLabel="Create an account"
-                className={cn('rounded-sm', focusRing)}>
-                <Text variant="body" className="text-biro">
-                  Create an account
-                </Text>
-              </Pressable>
-            </View>
+      <FormScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}>
+        <View className="gap-8 py-8">
+          {/* The signature ring on today's date doubles as the brand mark. */}
+          <View className="items-center gap-3">
+            <DateRing
+              day={today.getDate()}
+              month={monthAbbr(today.getMonth() + 1)}
+              size="lg"
+              state="today"
+            />
+            <Text variant="title" className="text-center">
+              Circle the date
+            </Text>
+            <Text variant="body" className="max-w-[300px] text-center text-ink-secondary">
+              Remember every birthday - and actually do something about it.
+            </Text>
           </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+
+          <View className="gap-4">
+            <TextField
+              label="Email"
+              value={email}
+              onChangeText={setEmail}
+              placeholder="you@example.com"
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="email-address"
+              autoComplete="email"
+              textContentType="emailAddress"
+            />
+            <TextField
+              label="Password"
+              value={password}
+              onChangeText={setPassword}
+              placeholder="Your password"
+              secureToggle
+              autoComplete="password"
+              textContentType="password"
+            />
+            {error ? (
+              <Text variant="caption" className="text-danger-fg">
+                {error}
+              </Text>
+            ) : null}
+            <Button fullWidth loading={loading} onPress={submit}>
+              Log in
+            </Button>
+            <GoogleSignInButton label="Sign in with Google" />
+          </View>
+
+          <View className="flex-row items-center justify-center gap-1.5">
+            <Text variant="body" className="text-ink-secondary">
+              New here?
+            </Text>
+            <Pressable
+              onPress={() => router.push('/(auth)/sign-up')}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="Create an account"
+              className={cn('rounded-sm', focusRing)}>
+              <Text variant="body" className="text-biro">
+                Create an account
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+      </FormScrollView>
     </Screen>
   );
 }

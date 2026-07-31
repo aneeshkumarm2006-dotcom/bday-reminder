@@ -4,11 +4,14 @@ import { Router } from 'express';
 import { z } from 'zod';
 
 import { syncUsersReminders } from '../jobs/reminder-engine';
+import { usersOfLists } from '../lib/access';
 import { asyncHandler } from '../lib/async-handler';
 import { loadEnv } from '../lib/env';
 import { badRequest, forbidden, notFound } from '../lib/http-error';
 import { sendInviteEmail } from '../lib/invite-email';
 import { buildListView } from '../lib/list-view';
+import { deletePersonCascade } from '../lib/person-cascade';
+import { ensureSelfPersonInList, removeSelfFromList } from '../lib/self-person';
 import { serializeInvite } from '../lib/serialize';
 import { requireAuth } from '../middleware/require-auth';
 import { validateBody } from '../middleware/validate';
@@ -59,6 +62,9 @@ listsRouter.post(
     const userId = req.userId!;
     const { name } = req.body as z.infer<typeof nameSchema>;
     const list = await SharedList.create({ name, owner: userId, members: [] });
+    // The owner belongs in their own list too, so whoever they invite starts out
+    // able to see their birthday rather than only the other way around.
+    await ensureSelfPersonInList(req.user!, list._id);
     res.status(201).json({ list: await buildListView(list, userId) });
   }),
 );
@@ -111,9 +117,21 @@ listsRouter.delete(
     // Members who will lose access (resolve them before mutating the list).
     const affected = await User.find({ _id: { $in: list.members.map((m) => m.user) } });
 
+    // Cards members shared of themselves, resolved before the detach below.
+    const selfCards = await Person.find({ lists: list._id, selfUser: { $exists: true } });
+
     await Person.updateMany({ lists: list._id }, { $pull: { lists: list._id } });
     await Invite.deleteMany({ list: list._id });
     await list.deleteOne();
+
+    // A self-card now in no list at all is just the user's own birthday sitting
+    // in their own feed - clear it out rather than leave it orphaned.
+    for (const card of selfCards) {
+      const current = await Person.findById(card._id);
+      if (current && current.lists.length === 0 && current.selfUser?.equals(current.owner)) {
+        await deletePersonCascade(current);
+      }
+    }
 
     await syncUsersReminders(affected);
     res.status(204).end();
@@ -188,8 +206,14 @@ listsRouter.delete(
     if (list.members.length === before) throw notFound("That person isn't a member of this list.");
     await list.save();
 
+    // Their birthday goes with them - the list shouldn't keep celebrating someone
+    // it removed.
+    await removeSelfFromList(req.params.memberId, list._id);
+
     const removed = await User.findById(req.params.memberId);
     if (removed) await syncUsersReminders([removed]);
+    // The people staying behind lose the departed card, so re-sync them too.
+    await syncUsersReminders(await usersOfLists([list._id]));
     res.json({ list: await buildListView(list, req.userId!) });
   }),
 );
@@ -207,7 +231,13 @@ listsRouter.post(
 
     list.members = list.members.filter((m) => m.user.toString() !== req.userId);
     await list.save();
+
+    // Stop broadcasting the leaver's birthday to a list they've walked out of.
+    await removeSelfFromList(req.userId!, list._id);
+
     await syncUsersReminders([req.user!]);
+    // The members staying behind lose the departed card, so re-sync them too.
+    await syncUsersReminders(await usersOfLists([list._id]));
     res.status(204).end();
   }),
 );

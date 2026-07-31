@@ -3,6 +3,7 @@ import { useEffect, useRef } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 
 import { Screen, Text } from '@/components/ui';
+import { peekPendingReturn } from '@/lib/pending-return';
 import { useAuth } from '@/providers/auth-provider';
 import { useTokens } from '@/theme/theme-provider';
 
@@ -16,10 +17,12 @@ import { useTokens } from '@/theme/theme-provider';
  * fresh Intent into the app instead of resolving that browser session, which
  * would otherwise dead-end on Expo Router's "Unmatched Route" screen (mirrors
  * google-login.tsx / google-import-connected.tsx). This route is the fallback:
- * it refreshes the user to pick up the new `gmailConnected` flag, then lands back
- * on Settings, where the Gmail connection state is shown. (Unlike the import
- * flow it can't resume the in-progress auto-send sheet, but Gmail is connected
- * account-wide, so the user just re-opens the toggle.)
+ * it refreshes the user to pick up the new `gmailConnected` flag, then hands
+ * back to whichever screen parked itself before starting the connect (see
+ * lib/pending-return.ts) with `resume=1`, so a half-filled add-person form and
+ * its open auto-send sheet come back intact instead of being dumped on Settings.
+ * Settings is only the fallback when nothing was parked (e.g. the connect was
+ * started from Settings itself).
  */
 export default function GmailConnectedReturn() {
   const router = useRouter();
@@ -27,6 +30,27 @@ export default function GmailConnectedReturn() {
   const params = useLocalSearchParams<{ status?: string }>();
   const { status: authStatus, refreshUser } = useAuth();
   const ran = useRef(false);
+
+  // Land back on the screen that started the connect, flagged so it restores its
+  // parked draft. Only peeked here - the screen itself consumes the record.
+  const goBackToCaller = async (gmail: 'ok' | 'error') => {
+    const parked = await peekPendingReturn();
+    if (parked?.pathname === '/person/[id]' && parked.params?.id) {
+      router.replace({
+        pathname: '/person/[id]',
+        params: { id: parked.params.id, resume: '1', gmail },
+      });
+      return;
+    }
+    if (parked?.pathname === '/add-person') {
+      router.replace({
+        pathname: '/add-person',
+        params: { ...(parked.params ?? {}), resume: '1', gmail },
+      });
+      return;
+    }
+    router.replace('/(tabs)/settings');
+  };
 
   useEffect(() => {
     // On a cold start the deep link can arrive before the session rehydrates -
@@ -40,12 +64,13 @@ export default function GmailConnectedReturn() {
       return;
     }
 
-    // Success or failure, land back on Settings (where the Gmail connection
-    // lives); on ok, refresh first so the connected state shows immediately.
+    // Success or failure, hand back to whatever the user was doing; on ok,
+    // refresh first so the sheet reopens already showing Gmail as connected.
+    const gmail = params.status === 'ok' ? 'ok' : 'error';
     if (params.status === 'ok') {
-      void refreshUser().finally(() => router.replace('/(tabs)/settings'));
+      void refreshUser().finally(() => void goBackToCaller(gmail));
     } else {
-      router.replace('/(tabs)/settings');
+      void goBackToCaller(gmail);
     }
     // Re-run only when auth finishes loading; params are snapshotted at mount.
     // eslint-disable-next-line react-hooks/exhaustive-deps

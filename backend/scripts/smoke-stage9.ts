@@ -73,11 +73,11 @@ async function main(): Promise<void> {
 
   try {
     // --- Accounts -----------------------------------------------------------
-    let res = await post('/auth/signup', { name: 'Ada Lovelace', email: 'ada@example.com', password: 'supersecret', timezone: 'UTC' });
+    let res = await post('/auth/signup', { name: 'Ada Lovelace', email: 'ada@example.com', password: 'supersecret', birthday: { month: 6, day: 15, year: 1990 }, timezone: 'UTC' });
     let json = await res.json();
     const tokenA: string = json.accessToken;
 
-    res = await post('/auth/signup', { name: 'Bo Diddley', email: 'bo@example.com', password: 'supersecret', timezone: 'UTC' });
+    res = await post('/auth/signup', { name: 'Bo Diddley', email: 'bo@example.com', password: 'supersecret', birthday: { month: 6, day: 15, year: 1990 }, timezone: 'UTC' });
     json = await res.json();
     const tokenB: string = json.accessToken;
 
@@ -193,7 +193,12 @@ async function main(): Promise<void> {
     check(settings.lists.length === 1 && settings.lists[0] === familyId, 'Bo’s synced-list selection persists');
     feed = await fetchFeed(tokenBFeed);
     check(
-      veventCount(feed.body) === 1 && feed.body.includes("SUMMARY:Grandma's birthday"),
+      // Grandma, plus Ada's own birthday - she's been in her list since she made
+      // it. Bo's own card is in there too, but never in Bo's own feed.
+      veventCount(feed.body) === 2 &&
+        feed.body.includes("SUMMARY:Grandma's birthday") &&
+        feed.body.includes("SUMMARY:Ada Lovelace's birthday") &&
+        !feed.body.includes("SUMMARY:Bo Diddley's birthday"),
       'opting a shared list in adds its people to the member’s feed (FR-40)',
     );
 
@@ -205,7 +210,7 @@ async function main(): Promise<void> {
     // Re-opt-in, then leave the list → access lost, feed drops the people (FR-46).
     await patch('/me/calendar', { lists: [familyId] }, tokenB);
     feed = await fetchFeed(tokenBFeed);
-    check(veventCount(feed.body) === 1, 'Bo re-syncs the list before leaving');
+    check(veventCount(feed.body) === 2, 'Bo re-syncs the list before leaving');
     await post(`/lists/${familyId}/leave`, undefined, tokenB);
     feed = await fetchFeed(tokenBFeed);
     check(veventCount(feed.body) === 0, 'leaving a list immediately drops its people from the feed (FR-46)');

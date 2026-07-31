@@ -1,14 +1,26 @@
 import { Image } from 'expo-image';
 import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { CalendarPlus, ChevronLeft, Mail, MessageSquare, Pencil, Trash2 } from 'lucide-react-native';
-import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Pressable, View } from 'react-native';
 
 import { AddEventSheet } from '@/components/add-event-sheet';
 import { AutoSendSheet, type AutoSendDraft } from '@/components/auto-send-sheet';
 import { DateRing, type RingState } from '@/components/date-ring';
 import { NotesSection } from '@/components/notes-section';
-import { Button, Card, Icon, Pill, Screen, Text, Toggle, useConfirm, useToast } from '@/components/ui';
+import {
+  Button,
+  Card,
+  FormScrollView,
+  Icon,
+  Pill,
+  Screen,
+  Text,
+  Toggle,
+  ToggleRow,
+  useConfirm,
+  useToast,
+} from '@/components/ui';
 import { cn, focusRing } from '@/lib/cn';
 import {
   ApiError,
@@ -27,7 +39,8 @@ import {
   nextOccurrence,
   ringStateForOccurrence,
 } from '@/lib/dates';
-import { formatNanp } from '@/lib/phone';
+import { savePendingReturn, takePendingReturn } from '@/lib/pending-return';
+import { formatPhone } from '@/lib/phone';
 import { useTokens } from '@/theme/theme-provider';
 
 /**
@@ -85,6 +98,13 @@ export default function PersonScreen() {
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
 
+  // After a deep-link resume (Gmail consent) the stack can be just this screen,
+  // so back() has nowhere to go - fall back to the app home.
+  const leave = () => {
+    if (router.canGoBack()) router.back();
+    else router.replace('/');
+  };
+
   const load = useCallback(async () => {
     if (!id) return;
     setError(null);
@@ -119,7 +139,7 @@ export default function PersonScreen() {
     try {
       await peopleApi.remove(data.person.id);
       toast.show('Deleted.');
-      router.back();
+      leave();
     } catch (e) {
       setDeleting(false);
       setError(e instanceof ApiError ? e.message : "Couldn't delete. Try again.");
@@ -131,7 +151,7 @@ export default function PersonScreen() {
       <Stack.Screen options={{ headerShown: false }} />
       <View className="flex-row items-center gap-2 pb-2 pt-3">
         <Pressable
-          onPress={() => router.back()}
+          onPress={leave}
           hitSlop={10}
           accessibilityRole="button"
           accessibilityLabel="Back"
@@ -191,15 +211,53 @@ function ProfileBody({
   const [editingEvent, setEditingEvent] = useState<EventItem | null>(null);
   const [removingId, setRemovingId] = useState<string | null>(null);
 
+  // "In my calendar" for someone who reached you through a shared list. Optimistic
+  // so the switch answers immediately; reverts and says so if the write fails.
+  const [inMyCalendar, setInMyCalendar] = useState(person.inMyCalendar !== false);
+  const firstName = person.fullName.split(' ')[0] || person.fullName;
+
+  const onCalendarToggle = async (next: boolean) => {
+    setInMyCalendar(next);
+    try {
+      await peopleApi.setCalendar(next ? { add: [person.id] } : { remove: [person.id] });
+      toast.show(next ? 'Added to your calendar.' : 'Removed from your calendar.');
+    } catch {
+      setInMyCalendar(!next);
+      toast.show("Couldn't save that. Check your connection and try again.");
+    }
+  };
+
   // Auto-send greetings (Stage 14/15) - live mode: the toggles here persist
   // immediately (unlike the add-person form's draft toggles). Availability
   // flags gate the sheet's content, not the rows' visibility.
   const [emailSheetOpen, setEmailSheetOpen] = useState(false);
   const [smsSheetOpen, setSmsSheetOpen] = useState(false);
   const [savingChannel, setSavingChannel] = useState<'email' | 'sms' | null>(null);
+  // Restored sheet values after a Gmail round-trip (see lib/pending-return.ts) -
+  // they seed the sheet instead of the person's stored values, so a greeting
+  // typed just before connecting isn't lost.
+  const [emailSheetSeed, setEmailSheetSeed] = useState<AutoSendDraft | null>(null);
   const [gmailAvailable, setGmailAvailable] = useState<boolean | undefined>(undefined);
   const [smsAvailable, setSmsAvailable] = useState<boolean | undefined>(undefined);
   const [whatsappAvailable, setWhatsappAvailable] = useState<boolean | undefined>(undefined);
+
+  // Coming back from Gmail consent: reopen the auto-send sheet where it was left
+  // (the person's own fields are already re-fetched, so only the sheet needs it).
+  const { resume, gmail } = useLocalSearchParams<{ resume?: string; gmail?: string }>();
+  const resumed = useRef(false);
+  useEffect(() => {
+    if (resume !== '1' || resumed.current) return;
+    resumed.current = true;
+    void (async () => {
+      const parked = await takePendingReturn<{ sheetDraft: AutoSendDraft | null }>();
+      if (parked?.draft) {
+        setEmailSheetSeed(parked.draft.sheetDraft);
+        setEmailSheetOpen(true);
+      }
+      if (gmail === 'error') toast.show("Couldn't connect Gmail. Please try again.");
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resume]);
 
   useEffect(() => {
     let active = true;
@@ -306,7 +364,7 @@ function ProfileBody({
   };
 
   return (
-    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>
+    <FormScrollView contentContainerStyle={{ paddingBottom: 32 }}>
       {/* Header (§8.6) - avatar, name + tag, and the lg ring for the next event. */}
       <View className="items-center gap-3 pb-2 pt-2">
         <Avatar person={person} />
@@ -415,6 +473,29 @@ function ProfileBody({
         </Text>
       </Pressable>
 
+      {/* Someone else's entry, reaching you through a list you're both in. Joining
+          a list hands you everyone in it; this is how you keep only who you want
+          (the same choice the catch-up screen offers in bulk). */}
+      {person.isMine === false ? (
+        <>
+          <Text variant="label" className="mb-2 mt-6 text-ink-muted">
+            Shared with you
+          </Text>
+          <Card>
+            <ToggleRow
+              title="In my calendar"
+              helper={
+                inMyCalendar
+                  ? `You'll get reminders for ${firstName}, and they'll show in your calendar.`
+                  : `${firstName} stays in the list, but won't remind you.`
+              }
+              value={inMyCalendar}
+              onValueChange={onCalendarToggle}
+            />
+          </Card>
+        </>
+      ) : null}
+
       {/* Auto-send greetings (Stage 14/15) - interactive: the toggle opens the
           setup sheet to turn on, and changes persist immediately. */}
       <Text variant="label" className="mb-2 mt-6 text-ink-muted">
@@ -459,7 +540,7 @@ function ProfileBody({
             </Text>
             <Text variant="caption" className="mt-0.5 text-ink-muted">
               {person.autoBirthdaySms?.enabled
-                ? `${person.autoBirthdaySms.channel === 'whatsapp' ? 'WhatsApps' : 'Texts'} ${formatNanp(person.phone) || 'their phone'} each year, signed with your name.`
+                ? `${person.autoBirthdaySms.channel === 'whatsapp' ? 'WhatsApps' : 'Texts'} ${formatPhone(person.phone) || 'their phone'} each year, signed with your name.`
                 : 'Off. Turn on to send a greeting by SMS or WhatsApp, signed with your name.'}
             </Text>
             {person.autoBirthdaySms?.enabled ? (
@@ -524,14 +605,26 @@ function ProfileBody({
       <AutoSendSheet
         channel="email"
         visible={emailSheetOpen}
-        onClose={() => setEmailSheetOpen(false)}
+        onClose={() => {
+          setEmailSheetOpen(false);
+          setEmailSheetSeed(null);
+        }}
         personName={person.fullName}
         available={gmailAvailable}
-        initialRecipient={person.email ?? ''}
-        initialMessage={person.autoBirthdayEmail?.message ?? ''}
-        initialSendTime={person.autoBirthdayEmail?.sendTime ?? ''}
-        initialSendTimeZone={person.autoBirthdayEmail?.sendTimeZone ?? ''}
+        initialRecipient={emailSheetSeed?.recipient ?? person.email ?? ''}
+        initialMessage={emailSheetSeed?.message ?? person.autoBirthdayEmail?.message ?? ''}
+        initialSendTime={emailSheetSeed?.sendTime ?? person.autoBirthdayEmail?.sendTime ?? ''}
+        initialSendTimeZone={
+          emailSheetSeed?.sendTimeZone ?? person.autoBirthdayEmail?.sendTimeZone ?? ''
+        }
         alreadyEnabled={!!person.autoBirthdayEmail?.enabled}
+        onBeforeConnect={(sheetDraft) =>
+          savePendingReturn({
+            pathname: '/person/[id]',
+            params: { id: person.id },
+            draft: { sheetDraft },
+          })
+        }
         onConfirm={confirmAutoEmail}
       />
       <AutoSendSheet
@@ -541,7 +634,7 @@ function ProfileBody({
         personName={person.fullName}
         available={smsAvailable}
         whatsappAvailable={whatsappAvailable}
-        initialRecipient={formatNanp(person.phone)}
+        initialRecipient={person.phone ?? ''}
         initialMessage={person.autoBirthdaySms?.message ?? ''}
         initialSendTime={person.autoBirthdaySms?.sendTime ?? ''}
         initialSendTimeZone={person.autoBirthdaySms?.sendTimeZone ?? ''}
@@ -549,7 +642,7 @@ function ProfileBody({
         alreadyEnabled={!!person.autoBirthdaySms?.enabled}
         onConfirm={confirmAutoSms}
       />
-    </ScrollView>
+    </FormScrollView>
   );
 }
 

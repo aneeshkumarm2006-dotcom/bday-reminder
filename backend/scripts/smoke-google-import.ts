@@ -92,6 +92,7 @@ async function main(): Promise<void> {
       name: 'Ivy Import',
       email: 'ivy@example.com',
       password: 'supersecret',
+      birthday: { month: 6, day: 15, year: 1990 },
     });
     const signup = await res.json();
     check(res.status === 201 && typeof signup.accessToken === 'string', 'signup returns an access token');

@@ -3,6 +3,7 @@ import { Event } from '../models/Event';
 import { Invite } from '../models/Invite';
 import { Note } from '../models/Note';
 import { Person } from '../models/Person';
+import { PersonMute } from '../models/PersonMute';
 import { RefreshToken } from '../models/RefreshToken';
 import { Reminder } from '../models/Reminder';
 import { SharedList } from '../models/SharedList';
@@ -49,8 +50,15 @@ export async function deleteAccount(user: UserDoc): Promise<void> {
     await Reminder.deleteMany({ event: { $in: ownedEventIds } });
     await Note.deleteMany({ person: { $in: ownedPersonIds } });
     await Event.deleteMany({ person: { $in: ownedPersonIds } });
+    // Other members' "not in my calendar" choices about these people.
+    await PersonMute.deleteMany({ person: { $in: ownedPersonIds } });
     await Person.deleteMany({ owner: userId });
   }
+
+  // Cards other members created that represent THIS user (adopted on join). They
+  // belong to whoever made them, so the entry stays - it just stops pointing at a
+  // user who no longer exists. `$unset`, never null: the index is sparse+unique.
+  await Person.updateMany({ selfUser: userId }, { $unset: { selfUser: '' } });
 
   // --- 2. Shared lists this user OWNS → detach people, drop invites, delete ---
   const ownedLists = await SharedList.find({ owner: userId }).select('_id members');
@@ -78,6 +86,8 @@ export async function deleteAccount(user: UserDoc): Promise<void> {
   await Reminder.deleteMany({ user: userId });
   await Note.deleteMany({ author: userId });
   await Invite.deleteMany({ invitedBy: userId });
+  // Their own calendar exclusions.
+  await PersonMute.deleteMany({ user: userId });
 
   // --- 5. Auth + fair-use counters ------------------------------------------
   await RefreshToken.deleteMany({ user: userId });

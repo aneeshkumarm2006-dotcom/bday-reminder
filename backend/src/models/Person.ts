@@ -53,6 +53,16 @@ export interface AutoBirthdaySms {
 export interface PersonDoc {
   _id: Types.ObjectId;
   owner: Types.ObjectId;
+  /**
+   * The user this card *is*, when it represents a member of a shared list rather
+   * than someone they track. Set when a user shares their own birthday into a
+   * list on joining, or when joining adopts a card another member already made
+   * for them - which is why this is a user ref and not an `isSelf` flag: an
+   * adopted card is still owned by whoever created it, so a boolean couldn't say
+   * *whom* it represents. Only the represented user may change its name, dob or
+   * lists (see `routes/people.ts`).
+   */
+  selfUser?: Types.ObjectId;
   lists: Types.ObjectId[];
   fullName: string;
   type: 'human' | 'pet';
@@ -98,6 +108,9 @@ const autoBirthdaySmsSchema = new Schema<AutoBirthdaySms>(
 const personSchema = new Schema<PersonDoc>(
   {
     owner: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+    // Never write an explicit `null` here: with sparse+unique below, a stored
+    // null IS indexed and the second one collides. Always `$unset` to clear.
+    selfUser: { type: Schema.Types.ObjectId, ref: 'User' },
     lists: { type: [{ type: Schema.Types.ObjectId, ref: 'SharedList' }], default: () => [] },
     fullName: { type: String, required: true, trim: true },
     type: { type: String, enum: ['human', 'pet'], default: 'human' },
@@ -116,6 +129,10 @@ const personSchema = new Schema<PersonDoc>(
 );
 
 personSchema.index({ lists: 1 });
+
+// One card per represented user, across every list they've shared into. Sparse so
+// the overwhelming majority of people - who represent no account - aren't indexed.
+personSchema.index({ selfUser: 1 }, { unique: true, sparse: true });
 
 export const Person: Model<PersonDoc> =
   (models.Person as Model<PersonDoc>) || model<PersonDoc>('Person', personSchema);

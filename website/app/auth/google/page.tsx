@@ -30,7 +30,9 @@ function GoogleCallback() {
       return;
     }
     completeGoogleSession(handoff)
-      .then(() => router.replace("/calendar"))
+      // A brand-new Google account never saw a signup form, so it's the one
+      // path that still owes us a birthday. Everyone else goes straight in.
+      .then(({ isNew }) => router.replace(isNew ? "/welcome/birthday" : "/calendar"))
       .catch(() => {
         setFailed(true);
         router.replace("/login?google=error");

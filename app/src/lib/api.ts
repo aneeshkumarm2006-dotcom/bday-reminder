@@ -135,6 +135,8 @@ export type AuthUser = {
   name: string;
   email: string;
   phone?: string | null;
+  /** The account holder's own birthday - what a shared list celebrates them on. */
+  birthday?: DateParts | null;
   timezone?: string | null;
   /** Notification + reminder defaults (Stage 5 settings). */
   channelPreferences?: ChannelPreferences;
@@ -161,6 +163,8 @@ export type GoogleSessionResponse = AuthResponse & { isNew: boolean };
 export type UpdateMeInput = {
   name?: string;
   phone?: string | null;
+  /** `null` clears it, and takes it back out of every list it was shared with. */
+  birthday?: DateParts | null;
   timezone?: string;
   channelPreferences?: Partial<ChannelPreferences>;
   defaultLeadDays?: number[];
@@ -168,8 +172,13 @@ export type UpdateMeInput = {
 };
 
 export const authApi = {
-  signup: (input: { name: string; email: string; password: string; timezone?: string }) =>
-    apiFetch<AuthResponse>('/auth/signup', { method: 'POST', body: input, auth: false }),
+  signup: (input: {
+    name: string;
+    email: string;
+    password: string;
+    birthday: DateParts;
+    timezone?: string;
+  }) => apiFetch<AuthResponse>('/auth/signup', { method: 'POST', body: input, auth: false }),
 
   login: (input: { email: string; password: string }) =>
     apiFetch<AuthResponse>('/auth/login', { method: 'POST', body: input, auth: false }),
@@ -315,6 +324,12 @@ export type Person = {
   /** Auto-send birthday SMS config, texted to `phone` (Stage 15). */
   autoBirthdaySms: AutoBirthdaySms;
   lists: string[];
+  /** Set when this entry IS a list member, sharing their own birthday. */
+  selfUserId?: string | null;
+  /** Whether the viewer keeps this person in their calendar and reminders. */
+  inMyCalendar?: boolean;
+  /** Whether the viewer owns this person, or it reached them through a list. */
+  isMine?: boolean;
   /** Who last edited this entry, for the "Last edited by …" line (FR-45). */
   lastEditedBy?: { id: string; name: string } | null;
   createdAt: string;
@@ -417,8 +432,19 @@ export const peopleApi = {
   /** The computed Upcoming feed - grouped + sorted server-side (DESIGN.md §8.2). */
   upcoming: () => apiFetch<UpcomingResponse>('/upcoming'),
 
-  list: (params: { tag?: string; sort?: 'next' | 'name' } = {}) =>
+  list: (params: { tag?: string; list?: string; sort?: 'next' | 'name' } = {}) =>
     apiFetch<{ people: PersonListItem[] }>(`/people${queryString(params)}`),
+
+  /**
+   * Choose which shared people are in the caller's calendar and reminders.
+   * `add` puts someone back, `remove` takes them out; they stay visible in the
+   * list either way. Returns the caller's full excluded set to reconcile against.
+   */
+  setCalendar: (input: { add?: string[]; remove?: string[] }) =>
+    apiFetch<{ excludedPersonIds: string[] }>('/me/calendar-people', {
+      method: 'POST',
+      body: input,
+    }),
 
   get: (id: string) => apiFetch<PersonWithEvents>(`/people/${id}`),
 
@@ -655,6 +681,10 @@ export type ListMember = {
   name: string;
   email: string;
   isOwner: boolean;
+  /** Their own birthday, when they've given one - null otherwise, never guessed. */
+  birthday: DateParts | null;
+  /** When they joined, for the "recently joined" marker. Null for older members. */
+  joinedAt: string | null;
 };
 
 /** A pending invite, shown to the list owner until it's accepted (FR-42). */
@@ -690,6 +720,17 @@ export type InvitePreview = {
   inviterName: string;
   status: 'pending' | 'accepted';
   alreadyMember: boolean;
+  /** Both halves of the trade: what's waiting inside, and what you'd be sharing. */
+  memberCount: number;
+  peopleCount: number;
+  yourBirthday: DateParts | null;
+};
+
+/** What accepting did with the joiner's own birthday, if anything. */
+export type AcceptInviteResponse = {
+  list: SharedListView;
+  selfPerson: { created: boolean; matched: boolean; personId: string | null } | null;
+  peopleCount: number;
 };
 
 export type InviteEmailOutcome = 'sent' | 'skipped' | 'failed';
@@ -731,9 +772,12 @@ export const invitesApi = {
   /** Preview an invite before accepting (list + inviter). */
   preview: (token: string) => apiFetch<{ invite: InvitePreview }>(`/invites/${token}`),
 
-  /** Explicitly accept an invite and join the list (FR-42). */
-  accept: (token: string) =>
-    apiFetch<{ list: SharedListView }>(`/invites/${token}/accept`, { method: 'POST' }),
+  /**
+   * Explicitly accept an invite and join the list (FR-42). `shareBirthday`
+   * defaults to on; `birthday` only fills an account that doesn't have one yet.
+   */
+  accept: (token: string, input: { shareBirthday?: boolean; birthday?: DateParts } = {}) =>
+    apiFetch<AcceptInviteResponse>(`/invites/${token}/accept`, { method: 'POST', body: input }),
 };
 
 // --- Calendar sync (Stage 9 contract; FR-38/39/40) --------------------------

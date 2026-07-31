@@ -67,12 +67,12 @@ async function main(): Promise<void> {
 
   try {
     // --- Two accounts, one day-of lead each --------------------------------
-    let res = await post('/auth/signup', { name: 'Ada', email: 'ada@example.com', password: 'supersecret', timezone: 'UTC' });
+    let res = await post('/auth/signup', { name: 'Ada', email: 'ada@example.com', password: 'supersecret', birthday: { month: 6, day: 15, year: 1990 }, timezone: 'UTC' });
     let json = await res.json();
     const tokenA: string = json.accessToken;
     const adaId: string = json.user.id;
 
-    res = await post('/auth/signup', { name: 'Bo', email: 'bo@example.com', password: 'supersecret', timezone: 'UTC' });
+    res = await post('/auth/signup', { name: 'Bo', email: 'bo@example.com', password: 'supersecret', birthday: { month: 6, day: 15, year: 1990 }, timezone: 'UTC' });
     json = await res.json();
     const tokenB: string = json.accessToken;
     const boId: string = json.user.id;

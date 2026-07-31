@@ -1,4 +1,4 @@
-import { getUserListAccess } from './access';
+import { excludeMuted, getUserListAccess, mutedPersonIds } from './access';
 import { resolveOccurrence, todayInTimeZone } from './dates';
 import { buildCalendar, type IcsEvent } from './ics';
 import { reminderHeadline } from './reminder-content';
@@ -40,7 +40,8 @@ export async function includedPeopleForUser(user: UserDoc): Promise<PersonDoc[]>
   if (syncedListIds.length > 0) or.push({ lists: { $in: syncedListIds } });
   if (or.length === 0) return [];
 
-  return Person.find({ $or: or });
+  // The feed is this user's calendar, so people they took out of it stay out.
+  return Person.find(excludeMuted({ $or: or }, await mutedPersonIds(user._id)));
 }
 
 /** A short, static description line (recurring events can't carry a changing age). */

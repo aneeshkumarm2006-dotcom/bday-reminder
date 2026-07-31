@@ -17,7 +17,7 @@
  */
 
 import { dispatchToChannels, type ReminderPayload } from '../channels';
-import { accessiblePeopleFilter } from '../lib/access';
+import { remindablePeopleFilter } from '../lib/access';
 import { ageTurning, daysUntil, resolveOccurrence, todayInTimeZone } from '../lib/dates';
 import {
   autoSmsPeriod,
@@ -89,11 +89,15 @@ export function resolveReminderTime(user: UserDoc, event: EventDoc): string {
  */
 export async function generateForUser(user: UserDoc, now: Date = new Date()): Promise<number> {
   const today = todayInTimeZone(user.timezone);
-  // Every person the user can see - their own plus anyone in a shared list they
-  // own or belong to. Each member gets their own instances with their own lead
-  // times / channels / timezone, so shared data still means personal reminders
-  // (FR-44).
-  const people = await Person.find(await accessiblePeopleFilter(user._id));
+  // Every person the user keeps in their calendar - their own plus anyone in a
+  // shared list they own or belong to, minus the ones they've excluded. Each
+  // member gets their own instances with their own lead times / channels /
+  // timezone, so shared data still means personal reminders (FR-44).
+  //
+  // This is the choke point for exclusions: generateForPersonViewers fans out
+  // through here, so a person someone opted out of is never re-scheduled for
+  // them no matter who edits it.
+  const people = await Person.find(await remindablePeopleFilter(user._id));
   if (people.length === 0) return 0;
 
   const personById = new Map(people.map((p) => [p._id.toString(), p]));
@@ -188,9 +192,13 @@ export async function generateForPersonViewers(
  * leaving / being removed from a list stops those reminders immediately - then
  * fills any gaps for the people they can still see. Their own owned-people
  * reminders are untouched.
+ *
+ * Because the filter also drops people the user excluded from their calendar,
+ * this doubles as the apply step for that: taking someone out deletes their
+ * reminders here, putting them back refills them. No bespoke deletion code.
  */
 export async function syncUserReminders(user: UserDoc, now: Date = new Date()): Promise<void> {
-  const people = await Person.find(await accessiblePeopleFilter(user._id));
+  const people = await Person.find(await remindablePeopleFilter(user._id));
   const events = await Event.find({ person: { $in: people.map((p) => p._id) } });
   const keepEventIds = events.map((e) => e._id);
   await Reminder.deleteMany({ user: user._id, event: { $nin: keepEventIds } });

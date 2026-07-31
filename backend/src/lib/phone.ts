@@ -1,28 +1,65 @@
-/**
- * Phone normalization, US/CA-first (a soft default). Phones are stored so the
- * day-of "Send greeting" action can open the user's messaging app with an
- * `sms:<number>` link (FR-28/29), which works most reliably with an E.164
- * number (`+<country><digits>`).
- *
- * The US and Canada share country code +1 (the North American Numbering Plan),
- * so a bare 10-digit number is assumed to be NANP and gets a `+1` prefix. This
- * is deliberately SOFT: anything already internationalized (leading `+`) is
- * kept, and anything that doesn't look like NANP is passed through untouched
- * rather than rejected or mangled, so international numbers still work.
- */
+import { countryCodeForTimeZone, dialCodeFor } from './countries';
 
 /**
- * Normalize a phone number for storage. Returns E.164 for NANP and already-
- * internationalized input; passes anything else through trimmed. Empty/nullish
- * input returns null (clears the field).
+ * Phone normalization. Phones are stored in E.164 (`+<country><digits>`) because
+ * that is the only shape Twilio accepts reliably for the auto-send birthday text
+ * (Stage 15), and the one the day-of "Send greeting" `sms:` link works best with
+ * (FR-28/29).
  *
- *   "(415) 555-0142"     → "+14155550142"
- *   "415-555-0142"       → "+14155550142"
- *   "1 415 555 0142"     → "+14155550142"
- *   "+44 20 7946 0958"   → "+442079460958"
- *   "12345" / "ext. 5"   → unchanged (soft: never reject a non-NANP number)
+ * The clients now pair every phone field with a country picker and POST a full
+ * E.164 string, so the interesting case here is input that arrives WITHOUT a
+ * country code: CSV/Google imports and older clients. Twilio is provisioned
+ * beyond the US/CA now, so a bare 10-digit number can no longer be assumed to be
+ * North American - callers pass the account owner's `defaultDialCode` (derived
+ * from their timezone) and the number is completed with that instead of a blind
+ * `+1`.
+ *
+ * Normalization stays SOFT throughout: anything already internationalized is
+ * kept, and anything that can't be completed confidently is passed through
+ * untouched rather than rejected or mangled. The reminder engine skips sending
+ * to non-E.164 numbers, so a pass-through degrades to "no auto-text", never to a
+ * text delivered to the wrong country.
  */
-export function normalizePhone(input: string | null | undefined): string | null {
+
+/** Fallback dial code when the owner's country can't be determined (US/CA). */
+const DEFAULT_DIAL_CODE = '1';
+
+/**
+ * The dial code to complete a country-code-less number with, from the account
+ * owner's IANA timezone (which the app reports from the device). Falls back to
+ * the US/CA `+1` soft default.
+ */
+export function defaultDialCode(timezone: string | null | undefined): string {
+  const code = countryCodeForTimeZone(timezone);
+  return code ? dialCodeFor(code) : DEFAULT_DIAL_CODE;
+}
+
+/**
+ * Drop the national trunk prefix (a leading `0`) that many countries write in
+ * their local format but that E.164 omits - "07700 900123" is "+447700900123".
+ * Italy is the documented exception: its landline numbers keep the leading zero.
+ */
+function stripTrunkPrefix(digits: string, dial: string): string {
+  if (dial === '39') return digits;
+  return digits.replace(/^0+/, '');
+}
+
+/**
+ * Normalize a phone number for storage. Returns E.164 when the country is known
+ * or can be completed from `dial`; passes anything else through trimmed.
+ * Empty/nullish input returns null (clears the field).
+ *
+ *   "+44 20 7946 0958"            → "+442079460958"
+ *   "(415) 555-0142"              → "+14155550142"
+ *   "1 415 555 0142"              → "+14155550142"
+ *   "98765 43210", dial "91"      → "+919876543210"
+ *   "07700 900123", dial "44"     → "+447700900123"
+ *   "12345" / "ext. 5"            → unchanged (soft: never reject, never guess)
+ */
+export function normalizePhone(
+  input: string | null | undefined,
+  dial: string = DEFAULT_DIAL_CODE,
+): string | null {
   if (input == null) return null;
   const trimmed = input.trim();
   if (!trimmed) return null;
@@ -34,9 +71,22 @@ export function normalizePhone(input: string | null | undefined): string | null 
   }
 
   const digits = trimmed.replace(/\D/g, '');
-  // NANP soft default (US + Canada share +1).
-  if (digits.length === 10) return `+1${digits}`;
-  if (digits.length === 11 && digits.startsWith('1')) return `+${digits}`;
+
+  // NANP (US + Canada share +1): a bare 10-digit number, or 11 digits behind the
+  // '1' trunk/country digit.
+  if (dial === '1') {
+    if (digits.length === 10) return `+1${digits}`;
+    if (digits.length === 11 && digits.startsWith('1')) return `+${digits}`;
+    return trimmed;
+  }
+
+  const national = stripTrunkPrefix(digits, dial);
+  // Some sources export a country code without the '+'. Only read it as one when
+  // what follows is still long enough to be a national number on its own.
+  if (national.startsWith(dial) && national.length - dial.length >= 8) return `+${national}`;
+  // E.164 allows 15 digits total; anything shorter than 6 is an extension or a
+  // short code, not a number we could text.
+  if (national.length >= 6 && national.length + dial.length <= 15) return `+${dial}${national}`;
 
   // Anything else: leave the user's input as-is (don't guess a country code).
   return trimmed;

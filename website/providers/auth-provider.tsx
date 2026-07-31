@@ -16,6 +16,7 @@ import {
   setUnauthorizedHandler,
   type AuthUser,
   type ChannelPreferences,
+  type DateParts,
   type UpdateMeInput,
 } from "@/lib/api";
 import { clearTokens, loadTokens, saveTokens } from "@/lib/token-store";
@@ -34,7 +35,12 @@ type AuthContextValue = {
   status: AuthStatus;
   user: AuthUser | null;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (input: { name: string; email: string; password: string }) => Promise<void>;
+  signUp: (input: {
+    name: string;
+    email: string;
+    password: string;
+    birthday: DateParts;
+  }) => Promise<void>;
   /**
    * Finish a "Sign in with Google" flow: exchange the one-time handoff token
    * (from the callback URL) for a session. Returns whether the account was just
@@ -63,6 +69,7 @@ function applyMePatch(user: AuthUser, patch: UpdateMeInput): AuthUser {
   const next: AuthUser = { ...user };
   if (patch.name !== undefined) next.name = patch.name;
   if (patch.phone !== undefined) next.phone = patch.phone;
+  if (patch.birthday !== undefined) next.birthday = patch.birthday;
   if (patch.timezone !== undefined) next.timezone = patch.timezone;
   if (patch.defaultLeadDays !== undefined) next.defaultLeadDays = patch.defaultLeadDays;
   if (patch.defaultReminderTime !== undefined) next.defaultReminderTime = patch.defaultReminderTime;
@@ -161,8 +168,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signUp = useCallback(
-    async ({ name, email, password }: { name: string; email: string; password: string }) => {
-      const res = await authApi.signup({ name, email, password, timezone: detectTimezone() });
+    async ({
+      name,
+      email,
+      password,
+      birthday,
+    }: {
+      name: string;
+      email: string;
+      password: string;
+      birthday: DateParts;
+    }) => {
+      const res = await authApi.signup({
+        name,
+        email,
+        password,
+        birthday,
+        timezone: detectTimezone(),
+      });
       await saveTokens({ accessToken: res.accessToken, refreshToken: res.refreshToken });
       setUser(res.user);
       setStatus("authenticated");

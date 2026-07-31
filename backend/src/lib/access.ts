@@ -3,6 +3,7 @@ import type { Types } from 'mongoose';
 import { forbidden, notFound } from './http-error';
 import { Event } from '../models/Event';
 import { Person, type PersonDoc } from '../models/Person';
+import { PersonMute } from '../models/PersonMute';
 import { SharedList } from '../models/SharedList';
 import { User, type UserDoc } from '../models/User';
 
@@ -60,6 +61,41 @@ export async function accessiblePeopleFilter(
 ): Promise<PersonFilter> {
   const access = await getUserListAccess(userId);
   return accessiblePeopleFilterFor(String(userId), access);
+}
+
+/**
+ * People the user has taken out of their calendar. Joining a shared list grants
+ * access to everyone in it, which is right for *seeing* the data but wrong for
+ * *being reminded* about all of it - so members can exclude individuals without
+ * leaving the list or touching anyone else's view (see models/PersonMute).
+ */
+export async function mutedPersonIds(userId: string | Types.ObjectId): Promise<string[]> {
+  const rows = await PersonMute.find({ user: String(userId) }).select('person');
+  return rows.map((r) => r.person.toString());
+}
+
+/** Narrow a people filter to exclude the viewer's opted-out people. */
+export function excludeMuted(filter: PersonFilter, muted: string[]): PersonFilter {
+  if (muted.length === 0) return filter;
+  return { ...filter, _id: { $nin: muted } };
+}
+
+/**
+ * Mongo filter for every Person the user wants in their calendar and reminders:
+ * accessible minus excluded. Use this for reminder generation, /upcoming, the
+ * month grid and the ICS feed - anywhere the answer means "my calendar".
+ *
+ * Reads that mean "the shared data" (GET /people, list detail) must keep using
+ * `accessiblePeopleFilter`: you have to be able to see someone to put them back.
+ */
+export async function remindablePeopleFilter(
+  userId: string | Types.ObjectId,
+): Promise<PersonFilter> {
+  const [access, muted] = await Promise.all([
+    getUserListAccess(userId),
+    mutedPersonIds(userId),
+  ]);
+  return excludeMuted(accessiblePeopleFilterFor(String(userId), access), muted);
 }
 
 /** Whether the caller can access (and therefore edit) a person. */

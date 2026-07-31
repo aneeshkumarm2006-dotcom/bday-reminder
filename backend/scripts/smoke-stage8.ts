@@ -59,12 +59,12 @@ async function main(): Promise<void> {
 
   try {
     // --- Accounts -----------------------------------------------------------
-    let res = await post('/auth/signup', { name: 'Ada', email: 'ada@example.com', password: 'supersecret', timezone: 'UTC' });
+    let res = await post('/auth/signup', { name: 'Ada', email: 'ada@example.com', password: 'supersecret', birthday: { month: 6, day: 15, year: 1990 }, timezone: 'UTC' });
     let json = await res.json();
     const tokenA: string = json.accessToken;
     const adaId: string = json.user.id;
 
-    res = await post('/auth/signup', { name: 'Bo', email: 'bo@example.com', password: 'supersecret', timezone: 'UTC' });
+    res = await post('/auth/signup', { name: 'Bo', email: 'bo@example.com', password: 'supersecret', birthday: { month: 6, day: 15, year: 1990 }, timezone: 'UTC' });
     json = await res.json();
     const tokenB: string = json.accessToken;
     const boId: string = json.user.id;
@@ -134,8 +134,13 @@ async function main(): Promise<void> {
     const mumForBo = people.find((p) => p.id === mumId);
     check(!!mumForBo, 'Bo now sees the shared person Mom');
 
-    check((await reminderCount(boId)) === 1, 'accepting generated Bo his OWN day-of reminder for Mom (FR-44)');
-    check((await reminderCount(adaId)) === 1, "Ada's reminders are unchanged by Bo joining");
+    check((await reminderCount(boId)) === 2, 'accepting generated Bo his OWN day-of reminder for Mom, plus one for Ada (FR-44)');
+    check((await reminderCount(adaId)) === 2, 'joining ran the exchange both ways - Ada is reminded about Bo now too');
+    const boCardForAda = ((await (await get(`/people?list=${listId}`, tokenA)).json()).people as {
+      fullName: string;
+      selfUserId: string | null;
+    }[]).find((p) => p.selfUserId === boId);
+    check(boCardForAda?.fullName === 'Bo', "Bo's own birthday is now in the list for everyone to see");
     const boReminder = await Reminder.findOne({ user: boId });
     check(boReminder !== null && boReminder.user.toString() === boId, "Bo's reminder is a distinct per-recipient instance");
 
@@ -154,7 +159,7 @@ async function main(): Promise<void> {
 
     res = await post('/events', { person: mumId, type: 'anniversary', date: todayDob }, tokenB);
     check(res.status === 201, 'a member can add an event to the shared person → 201');
-    check((await reminderCount(adaId)) === 2 && (await reminderCount(boId)) === 2, 'the new event reminds BOTH members, each their own instance');
+    check((await reminderCount(adaId)) === 3 && (await reminderCount(boId)) === 3, 'the new event reminds BOTH members, each their own instance');
 
     res = await post(`/people/${mumId}/notes`, { text: 'Likes gardening' }, tokenB);
     check(res.status === 201, 'a member can add a gift note → 201');
@@ -163,7 +168,7 @@ async function main(): Promise<void> {
 
     // --- Personal settings stay independent (FR-44) -------------------------
     await patch('/me', { defaultReminderTime: '18:00' }, tokenB);
-    check((await reminderCount(adaId)) === 2 && (await reminderCount(boId)) === 2, "changing Bo's reminder time doesn't change Ada's reminders");
+    check((await reminderCount(adaId)) === 3 && (await reminderCount(boId)) === 3, "changing Bo's reminder time doesn't change Ada's reminders");
     const adaBday = await Reminder.findOne({ user: adaId, leadDays: 0 }).sort({ scheduledFor: 1 });
     const boBday = await Reminder.findOne({ user: boId, leadDays: 0 }).sort({ scheduledFor: 1 });
     check(
@@ -180,13 +185,13 @@ async function main(): Promise<void> {
     people = (await (await get('/people', tokenB)).json()).people as { id: string }[];
     check(!people.some((p) => p.id === mumId), 'after leaving, Bo no longer sees the shared people');
     check((await reminderCount(boId)) === 0, "after leaving, Bo's reminders for the list stop immediately (FR-46)");
-    check((await reminderCount(adaId)) === 2, "Ada's reminders are untouched when Bo leaves");
+    check((await reminderCount(adaId)) === 2, "Bo's birthday leaves with him - Ada keeps her own people");
 
     // --- Re-invite, then member-not-owner guards + owner removal (FR-46) -----
     res = await post(`/lists/${listId}/invite`, { invitedEmailOrPhone: 'bo@example.com' }, tokenA);
     const token2: string = (await res.json()).invite.token;
     await post(`/invites/${token2}/accept`, undefined, tokenB);
-    check((await reminderCount(boId)) === 2, 'rejoining restores Bo\'s reminders for the shared people');
+    check((await reminderCount(boId)) === 3, 'rejoining restores Bo\'s reminders for the shared people');
 
     check((await patch(`/lists/${listId}`, { name: 'Hax' }, tokenB)).status === 403, 'a member cannot rename the list → 403');
     check((await del(`/lists/${listId}`, tokenB)).status === 403, 'a member cannot delete the list → 403');
@@ -208,7 +213,7 @@ async function main(): Promise<void> {
     // Re-add Bo so we can prove deletion revokes a live member too.
     res = await post(`/lists/${listId}/invite`, { invitedEmailOrPhone: 'bo@example.com' }, tokenA);
     await post(`/invites/${(await res.json()).invite.token}/accept`, undefined, tokenB);
-    check((await reminderCount(boId)) === 2, 'Bo rejoined once more before the list is deleted');
+    check((await reminderCount(boId)) === 3, 'Bo rejoined once more before the list is deleted');
 
     res = await del(`/lists/${listId}`, tokenA);
     check(res.status === 204, 'the owner deletes the list → 204');

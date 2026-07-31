@@ -35,15 +35,23 @@ let counter = 0;
  */
 export async function signUp(
   api: Api,
-  overrides: Partial<{ name: string; email: string; password: string; timezone: string }> = {},
+  overrides: Partial<{
+    name: string;
+    email: string;
+    password: string;
+    timezone: string;
+    /** The account's own birthday - required at signup. Pass one to pin the date. */
+    birthday: { month: number; day: number; year?: number | null };
+  }> = {},
 ): Promise<TestUser> {
   counter += 1;
   const name = overrides.name ?? `User ${counter}`;
   const email = overrides.email ?? `user${counter}.${Date.now()}@example.com`;
   const password = overrides.password ?? 'supersecret123';
   const timezone = overrides.timezone ?? 'UTC';
+  const birthday = overrides.birthday ?? { month: 6, day: 15, year: 1990 };
 
-  const res = await api.post('/auth/signup').send({ name, email, password, timezone });
+  const res = await api.post('/auth/signup').send({ name, email, password, timezone, birthday });
   if (res.status !== 201) {
     throw new Error(`signUp failed (${res.status}): ${JSON.stringify(res.body)}`);
   }

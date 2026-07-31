@@ -9,7 +9,7 @@ import {
   Upload,
 } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
-import { ScrollView, View } from 'react-native';
+import { View } from 'react-native';
 
 import {
   ChannelToggles,
@@ -18,9 +18,18 @@ import {
   ReminderTimePicker,
 } from '@/components/reminder-prefs';
 import {
+  DatePartsField,
+  MAX_DAY,
+  fromDateParts,
+  toDateParts,
+  type DatePartsStrings,
+} from '@/components/date-parts-field';
+import { PhoneField } from '@/components/phone-field';
+import {
   Button,
   Card,
   Chip,
+  FormScrollView,
   Icon,
   Screen,
   Text,
@@ -37,7 +46,7 @@ import {
 } from '@/lib/api';
 import { connectGmail } from '@/lib/gmail-auth';
 import { connectGoogleImport } from '@/lib/google-import-auth';
-import { formatNanp } from '@/lib/phone';
+import { clearPendingReturn } from '@/lib/pending-return';
 import { useAuth } from '@/providers/auth-provider';
 import { useThemePreference, type ThemePreference } from '@/theme/theme-provider';
 
@@ -78,16 +87,19 @@ export default function SettingsScreen() {
   // members). Fields are local drafts, seeded once the user hydrates - unlike
   // the toggles above they'd lose in-progress typing if they read from `user`.
   const [name, setName] = useState(user?.name ?? '');
-  const [phone, setPhone] = useState(formatNanp(user?.phone));
+  const [phone, setPhone] = useState(user?.phone ?? '');
+  const [birthday, setBirthday] = useState<DatePartsStrings>(fromDateParts(user?.birthday));
   const [profileSeeded, setProfileSeeded] = useState(!!user);
   const [nameError, setNameError] = useState<string | undefined>(undefined);
+  const [birthdayError, setBirthdayError] = useState<string | undefined>(undefined);
   const [savingProfile, setSavingProfile] = useState(false);
 
   // Seed once during render (not in an effect) when the user hydrates after
   // mount — React re-renders immediately with the seeded values.
   if (user && !profileSeeded) {
     setName(user.name);
-    setPhone(formatNanp(user.phone));
+    setPhone(user.phone ?? '');
+    setBirthday(fromDateParts(user.birthday));
     setProfileSeeded(true);
   }
 
@@ -98,9 +110,25 @@ export default function SettingsScreen() {
       return;
     }
     setNameError(undefined);
+    // Blank clears it - and takes it back out of every list it was shared with.
+    const dob = toDateParts(birthday);
+    const partial = !dob && (birthday.month !== '' || birthday.day !== '' || birthday.year !== '');
+    if (partial) {
+      setBirthdayError('Add a month and a day, or clear your birthday.');
+      return;
+    }
+    if (dob && dob.day > MAX_DAY[dob.month - 1]) {
+      setBirthdayError("That day doesn't exist in that month.");
+      return;
+    }
+    setBirthdayError(undefined);
     setSavingProfile(true);
     try {
-      await updateProfile({ name: trimmedName, phone: phone.trim() ? phone.trim() : null });
+      await updateProfile({
+        name: trimmedName,
+        phone: phone.trim() ? phone.trim() : null,
+        birthday: dob,
+      });
       toast.show('Profile saved.');
     } catch {
       toast.show("Couldn't save that. Check your connection and try again.");
@@ -142,6 +170,9 @@ export default function SettingsScreen() {
   const onConnectGmail = async () => {
     setConnectingGmail(true);
     try {
+      // Started here, so the return belongs here — drop any draft another screen
+      // parked, or an Android deep-link return would resume that screen instead.
+      await clearPendingReturn();
       const result = await connectGmail();
       if (result === 'connected') {
         await refreshUser();
@@ -243,7 +274,7 @@ export default function SettingsScreen() {
 
   return (
     <Screen>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 24 }}>
+      <FormScrollView contentContainerStyle={{ paddingBottom: 24 }}>
         <View className="pb-2 pt-3">
           <Text variant="title">Settings</Text>
         </View>
@@ -258,14 +289,25 @@ export default function SettingsScreen() {
               placeholder="Your name"
               error={nameError}
             />
-            <TextField
+            <PhoneField
               label="Phone"
               optional
               value={phone}
-              onChangeText={setPhone}
-              placeholder="(555) 123-4567"
-              keyboardType="phone-pad"
-              hint="Used for the day-of greeting shortcut."
+              onChange={setPhone}
+              hint="Used for the day-of greeting shortcut. Pick your country code."
+            />
+            <DatePartsField
+              label="Your birthday"
+              optional
+              value={birthday}
+              onChange={setBirthday}
+              error={birthdayError}
+              hint="Shared only with the lists you choose to share it with. Clear it to stop sharing everywhere."
+              a11y={{
+                month: 'Your birthday month',
+                day: 'Your birthday day',
+                year: 'Your birth year, optional',
+              }}
             />
             <View>
               {user?.email ? (
@@ -462,7 +504,7 @@ export default function SettingsScreen() {
             </Button>
           </View>
         </Card>
-      </ScrollView>
+      </FormScrollView>
     </Screen>
   );
 }

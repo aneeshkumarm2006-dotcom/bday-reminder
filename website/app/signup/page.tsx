@@ -5,6 +5,12 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { AuthShell } from "@/components/app/auth-shell";
+import {
+  DatePartsField,
+  EMPTY_DATE_PARTS,
+  isCompleteDateParts,
+  type DatePartsValue,
+} from "@/components/app/date-parts-field";
 import { GoogleAuthButton } from "@/components/app/google-auth-button";
 import { Button } from "@/components/ui/button";
 import { TextField } from "@/components/ui/input";
@@ -18,6 +24,7 @@ export default function SignupPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [birthday, setBirthday] = useState<DatePartsValue>(EMPTY_DATE_PARTS);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -32,9 +39,13 @@ export default function SignupPage() {
       setError("Use at least 8 characters for your password.");
       return;
     }
+    if (!isCompleteDateParts(birthday)) {
+      setError("Add the month and day of your birthday.");
+      return;
+    }
     setBusy(true);
     try {
-      await signUp({ name: name.trim(), email: email.trim(), password });
+      await signUp({ name: name.trim(), email: email.trim(), password, birthday });
       router.replace("/calendar");
     } catch (err) {
       setError(
@@ -84,8 +95,21 @@ export default function SignupPage() {
           showPasswordToggle
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          error={error}
         />
+        <DatePartsField
+          label="Your birthday 🎂"
+          allowEmpty
+          value={birthday}
+          onChange={setBirthday}
+          helper="So the people you share lists with can celebrate you too. The year is optional."
+        />
+        {/* One error slot for the whole form — it used to hang off the password
+            field, which read oddly for a birthday problem. */}
+        {error ? (
+          <p role="alert" className="text-sm text-danger-fg">
+            {error}
+          </p>
+        ) : null}
         <Button type="submit" size="lg" className="mt-1 w-full" disabled={busy}>
           {busy ? "Creating account…" : "Create account"}
         </Button>

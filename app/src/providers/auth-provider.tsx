@@ -14,6 +14,7 @@ import {
   setUnauthorizedHandler,
   type AuthUser,
   type ChannelPreferences,
+  type DateParts,
   type UpdateMeInput,
 } from '@/lib/api';
 import {
@@ -37,7 +38,12 @@ type AuthContextValue = {
   status: AuthStatus;
   user: AuthUser | null;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (input: { name: string; email: string; password: string }) => Promise<void>;
+  signUp: (input: {
+    name: string;
+    email: string;
+    password: string;
+    birthday: DateParts;
+  }) => Promise<void>;
   /**
    * "Sign in with Google" (identity only, Stage 16). Runs the in-app OAuth
    * session and, on 'ok', adopts the returned tokens + user like `signIn`.
@@ -52,6 +58,14 @@ type AuthContextValue = {
    * single-use, so this and `signInWithGoogle` never both consume the same one.
    */
   completeGoogleSession: (handoff: string) => Promise<boolean>;
+  /**
+   * True right after a Google sign-in that CREATED the account. Those users
+   * never see a signup form, so they're the only ones who still owe us a
+   * birthday - the app's own form already asks for one, and asking an email
+   * signup twice reads as a bug.
+   */
+  needsBirthdayPrompt: boolean;
+  dismissBirthdayPrompt: () => void;
   signOut: () => Promise<void>;
   /**
    * Permanently delete the account and all its data, then clear the local
@@ -74,6 +88,7 @@ function applyMePatch(user: AuthUser, patch: UpdateMeInput): AuthUser {
   const next: AuthUser = { ...user };
   if (patch.name !== undefined) next.name = patch.name;
   if (patch.phone !== undefined) next.phone = patch.phone;
+  if (patch.birthday !== undefined) next.birthday = patch.birthday;
   if (patch.timezone !== undefined) next.timezone = patch.timezone;
   if (patch.defaultLeadDays !== undefined) next.defaultLeadDays = patch.defaultLeadDays;
   if (patch.defaultReminderTime !== undefined) next.defaultReminderTime = patch.defaultReminderTime;
@@ -98,6 +113,8 @@ function detectTimezone(): string | undefined {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<AuthStatus>('loading');
   const [user, setUser] = useState<AuthUser | null>(null);
+  const [needsBirthdayPrompt, setNeedsBirthdayPrompt] = useState(false);
+  const dismissBirthdayPrompt = useCallback(() => setNeedsBirthdayPrompt(false), []);
 
   // Mirror of `user` for optimistic updates that need the pre-edit snapshot to
   // revert to, without adding `user` to updateProfile's dependencies.
@@ -180,6 +197,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { accessToken, refreshToken, user: googleUser } = result.session;
       await saveTokens({ accessToken, refreshToken });
       setUser(googleUser);
+      setNeedsBirthdayPrompt(result.session.isNew && !googleUser.birthday);
       setStatus('authenticated');
     }
     return result.status;
@@ -190,6 +208,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const session = await authApi.googleSession(handoff);
       await saveTokens({ accessToken: session.accessToken, refreshToken: session.refreshToken });
       setUser(session.user);
+      setNeedsBirthdayPrompt(session.isNew && !session.user.birthday);
       setStatus('authenticated');
       return true;
     } catch {
@@ -200,8 +219,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signUp = useCallback(
-    async ({ name, email, password }: { name: string; email: string; password: string }) => {
-      const res = await authApi.signup({ name, email, password, timezone: detectTimezone() });
+    async ({
+      name,
+      email,
+      password,
+      birthday,
+    }: {
+      name: string;
+      email: string;
+      password: string;
+      birthday: DateParts;
+    }) => {
+      const res = await authApi.signup({
+        name,
+        email,
+        password,
+        birthday,
+        timezone: detectTimezone(),
+      });
       await saveTokens({ accessToken: res.accessToken, refreshToken: res.refreshToken });
       setUser(res.user);
       setStatus('authenticated');
@@ -270,6 +305,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signUp,
       signInWithGoogle,
       completeGoogleSession,
+      needsBirthdayPrompt,
+      dismissBirthdayPrompt,
       signOut,
       deleteAccount,
       updateProfile,
@@ -282,6 +319,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signUp,
       signInWithGoogle,
       completeGoogleSession,
+      needsBirthdayPrompt,
+      dismissBirthdayPrompt,
       signOut,
       deleteAccount,
       updateProfile,

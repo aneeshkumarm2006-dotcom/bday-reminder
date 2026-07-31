@@ -1,15 +1,18 @@
 import { CheckCircle2 } from 'lucide-react-native';
 import { useState } from 'react';
-import {
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  useWindowDimensions,
-  View,
-} from 'react-native';
+import { ActivityIndicator, useWindowDimensions, View } from 'react-native';
 
-import { Button, Chip, Icon, Label, Sheet, Text, TextField, useToast } from '@/components/ui';
+import {
+  Button,
+  Chip,
+  FormScrollView,
+  Icon,
+  Label,
+  Sheet,
+  Text,
+  TextField,
+  useToast,
+} from '@/components/ui';
 import type { SmsChannel } from '@/lib/api';
 import {
   defaultTimeInheritLabel,
@@ -17,8 +20,11 @@ import {
   ReminderTimePicker,
   TimeZonePicker,
 } from '@/components/reminder-prefs';
+import { PhoneField } from '@/components/phone-field';
 import { ApiError } from '@/lib/api';
 import { connectGmail } from '@/lib/gmail-auth';
+import { clearPendingReturn } from '@/lib/pending-return';
+import { isE164 } from '@/lib/phone';
 import { timeZoneLabel } from '@/lib/timezones';
 import {
   defaultGreeting,
@@ -71,6 +77,7 @@ export function AutoSendSheet({
   initialSmsChannel = 'sms',
   alreadyEnabled,
   onConfirm,
+  onBeforeConnect,
 }: {
   channel: GreetingChannel;
   visible: boolean;
@@ -93,6 +100,14 @@ export function AutoSendSheet({
   /** true → editing an existing setup ("Save"); false → enabling ("Turn on"). */
   alreadyEnabled: boolean;
   onConfirm: (draft: AutoSendDraft) => void | Promise<void>;
+  /**
+   * Called with the sheet's current values just before the Gmail consent flow
+   * opens (email channel only). Android often dispatches the OAuth return as a
+   * fresh Intent, which resets the navigation stack and unmounts whatever was
+   * behind this sheet — the parent uses this to park its own draft plus these
+   * values so both come back intact.
+   */
+  onBeforeConnect?: (draft: AutoSendDraft) => void | Promise<void>;
 }) {
   const toast = useToast();
   const t = useTokens();
@@ -146,11 +161,30 @@ export function AutoSendSheet({
   const matched = matchTemplateId(message, channel, fillOpts);
   const activeTemplate = customPicked ? null : matched;
 
+  /** The sheet exactly as it stands - parked before an auth hand-off, saved on confirm. */
+  const currentDraft = (): AutoSendDraft => ({
+    recipient: recipient.trim(),
+    message: message.trim(),
+    sendTime,
+    sendTimeZone,
+    smsChannel,
+    smsTemplateId: isEmail ? null : activeTemplate,
+  });
+
   const onConnectPress = async () => {
     setConnecting(true);
     try {
+      // Park the whole screen before the browser takes over; on Android the
+      // return trip can wipe the navigation stack out from under us.
+      await onBeforeConnect?.(currentDraft());
       const result = await connectGmail();
-      if (result === 'connected') await refreshUser();
+      if (result === 'connected') {
+        // The session captured the redirect, so this screen was never torn down
+        // and the parked copy is spent - drop it before it can hijack a later,
+        // unrelated connect.
+        await clearPendingReturn();
+        await refreshUser();
+      }
       else if (result === 'error') toast.show("Couldn't connect Gmail. Please try again.");
       // 'dismissed' → nothing changes; the sheet stays open, still not connected.
     } catch {
@@ -160,7 +194,9 @@ export function AutoSendSheet({
     }
   };
 
-  const recipientOk = isEmail ? EMAIL_RE.test(recipient.trim()) : recipient.trim().length > 0;
+  // A half-typed number is stored happily but silently skipped at send time, so
+  // the text rails require a complete E.164 number before this can be turned on.
+  const recipientOk = isEmail ? EMAIL_RE.test(recipient.trim()) : isE164(recipient);
   const messageOk = message.trim().length > 0 && message.trim().length <= maxLen;
   const canConfirm =
     effectiveAvailable === true &&
@@ -174,14 +210,7 @@ export function AutoSendSheet({
     if (!canConfirm) return;
     setBusy(true);
     try {
-      await onConfirm({
-        recipient: recipient.trim(),
-        message: message.trim(),
-        sendTime,
-        sendTimeZone,
-        smsChannel,
-        smsTemplateId: isEmail ? null : activeTemplate,
-      });
+      await onConfirm(currentDraft());
       onClose();
     } catch (e) {
       toast.show(e instanceof ApiError ? e.message : "Couldn't save. Try again.");
@@ -241,143 +270,148 @@ export function AutoSendSheet({
           </Button>
         </View>
       ) : (
-        // Keyboard-aware, height-bounded body: the multiline message field sits
-        // low in the sheet, so it would otherwise hide behind the keyboard on
-        // iOS, and six template chips + fields can overflow small screens.
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <ScrollView
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}
-            style={{ maxHeight: windowHeight * 0.72 }}>
-            <View className="gap-4 pb-2">
+        // Height-bounded body: six template chips + fields can overflow small
+        // screens. The Sheet lifts clear of the keyboard; this scroller then
+        // brings whichever field you tapped (the message box sits low) into
+        // view inside what's left.
+        <FormScrollView style={{ maxHeight: windowHeight * 0.72, flexShrink: 1 }}>
+          <View className="gap-4 pb-2">
+            {isEmail ? (
               <TextField
-                label={isEmail ? 'Their email' : 'Their phone'}
+                label="Their email"
                 value={recipient}
                 onChangeText={setRecipient}
-                placeholder={isEmail ? 'emma@example.com' : '(555) 123-4567'}
-                keyboardType={isEmail ? 'email-address' : 'phone-pad'}
+                placeholder="emma@example.com"
+                keyboardType="email-address"
                 autoCapitalize="none"
                 autoCorrect={false}
                 hint="Saved to the person when you confirm."
               />
-
-              <View>
-                <Label>Greeting</Label>
-                <View className="flex-row flex-wrap gap-2">
-                  {templatesFor(channel).map((tpl) => (
-                    <Chip
-                      key={tpl.id}
-                      label={tpl.label}
-                      selected={activeTemplate === tpl.id}
-                      onPress={() => {
-                        setCustomPicked(false);
-                        setMessage(fillTemplate(tpl.text, fillOpts));
-                      }}
-                    />
-                  ))}
-                  <Chip
-                    label="Write your own"
-                    selected={activeTemplate === null}
-                    onPress={() => setCustomPicked(true)}
-                  />
-                </View>
-              </View>
-
-              <TextField
-                label="Message"
-                value={message}
-                onChangeText={setMessage}
-                multiline
-                numberOfLines={isEmail ? 3 : 2}
-                maxLength={maxLen}
-                autoCapitalize="sentences"
-                hint={
-                  isEmail
-                    ? `Subject will be "Happy Birthday, ${firstName(personName)}!" · sent as a designed birthday card`
-                    : isWhatsapp
-                      ? `${message.length}/${SMS_MAX} · Keep it short and friendly — one message.`
-                      : `${message.length}/${SMS_MAX} · Keep it short — one message. An emoji costs extra.`
-                }
+            ) : (
+              <PhoneField
+                label="Their phone"
+                value={recipient}
+                onChange={setRecipient}
+                hint="Saved to the person when you confirm. Pick their country code."
               />
+            )}
 
-              <View>
-                <Label>Send time</Label>
-                <ReminderTimePicker
-                  value={sendTime}
-                  onChange={setSendTime}
-                  inheritLabel={defaultTimeInheritLabel(user?.defaultReminderTime)}
+            <View>
+              <Label>Greeting</Label>
+              <View className="flex-row flex-wrap gap-2">
+                {templatesFor(channel).map((tpl) => (
+                  <Chip
+                    key={tpl.id}
+                    label={tpl.label}
+                    selected={activeTemplate === tpl.id}
+                    onPress={() => {
+                      setCustomPicked(false);
+                      setMessage(fillTemplate(tpl.text, fillOpts));
+                    }}
+                  />
+                ))}
+                <Chip
+                  label="Write your own"
+                  selected={activeTemplate === null}
+                  onPress={() => setCustomPicked(true)}
                 />
               </View>
+            </View>
 
-              <View>
-                <Label>Time zone</Label>
-                <TimeZonePicker
-                  value={sendTimeZone}
-                  onChange={setSendTimeZone}
-                  inheritLabel={`My timezone (${user?.timezone ?? 'auto'})`}
-                />
-                <Text variant="caption" className="mt-1.5 text-ink-muted">
-                  {`Sends at that time in this zone — pick where ${firstName(personName)} lives to greet them at their local time.`}
-                </Text>
-              </View>
+            <TextField
+              label="Message"
+              value={message}
+              onChangeText={setMessage}
+              multiline
+              numberOfLines={isEmail ? 3 : 2}
+              maxLength={maxLen}
+              autoCapitalize="sentences"
+              hint={
+                isEmail
+                  ? `Subject will be "Happy Birthday, ${firstName(personName)}!" · sent as a designed birthday card`
+                  : isWhatsapp
+                    ? `${message.length}/${SMS_MAX} · Keep it short and friendly — one message.`
+                    : `${message.length}/${SMS_MAX} · Keep it short — one message. An emoji costs extra.`
+              }
+            />
 
-              {isEmail ? (
-                <View className="rounded-md bg-surface-sunken p-3">
-                  {gmailReady ? (
-                    <View className="flex-row items-start gap-2.5">
-                      <Icon icon={CheckCircle2} size={18} color={t.okFg} />
-                      <Text variant="caption" className="flex-1 text-ink-secondary">
-                        {`Sends from ${user?.gmailEmail ?? 'your Gmail'} — as you, once a year on their birthday at ${effectiveTimeLabel}. Your note arrives as a designed birthday card, with a small “Sent with Circle the date” line at the bottom.`}
-                      </Text>
-                    </View>
-                  ) : connecting ? (
-                    <View className="flex-row items-center gap-2">
-                      <ActivityIndicator color={t.biro} />
-                      <Text variant="caption" className="text-ink-muted">
-                        Connecting your Gmail…
-                      </Text>
-                    </View>
-                  ) : (
-                    <View className="gap-3">
-                      <Text variant="caption" className="text-ink-secondary">
-                        {"This sends from your Gmail, as you. You'll sign in with Google and allow “send email on your behalf” — we never see your inbox."}
-                      </Text>
-                      <Button variant="secondary" onPress={onConnectPress}>
-                        Continue with Google
-                      </Button>
-                    </View>
-                  )}
-                </View>
-              ) : (
-                <View className="gap-2">
-                  <View className="rounded-md bg-surface-sunken p-3">
-                    <Text variant="caption" className="text-ink-secondary">
-                      {`${
-                        isWhatsapp
-                          ? 'The WhatsApp message comes from a shared business number'
-                          : 'The text comes from a shared number'
-                      } — not yours — and is signed with your name${
-                        user?.name ? ` (${user.name})` : ''
-                      }, once a year on their birthday at ${effectiveTimeLabel}.`}
+            <View>
+              <Label>Send time</Label>
+              <ReminderTimePicker
+                value={sendTime}
+                onChange={setSendTime}
+                inheritLabel={defaultTimeInheritLabel(user?.defaultReminderTime)}
+              />
+            </View>
+
+            <View>
+              <Label>Time zone</Label>
+              <TimeZonePicker
+                value={sendTimeZone}
+                onChange={setSendTimeZone}
+                inheritLabel={`My timezone (${user?.timezone ?? 'auto'})`}
+              />
+              <Text variant="caption" className="mt-1.5 text-ink-muted">
+                {`Sends at that time in this zone — pick where ${firstName(personName)} lives to greet them at their local time.`}
+              </Text>
+            </View>
+
+            {isEmail ? (
+              <View className="rounded-md bg-surface-sunken p-3">
+                {gmailReady ? (
+                  <View className="flex-row items-start gap-2.5">
+                    <Icon icon={CheckCircle2} size={18} color={t.okFg} />
+                    <Text variant="caption" className="flex-1 text-ink-secondary">
+                      {`Sends from ${user?.gmailEmail ?? 'your Gmail'} — as you, once a year on their birthday at ${effectiveTimeLabel}. Your note arrives as a designed birthday card, with a small “Sent with Circle the date” line at the bottom.`}
                     </Text>
                   </View>
-                  {isWhatsapp && activeTemplate === null ? (
-                    <View className="rounded-md bg-warn-bg p-3">
-                      <Text variant="caption" className="text-warn-fg">
-                        WhatsApp can only auto-send an approved template — pick a greeting above. Custom
-                        text only reaches them if you already have an open WhatsApp chat.
-                      </Text>
-                    </View>
-                  ) : null}
+                ) : connecting ? (
+                  <View className="flex-row items-center gap-2">
+                    <ActivityIndicator color={t.biro} />
+                    <Text variant="caption" className="text-ink-muted">
+                      Connecting your Gmail…
+                    </Text>
+                  </View>
+                ) : (
+                  <View className="gap-3">
+                    <Text variant="caption" className="text-ink-secondary">
+                      {"This sends from your Gmail, as you. You'll sign in with Google and allow “send email on your behalf” — we never see your inbox."}
+                    </Text>
+                    <Button variant="secondary" onPress={onConnectPress}>
+                      Continue with Google
+                    </Button>
+                  </View>
+                )}
+              </View>
+            ) : (
+              <View className="gap-2">
+                <View className="rounded-md bg-surface-sunken p-3">
+                  <Text variant="caption" className="text-ink-secondary">
+                    {`${
+                      isWhatsapp
+                        ? 'The WhatsApp message comes from a shared business number'
+                        : 'The text comes from a shared number'
+                    } — not yours — and is signed with your name${
+                      user?.name ? ` (${user.name})` : ''
+                    }, once a year on their birthday at ${effectiveTimeLabel}.`}
+                  </Text>
                 </View>
-              )}
+                {isWhatsapp && activeTemplate === null ? (
+                  <View className="rounded-md bg-warn-bg p-3">
+                    <Text variant="caption" className="text-warn-fg">
+                      WhatsApp can only auto-send an approved template — pick a greeting above. Custom
+                      text only reaches them if you already have an open WhatsApp chat.
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
+            )}
 
-              <Button fullWidth loading={busy} disabled={!canConfirm} onPress={confirm}>
-                {alreadyEnabled ? 'Save' : 'Turn on'}
-              </Button>
-            </View>
-          </ScrollView>
-        </KeyboardAvoidingView>
+            <Button fullWidth loading={busy} disabled={!canConfirm} onPress={confirm}>
+              {alreadyEnabled ? 'Save' : 'Turn on'}
+            </Button>
+          </View>
+        </FormScrollView>
       )}
     </Sheet>
   );

@@ -121,9 +121,9 @@ async function main(): Promise<void> {
     );
 
     // --- Regression: password signup + login still work --------------------
-    res = await post('/auth/signup', { name: 'Pat Password', email: 'pat@example.com', password: 'supersecret' });
+    res = await post('/auth/signup', { name: 'Pat Password', email: 'pat@example.com', password: 'supersecret', birthday: { month: 6, day: 15, year: 1990 } });
     check(res.status === 201, 'password signup still works (passwordHash optional in schema)');
-    res = await post('/auth/login', { email: 'pat@example.com', password: 'supersecret' });
+    res = await post('/auth/login', { email: 'pat@example.com', password: 'supersecret', birthday: { month: 6, day: 15, year: 1990 } });
     check(res.status === 200, 'password login still works');
     res = await post('/auth/login', { email: 'pat@example.com', password: 'wrong' });
     check(res.status === 401, 'wrong password is still rejected');

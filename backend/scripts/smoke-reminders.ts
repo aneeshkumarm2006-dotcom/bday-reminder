@@ -85,10 +85,11 @@ async function main(): Promise<void> {
       name: 'Michael',
       email: 'michael@example.com',
       password: 'supersecret',
+      birthday: { month: 6, day: 15, year: 1990 },
       timezone: 'UTC',
     });
     const tokenA: string = (await res.json()).accessToken;
-    res = await post('/auth/signup', { name: 'Mira', email: 'mira@example.com', password: 'supersecret', timezone: 'UTC' });
+    res = await post('/auth/signup', { name: 'Mira', email: 'mira@example.com', password: 'supersecret', birthday: { month: 6, day: 15, year: 1990 }, timezone: 'UTC' });
     const tokenB: string = (await res.json()).accessToken;
 
     // Auth guard

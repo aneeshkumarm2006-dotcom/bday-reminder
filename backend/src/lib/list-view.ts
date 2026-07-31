@@ -19,6 +19,21 @@ export interface ListMemberView {
   name: string;
   email: string;
   isOwner: boolean;
+  /** Their own birthday, when they've given one. Null otherwise - never guessed. */
+  birthday: { month: number; day: number; year: number | null } | null;
+  /**
+   * When they joined, so the list can mark whoever arrived recently. Null for
+   * members who joined before the field existed; that reads as "not new" rather
+   * than inventing a date for them.
+   */
+  joinedAt: string | null;
+}
+
+/** The user's own birthday in the shape every client already renders. */
+function birthdayOf(user: { birthday?: { month: number; day: number; year?: number } }) {
+  return user.birthday
+    ? { month: user.birthday.month, day: user.birthday.day, year: user.birthday.year ?? null }
+    : null;
 }
 
 export async function buildListView(list: SharedListDoc, viewerId: string) {
@@ -34,6 +49,9 @@ export async function buildListView(list: SharedListDoc, viewerId: string) {
       name: owner.name,
       email: owner.email,
       isOwner: true,
+      birthday: birthdayOf(owner),
+      // The owner has been here since the list existed.
+      joinedAt: list.createdAt.toISOString(),
     });
   }
   for (const member of list.members) {
@@ -44,6 +62,8 @@ export async function buildListView(list: SharedListDoc, viewerId: string) {
       name: u.name,
       email: u.email,
       isOwner: false,
+      birthday: birthdayOf(u),
+      joinedAt: member.joinedAt ? member.joinedAt.toISOString() : null,
     });
   }
 

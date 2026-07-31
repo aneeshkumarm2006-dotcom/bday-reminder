@@ -13,6 +13,12 @@ import {
   ReminderTimePicker,
   DEFAULT_CHANNELS,
 } from "@/components/app/reminder-prefs";
+import {
+  DatePartsField,
+  EMPTY_DATE_PARTS,
+  isCompleteDateParts,
+  type DatePartsValue,
+} from "@/components/app/date-parts-field";
 import { PageHeader } from "@/components/app/page-header";
 import { PhoneField } from "@/components/app/phone-field";
 import { Button } from "@/components/ui/button";
@@ -21,6 +27,7 @@ import { useConfirm } from "@/components/ui/confirm-dialog";
 import { TextField } from "@/components/ui/input";
 import { useToast } from "@/components/ui/toast";
 import { configApi, gmailApi, googleImportApi, type ChannelPreferences } from "@/lib/api";
+import { clearGmailReturn, peekGmailReturn } from "@/lib/gmail-return";
 import { useAuth } from "@/providers/auth-provider";
 
 /** Settings (FR-19-26) — profile, channels, lead times, reminder time, appearance. */
@@ -33,6 +40,8 @@ export default function SettingsPage() {
 
   const [name, setName] = useState(user?.name ?? "");
   const [phone, setPhone] = useState(user?.phone ?? "");
+  const [birthday, setBirthday] = useState<DatePartsValue>(user?.birthday ?? EMPTY_DATE_PARTS);
+  const [birthdayError, setBirthdayError] = useState<string | null>(null);
   const [profileBusy, setProfileBusy] = useState(false);
   const [connectingGmail, setConnectingGmail] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
@@ -41,22 +50,37 @@ export default function SettingsPage() {
 
   // Surface the outcome of the Gmail OAuth round-trip (backend redirects back to
   // /settings?gmail=connected|error), then clean the query so a refresh is quiet.
+  // When the connect was started from somewhere else — the person form, say —
+  // that page parked itself first; hand straight back to it instead of stranding
+  // the user here with their half-filled form gone.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const outcome = params.get("gmail");
     if (!outcome) return;
-    if (outcome === "connected") {
-      void refreshUser();
-      toast({ message: "Gmail connected.", tone: "success" });
-    } else {
-      toast({ message: "Couldn't connect Gmail. Please try again.", tone: "error" });
+    if (outcome === "connected") void refreshUser();
+
+    const parked = peekGmailReturn();
+    if (parked) {
+      // Desktop runs the consent in a second tab: close it and let the original
+      // tab, which still holds the live form, pick the connection up on focus.
+      // Phones don't allow that, so fall through to a navigation instead.
+      window.close();
+      const sep = parked.returnTo.includes("?") ? "&" : "?";
+      router.replace(`${parked.returnTo}${sep}resume=gmail&gmail=${outcome}`);
+      return;
     }
+
+    if (outcome === "connected") toast({ message: "Gmail connected.", tone: "success" });
+    else toast({ message: "Couldn't connect Gmail. Please try again.", tone: "error" });
     window.history.replaceState({}, "", "/settings");
-  }, [refreshUser, toast]);
+  }, [refreshUser, toast, router]);
 
   const onConnectGmail = async () => {
     setConnectingGmail(true);
     try {
+      // Started here, so the return belongs here — drop any record another page
+      // parked, or this round-trip would bounce off to that page instead.
+      clearGmailReturn();
       const { url } = await gmailApi.connectUrl();
       window.location.href = url; // full redirect to Google; returns to /settings
     } catch {
@@ -115,8 +139,23 @@ export default function SettingsPage() {
   };
 
   const saveProfile = async () => {
+    // A half-filled date is the one thing we won't guess at; blank clears it,
+    // which also stops sharing it with every list it reached.
+    const given = birthday.month > 0 || birthday.day > 0;
+    if (given && !isCompleteDateParts(birthday)) {
+      setBirthdayError("Add a month and a day, or clear your birthday.");
+      return;
+    }
+    setBirthdayError(null);
     setProfileBusy(true);
-    await persist({ name: name.trim(), phone: phone.trim() || null }, "Profile saved.");
+    await persist(
+      {
+        name: name.trim(),
+        phone: phone.trim() || null,
+        birthday: isCompleteDateParts(birthday) ? birthday : null,
+      },
+      "Profile saved.",
+    );
     setProfileBusy(false);
   };
 
@@ -153,6 +192,18 @@ export default function SettingsPage() {
             value={phone}
             onChange={setPhone}
           />
+          <DatePartsField
+            label="Your birthday"
+            allowEmpty
+            value={birthday}
+            onChange={setBirthday}
+            helper="Shared only with the lists you choose to share it with. Clear it to stop sharing everywhere."
+          />
+          {birthdayError ? (
+            <p role="alert" className="-mt-2 text-sm text-danger-fg">
+              {birthdayError}
+            </p>
+          ) : null}
           <p className="text-sm text-ink-muted">Timezone: {user.timezone ?? "auto"}</p>
           <div>
             <Button onClick={saveProfile} disabled={profileBusy}>

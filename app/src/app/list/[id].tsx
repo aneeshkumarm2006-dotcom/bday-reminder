@@ -1,5 +1,5 @@
 import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { ChevronLeft, ChevronRight, Copy, Trash2, UserPlus } from 'lucide-react-native';
+import { Cake, ChevronLeft, ChevronRight, Copy, Trash2, UserPlus } from 'lucide-react-native';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native';
 
@@ -27,6 +27,7 @@ import {
   type PersonListItem,
   type SharedListView,
 } from '@/lib/api';
+import { countdownLabel, daysUntil, monthAbbr, nextOccurrence, todayLocal } from '@/lib/dates';
 import { copyText } from '@/lib/clipboard';
 import { useTokens } from '@/theme/theme-provider';
 
@@ -45,6 +46,9 @@ export default function ListDetailScreen() {
 
   const [list, setList] = useState<SharedListView | null>(null);
   const [people, setPeople] = useState<PersonListItem[]>([]);
+  // How many of this list's people the viewer has taken out of their calendar -
+  // the way back into the catch-up screen once the invite flow is behind them.
+  const excludedCount = people.filter((p) => p.inMyCalendar === false && !p.isMine).length;
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [inviteOpen, setInviteOpen] = useState(false);
@@ -54,12 +58,14 @@ export default function ListDetailScreen() {
     if (!id) return;
     setError(null);
     try {
-      const [{ list: l }, { people: all }] = await Promise.all([
+      const [{ list: l }, { people: inList }] = await Promise.all([
         listsApi.get(id),
-        peopleApi.list(),
+        // Scoped server-side rather than fetching everyone and filtering here -
+        // and this is the call that reports what's in the viewer's calendar.
+        peopleApi.list({ list: id }),
       ]);
       setList(l);
-      setPeople(all.filter((p) => p.lists.includes(id)));
+      setPeople(inList);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "Couldn't load this list. Try again.");
     } finally {
@@ -220,9 +226,23 @@ export default function ListDetailScreen() {
           ) : null}
 
           {/* People shared in this list */}
-          <Text variant="label" className="mb-2 mt-6 text-ink-muted">
-            People
-          </Text>
+          <View className="mb-2 mt-6 flex-row items-center justify-between">
+            <Text variant="label" className="text-ink-muted">
+              People
+            </Text>
+            {people.length > 0 ? (
+              <Pressable
+                onPress={() => router.push(`/catch-up/${id}`)}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel="Choose who is in my calendar"
+                className={cn('rounded-sm', focusRing)}>
+                <Text variant="caption" className="text-biro">
+                  {excludedCount > 0 ? `${excludedCount} not in my calendar` : 'In my calendar'}
+                </Text>
+              </Pressable>
+            ) : null}
+          </View>
           {people.length > 0 ? (
             <Card>
               {people.map((person, i) => (
@@ -281,6 +301,20 @@ export default function ListDetailScreen() {
   );
 }
 
+/** Joined within the last fortnight - long enough that a weekly user still sees it. */
+function isNewMember(joinedAt: string | null): boolean {
+  if (!joinedAt) return false;
+  const at = Date.parse(joinedAt);
+  return Number.isFinite(at) && Date.now() - at < 14 * 86_400_000;
+}
+
+/** " · in 24 days" for an upcoming birthday, or "" when it's far off/today. */
+function birthdayCountdown(birthday: { month: number; day: number }): string {
+  const occurrence = nextOccurrence(birthday.month, birthday.day, 'feb28', todayLocal());
+  const label = countdownLabel(daysUntil(occurrence, todayLocal()));
+  return label ? ` · ${label}` : '';
+}
+
 function MemberRow({
   member,
   isOwnerViewing,
@@ -304,10 +338,23 @@ function MemberRow({
           </Text>
         </View>
         <View className="flex-1">
-          <Text variant="cardName">{member.name}</Text>
+          <View className="flex-row items-center gap-1.5">
+            <Text variant="cardName">{member.name}</Text>
+            {isNewMember(member.joinedAt) ? <Pill label="New" tone="info" /> : null}
+          </View>
           <Text variant="caption" className="mt-0.5 text-ink-muted" numberOfLines={1}>
             {member.email}
           </Text>
+          {/* Their own birthday, once they've shared it - the other half of what
+              a list is for. Nothing shows when they haven't; never nag for it. */}
+          {member.birthday ? (
+            <View className="mt-1 flex-row items-center gap-1.5">
+              <Icon icon={Cake} size={13} color={t.inkMuted} />
+              <Text variant="caption" className="text-ink-muted">
+                {`${monthAbbr(member.birthday.month)} ${member.birthday.day}${birthdayCountdown(member.birthday)}`}
+              </Text>
+            </View>
+          ) : null}
         </View>
         {member.isOwner ? (
           <Pill label="Owner" />
