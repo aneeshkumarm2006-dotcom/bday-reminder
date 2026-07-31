@@ -46,7 +46,7 @@ const STATIC_COMMANDS: Command[] = [
   { id: "activity", label: "Activity", hint: "Audit log and revisions", href: "/seoteam/activity", group: "Go to" },
   { id: "preview-landing", label: "Preview the landing draft", hint: "Opens the draft homepage", href: "/seoteam/preview/landing", group: "Actions" },
   { id: "export", label: "Export all content", hint: "JSON backup", href: "/seoteam/api/export", group: "Actions" },
-  // The six keyword landing pages, listed by hand rather than mapped from
+  // The keyword landing pages, listed by hand rather than mapped from
   // `SEO_LANDING_PAGES`: importing that registry here would drag every page's
   // full copy — some 70KB of briefs — into the client bundle just to label a
   // menu. Unlike posts and pages above there's no list endpoint to fetch these
@@ -55,6 +55,7 @@ const STATIC_COMMANDS: Command[] = [
   { id: "seo-page-birthday-calendar", label: "Digital birthday calendar", hint: "/birthday-calendar", href: "/seoteam/seo-pages/birthday-calendar", group: "SEO pages" },
   { id: "seo-page-birthday-countdown-app", label: "Birthday countdown app", hint: "/birthday-countdown-app", href: "/seoteam/seo-pages/birthday-countdown-app", group: "SEO pages" },
   { id: "seo-page-birthday-tracker", label: "Birthday tracker app", hint: "/birthday-tracker", href: "/seoteam/seo-pages/birthday-tracker", group: "SEO pages" },
+  { id: "seo-page-birthday-tracker-printable", label: "Printable birthday tracker", hint: "/birthday-tracker-printable", href: "/seoteam/seo-pages/birthday-tracker-printable", group: "SEO pages" },
   { id: "seo-page-birthday-alarm", label: "Birthday alarm app", hint: "/birthday-alarm", href: "/seoteam/seo-pages/birthday-alarm", group: "SEO pages" },
   { id: "seo-page-family-birthday-calendar", label: "Family birthday calendar", hint: "/family-birthday-calendar", href: "/seoteam/seo-pages/family-birthday-calendar", group: "SEO pages" },
   { id: "seo-page-free", label: "Free birthday reminder app", hint: "/free", href: "/seoteam/seo-pages/free", group: "SEO pages" },

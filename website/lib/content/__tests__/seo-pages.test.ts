@@ -1,3 +1,6 @@
+import { existsSync } from "node:fs";
+import { join } from "node:path";
+
 import { describe, expect, it } from "vitest";
 
 import { DEFAULT_NAV, DEFAULT_PAGE_META } from "../defaults";
@@ -12,8 +15,8 @@ import { seoPageContentSchema } from "../validation";
  * The keyword landing pages are data, so the things that would silently break
  * them — an icon that isn't in the registry, a preview used twice, a slug the
  * page builder could shadow — are checked here rather than discovered in a
- * render. Each `it` runs across all six pages so adding a seventh is covered by
- * writing its data file and nothing else.
+ * render. Each `it` runs across every page in the registry, so adding one is
+ * covered by writing its data file and nothing else.
  */
 describe("seo landing pages", () => {
   it("has a unique slug per page", () => {
@@ -130,6 +133,27 @@ describe("seo landing pages", () => {
       expect(page.hero.primaryCta.label.trim(), page.slug).not.toBe("");
       expect(page.cta.ctaHref, page.slug).toMatch(/^\//);
       expect(page.cta.ctaLabel.trim(), page.slug).not.toBe("");
+    }
+  });
+
+  it("ships the file every download band promises", () => {
+    // The whole value of a "free printable" page is that the button hands over
+    // a file. A copy edit that renamed the path — or a deploy that dropped the
+    // asset — would leave the page promising a download and serving a 404, and
+    // nothing else in the suite renders far enough to notice.
+    for (const page of SEO_LANDING_PAGES) {
+      if (!page.download) continue;
+      const { href, ctaLabel, fileName, points } = page.download;
+      expect(href, page.slug).toMatch(/^\/[\w./-]+\.\w{2,4}$/);
+      expect(ctaLabel.trim(), page.slug).not.toBe("");
+      expect(points.length, page.slug).toBeGreaterThan(0);
+      expect(
+        existsSync(join(process.cwd(), "public", href.replace(/^\//, ""))),
+        `${page.slug}: public${href} is missing`,
+      ).toBe(true);
+      // The save-as name has to match the file the browser is fetching, or the
+      // download lands with a name that doesn't open.
+      if (fileName) expect(href.endsWith(fileName), page.slug).toBe(true);
     }
   });
 

@@ -32,6 +32,7 @@ import {
   monthAbbr,
   nextOccurrence,
 } from "@/lib/dates";
+import { formatPhone } from "@/lib/phone";
 import { cn } from "@/lib/utils";
 
 /** Person profile (FR-9/16/35) — events with rings, gift notes, edit/delete. */
@@ -261,7 +262,7 @@ export default function PersonProfilePage() {
                 {person.autoBirthdaySms?.enabled ? (
                   <>
                     {person.autoBirthdaySms.channel === "whatsapp" ? "WhatsApps" : "Texts"}{" "}
-                    {person.phone || "their phone"} each year, signed with your name.{" "}
+                    {formatPhone(person.phone) || "their phone"} each year, signed with your name.{" "}
                     <button
                       type="button"
                       aria-label="Edit the birthday message"

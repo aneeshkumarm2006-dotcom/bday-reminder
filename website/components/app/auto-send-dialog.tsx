@@ -9,6 +9,7 @@ import {
   ReminderTimePicker,
   TimeZonePicker,
 } from "@/components/app/reminder-prefs";
+import { PhoneField } from "@/components/app/phone-field";
 import { Button } from "@/components/ui/button";
 import { Chip } from "@/components/ui/chip";
 import { Dialog } from "@/components/ui/dialog";
@@ -25,6 +26,7 @@ import {
   templatesFor,
   type GreetingChannel,
 } from "@/lib/greeting-templates";
+import { isE164 } from "@/lib/phone";
 import { useAuth } from "@/providers/auth-provider";
 import { siteConfig } from "@/lib/site";
 import { timeZoneLabel } from "@/lib/timezones";
@@ -185,7 +187,9 @@ export function AutoSendDialog({
   const matched = matchTemplateId(message, channel, fillOpts);
   const activeTemplate = customPicked ? null : matched;
 
-  const recipientOk = isEmail ? EMAIL_RE.test(recipient.trim()) : recipient.trim().length > 0;
+  // A half-typed number is stored happily but silently skipped at send time, so
+  // the text rails require a complete E.164 number before this can be turned on.
+  const recipientOk = isEmail ? EMAIL_RE.test(recipient.trim()) : isE164(recipient);
   const messageOk = message.trim().length > 0 && message.trim().length <= maxLen;
   const canConfirm =
     effectiveAvailable === true && recipientOk && messageOk && (!isEmail || gmailReady) && !busy;
@@ -275,15 +279,24 @@ export function AutoSendDialog({
         </div>
       ) : (
         <div className="flex flex-col gap-4">
-          <TextField
-            label={isEmail ? "Their email" : "Their phone"}
-            type={isEmail ? "email" : "tel"}
-            autoComplete="off"
-            placeholder={isEmail ? "emma@example.com" : "(555) 123-4567"}
-            helper="Saved to the person when you confirm."
-            value={recipient}
-            onChange={(e) => setRecipient(e.target.value)}
-          />
+          {isEmail ? (
+            <TextField
+              label="Their email"
+              type="email"
+              autoComplete="off"
+              placeholder="emma@example.com"
+              helper="Saved to the person when you confirm."
+              value={recipient}
+              onChange={(e) => setRecipient(e.target.value)}
+            />
+          ) : (
+            <PhoneField
+              label="Their phone"
+              helper="Saved to the person when you confirm. Pick their country code."
+              value={recipient}
+              onChange={setRecipient}
+            />
+          )}
 
           <div>
             <Label id={`${messageId}-greeting`}>Greeting</Label>

@@ -8,6 +8,7 @@ import { useState } from "react";
 import { AddEventDialog } from "@/components/app/add-event-dialog";
 import { AutoSendDialog } from "@/components/app/auto-send-dialog";
 import { DatePartsField, type DatePartsValue } from "@/components/app/date-parts-field";
+import { PhoneField } from "@/components/app/phone-field";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Chip } from "@/components/ui/chip";
@@ -28,6 +29,7 @@ import {
 } from "@/lib/api";
 import { monthAbbr } from "@/lib/dates";
 import { eventTypeMeta } from "@/lib/event-style";
+import { formatPhone, isE164 } from "@/lib/phone";
 import { useAuth } from "@/providers/auth-provider";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -165,6 +167,12 @@ export function PersonForm({
     }
     if (autoSmsOn && !phone.trim()) {
       toast({ message: "Add a phone so the birthday SMS has somewhere to go.", tone: "error" });
+      return;
+    }
+    // A half-typed number would be stored and then silently skipped at send time,
+    // so catch it here while the country picker is still on screen.
+    if (phone.trim() && !isE164(phone)) {
+      toast({ message: "That phone number looks incomplete — check the digits.", tone: "error" });
       return;
     }
     const relationshipTag = useCustom ? customTag.trim() || null : tag || null;
@@ -350,14 +358,12 @@ export function PersonForm({
         )}
       </div>
 
-      {/* Phone */}
-      <TextField
+      {/* Phone — country code + national number, saved as one E.164 string. */}
+      <PhoneField
         label="Phone (optional)"
-        type="tel"
-        autoComplete="off"
-        helper="Needed for the day-of greeting shortcut."
+        helper="Pick their country — the code is part of the number a text is sent to."
         value={phone}
-        onChange={(e) => setPhone(e.target.value)}
+        onChange={setPhone}
       />
 
       {/* Email */}
@@ -413,7 +419,8 @@ export function PersonForm({
         />
         {autoSmsOn ? (
           <p className="mt-1 text-xs text-ink-muted">
-            By {autoSmsChannel === "whatsapp" ? "WhatsApp" : "SMS"} to {phone.trim() || "their phone"}
+            By {autoSmsChannel === "whatsapp" ? "WhatsApp" : "SMS"} to{" "}
+            {formatPhone(phone) || "their phone"}
             , signed {user?.name || "you"}, every year.{" "}
             <button
               type="button"

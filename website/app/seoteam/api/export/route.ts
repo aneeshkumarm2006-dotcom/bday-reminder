@@ -67,7 +67,7 @@ export async function GET() {
         showInSitemap: page.showInSitemap,
         author: page.author,
       })),
-      // Keyed by slug, and all six of them rather than only the edited ones:
+      // Keyed by slug, and all of them rather than only the edited ones:
       // like every other section here this is the effective copy, so a page
       // nobody has touched still exports what it currently renders.
       seoPages: seoPages.map((page) => ({ slug: page.slug, content: page })),

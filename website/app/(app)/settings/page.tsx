@@ -14,6 +14,7 @@ import {
   DEFAULT_CHANNELS,
 } from "@/components/app/reminder-prefs";
 import { PageHeader } from "@/components/app/page-header";
+import { PhoneField } from "@/components/app/phone-field";
 import { Button } from "@/components/ui/button";
 import { Chip } from "@/components/ui/chip";
 import { useConfirm } from "@/components/ui/confirm-dialog";
@@ -146,12 +147,11 @@ export default function SettingsPage() {
       <Section title="Profile">
         <div className="flex flex-col gap-4">
           <TextField label="Name" value={name} onChange={(e) => setName(e.target.value)} />
-          <TextField
+          <PhoneField
             label="Phone"
-            type="tel"
-            helper="Used for the day-of greeting shortcut."
+            helper="Used for the day-of greeting shortcut. Pick your country code."
             value={phone}
-            onChange={(e) => setPhone(e.target.value)}
+            onChange={setPhone}
           />
           <p className="text-sm text-ink-muted">Timezone: {user.timezone ?? "auto"}</p>
           <div>

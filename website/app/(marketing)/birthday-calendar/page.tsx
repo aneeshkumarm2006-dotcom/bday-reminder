@@ -20,8 +20,8 @@ import { seoLandingMetadata } from "@/lib/content/metadata";
  * for it on `/seoteam/meta` wins over them.
  *
  * ISR like the homepage, and both admin writes are wired to it: publishing the
- * copy revalidates all six landing paths (`revalidateFor("seo-page")`, because
- * every page names its five siblings) and saving the SEO metadata revalidates
+ * copy revalidates every landing path (`revalidateFor("seo-page")`, because
+ * each page names all of its siblings) and saving the SEO metadata revalidates
  * this one (`revalidateFor("meta")`) — so an edit is never stuck behind the
  * window.
  */

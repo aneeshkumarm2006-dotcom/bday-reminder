@@ -427,6 +427,22 @@ export const seoPageContentSchema = z.object({
       visuals: z.array(seoVisual).min(1).max(2).default(["app"]),
     })
     .prefault({}),
+  // Optional because only a file-intent page has one (see `SeoDownload`). It's
+  // `.optional()` rather than `.prefault({})` on purpose: prefaulting would
+  // conjure an empty download band onto the other six pages the first time one
+  // of them was saved.
+  download: z
+    .object({
+      heading: z.string().trim().max(200).default(""),
+      body: z.string().trim().max(800).default(""),
+      href: linkHref.default(""),
+      ctaLabel: z.string().trim().max(80).default(""),
+      fileName: z.string().trim().max(120).default(""),
+      meta: z.string().trim().max(120).default(""),
+      points: z.array(z.string().trim().max(240)).max(12).default([]),
+      secondaryCta: cta,
+    })
+    .optional(),
   contrast: z
     .object({
       headingParts: z

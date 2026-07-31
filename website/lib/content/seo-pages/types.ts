@@ -49,6 +49,32 @@ export interface SeoContrast {
   body: string;
 }
 
+/**
+ * The download band, for a page whose search intent is a file rather than the
+ * product ("birthday tracker printable").
+ *
+ * Optional, and only one page has it today — the rest of the cluster answers
+ * its query with the app itself, and a download card on those pages would be a
+ * distraction from the signup they exist to earn. It renders directly under the
+ * hero because someone who searched for a printable came for the file: making
+ * them scroll past three feature rows first would be the wrong trade.
+ */
+export interface SeoDownload {
+  heading: string;
+  body: string;
+  /** The file, served from `public/`. Rendered as `<a download>`, not a Link. */
+  href: string;
+  ctaLabel: string;
+  /** Suggested save-as name, so the browser doesn't invent one from the URL. */
+  fileName: string;
+  /** The small print beside the button, e.g. "PDF · 1 page · Letter & A4". */
+  meta: string;
+  /** What's in the file — the checklist beside the button. */
+  points: string[];
+  /** The "or do it digitally instead" link under the download button. */
+  secondaryCta: CtaLink;
+}
+
 /** A headline feature: full-width row beside a rendered product shot. */
 export interface SeoFeatureRow {
   id: string;
@@ -112,6 +138,8 @@ export interface SeoLandingPageDef {
   description: string;
   keywords: string[];
   hero: SeoHero;
+  /** Only set on pages that ship a file — see `SeoDownload`. */
+  download?: SeoDownload;
   contrast: SeoContrast;
   features: SeoFeatures;
   howItWorks: SeoHowItWorks;

@@ -1,4 +1,4 @@
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Check, Download } from "lucide-react";
 import Link from "next/link";
 
 import {
@@ -15,7 +15,7 @@ import { HeroTodayRing } from "@/components/today-rings";
 import { buttonVariants } from "@/components/ui/button";
 import { jsonLdScript } from "@/lib/blog/url";
 import { getAllSeoPageContent } from "@/lib/content/get";
-import type { SeoLandingPageDef } from "@/lib/content/seo-pages/types";
+import type { SeoDownload, SeoLandingPageDef } from "@/lib/content/seo-pages/types";
 import { siteConfig } from "@/lib/site";
 
 /**
@@ -62,6 +62,10 @@ export async function SeoLandingPage({ page }: { page: SeoLandingPageDef }) {
       />
 
       <SeoHero page={page} />
+
+      {/* Above the argument, not below it: a searcher who came for a file has
+          no reason to read three feature rows before being handed one. */}
+      {page.download && <SeoDownloadBand download={page.download} />}
 
       <ValueProp
         content={{
@@ -118,6 +122,18 @@ export async function SeoLandingPage({ page }: { page: SeoLandingPageDef }) {
   );
 }
 
+/**
+ * True for an internal path that points at a file rather than a route
+ * (`/birthday-tracker-printable.pdf`). Deliberately narrow: it only looks at
+ * the last segment of a same-origin path, so a route that merely contains a dot
+ * somewhere earlier isn't mistaken for an asset.
+ */
+function isFileHref(href: string): boolean {
+  if (!href.startsWith("/")) return false;
+  const last = href.split("?")[0].split("#")[0].split("/").pop() ?? "";
+  return /\.[a-z0-9]{2,4}$/i.test(last);
+}
+
 /* ---------------------------------- hero ---------------------------------- */
 
 /**
@@ -155,14 +171,27 @@ function SeoHero({ page }: { page: SeoLandingPageDef }) {
         </p>
 
         <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row">
-          {hero.primaryCta.label && (
-            <Link
-              href={hero.primaryCta.href}
-              className={`${buttonVariants({ size: "lg" })} hover:-translate-y-0.5 hover:shadow-[0_12px_28px_-12px_rgba(44,75,216,0.6)]`}
-            >
-              {hero.primaryCta.label}
-            </Link>
-          )}
+          {hero.primaryCta.label &&
+            (isFileHref(hero.primaryCta.href) ? (
+              // A file in `public/` isn't a route, so it can't be a <Link> —
+              // the client router would try to navigate to it and hand the job
+              // back to the browser anyway, minus the download hint.
+              <a
+                href={hero.primaryCta.href}
+                download
+                className={`${buttonVariants({ size: "lg" })} gap-2 hover:-translate-y-0.5 hover:shadow-[0_12px_28px_-12px_rgba(44,75,216,0.6)]`}
+              >
+                <Download size={17} aria-hidden="true" />
+                {hero.primaryCta.label}
+              </a>
+            ) : (
+              <Link
+                href={hero.primaryCta.href}
+                className={`${buttonVariants({ size: "lg" })} hover:-translate-y-0.5 hover:shadow-[0_12px_28px_-12px_rgba(44,75,216,0.6)]`}
+              >
+                {hero.primaryCta.label}
+              </Link>
+            ))}
           <Link
             href="#how"
             className={`${buttonVariants({ variant: "secondary", size: "lg" })} hover:-translate-y-0.5`}
@@ -183,6 +212,73 @@ function SeoHero({ page }: { page: SeoLandingPageDef }) {
           ))}
         </Reveal>
       </div>
+    </section>
+  );
+}
+
+/* -------------------------------- download -------------------------------- */
+
+/**
+ * The give-away band: what's in the file on the left, the button on the right.
+ *
+ * The link is a plain `<a download>` to a static asset — no interstitial, no
+ * email gate, no route in between. That's the promise the page's title makes,
+ * and routing the click through anything else would break it.
+ */
+function SeoDownloadBand({ download }: { download: SeoDownload }) {
+  return (
+    <section id="download" className="mx-auto w-full max-w-5xl scroll-mt-20 px-5 pb-4 pt-8">
+      <Reveal>
+        <div className="grid gap-8 rounded-xl border border-border-subtle bg-surface p-6 shadow-[0_18px_40px_-30px_rgba(15,23,42,0.45)] sm:p-8 lg:grid-cols-[1fr_auto] lg:items-center lg:gap-12">
+          <div>
+            <h2 className="text-balance font-display text-2xl font-semibold tracking-[-0.01em] text-ink">
+              {download.heading}
+            </h2>
+            <p className="mt-3 text-pretty leading-relaxed text-ink-secondary">
+              {download.body}
+            </p>
+            {download.points.length > 0 && (
+              <ul className="mt-5 grid gap-2.5 sm:grid-cols-2">
+                {download.points.map((point) => (
+                  <li key={point} className="flex items-start gap-2.5 text-sm text-ink-secondary">
+                    <Check
+                      size={16}
+                      aria-hidden="true"
+                      className="mt-0.5 shrink-0 text-biro"
+                    />
+                    {point}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          <div className="flex flex-col items-start gap-3 lg:items-center lg:text-center">
+            <a
+              href={download.href}
+              download={download.fileName || undefined}
+              className={`${buttonVariants({ size: "lg" })} gap-2 hover:-translate-y-0.5 hover:shadow-[0_12px_28px_-12px_rgba(44,75,216,0.6)]`}
+            >
+              <Download size={17} aria-hidden="true" />
+              {download.ctaLabel}
+            </a>
+            {download.meta && <p className="text-xs text-ink-muted">{download.meta}</p>}
+            {download.secondaryCta.label && (
+              <Link
+                href={download.secondaryCta.href}
+                className="group inline-flex items-center gap-1.5 text-sm font-medium text-biro underline-offset-4 hover:underline"
+              >
+                {download.secondaryCta.label}
+                <ArrowRight
+                  size={15}
+                  aria-hidden="true"
+                  className="transition-transform duration-300 ease-out group-hover:translate-x-1"
+                />
+              </Link>
+            )}
+          </div>
+        </div>
+      </Reveal>
     </section>
   );
 }

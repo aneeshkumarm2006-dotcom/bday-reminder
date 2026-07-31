@@ -26,6 +26,7 @@ import { resetSeoPage, saveSeoPage } from "@/lib/content/admin-api";
 import type {
   SeoContrast,
   SeoCta,
+  SeoDownload,
   SeoFaq,
   SeoFeatures,
   SeoHero,
@@ -53,6 +54,7 @@ import { cn } from "@/lib/utils";
 type SectionKey =
   | "meta"
   | "hero"
+  | "download"
   | "contrast"
   | "features"
   | "howItWorks"
@@ -62,6 +64,7 @@ type SectionKey =
 const SECTIONS: { key: SectionKey; label: string; hint: string }[] = [
   { key: "meta", label: "Page & SEO", hint: "Name, blurb, title, description" },
   { key: "hero", label: "Hero", hint: "The fold: badge, headline, CTA" },
+  { key: "download", label: "Download", hint: "The free file this page gives away" },
   { key: "contrast", label: "Contrast", hint: "Why the obvious alternative fails" },
   { key: "features", label: "Features", hint: "Three rows plus supporting cards" },
   { key: "howItWorks", label: "How it works", hint: "The steps on the ring" },
@@ -159,7 +162,14 @@ export function SeoPageEditor({ initial }: { initial: SeoLandingPageDef }) {
     if (dirty && !busy) void persist("draft");
   });
 
-  const selected = SECTIONS.find((s) => s.key === selectedKey) ?? SECTIONS[0];
+  // The Download rail item only exists for a page that ships a file. Whether it
+  // has one is a decision made in the repo, alongside the asset in `public/` —
+  // the admin edits the words around the download, it doesn't invent one.
+  const sections = React.useMemo(
+    () => SECTIONS.filter((s) => s.key !== "download" || Boolean(page.download)),
+    [page.download],
+  );
+  const selected = sections.find((s) => s.key === selectedKey) ?? sections[0];
 
   return (
     <div className="grid gap-6 lg:grid-cols-[16rem_1fr]">
@@ -169,7 +179,7 @@ export function SeoPageEditor({ initial }: { initial: SeoLandingPageDef }) {
           Sections
         </p>
         <ul className="flex flex-col gap-1">
-          {SECTIONS.map((section) => (
+          {sections.map((section) => (
             <li key={section.key}>
               <button
                 type="button"
@@ -281,6 +291,10 @@ function SectionForm({
       return <MetaForm page={page} patch={patch} />;
     case "hero":
       return <HeroForm hero={page.hero} patch={(hero) => patch({ hero })} />;
+    case "download":
+      return page.download ? (
+        <DownloadForm download={page.download} patch={(download) => patch({ download })} />
+      ) : null;
     case "contrast":
       return (
         <ContrastForm contrast={page.contrast} patch={(contrast) => patch({ contrast })} />
@@ -469,6 +483,105 @@ function HeroForm({
           </p>
         </div>
       </FieldGrid>
+    </>
+  );
+}
+
+function DownloadForm({
+  download,
+  patch,
+}: {
+  download: SeoDownload;
+  patch: (next: SeoDownload) => void;
+}) {
+  return (
+    <>
+      <p className="rounded-md border border-border-subtle bg-surface-sunken/50 p-3 text-xs text-ink-muted">
+        The band under the hero. The <strong className="text-ink">file itself</strong> lives
+        in the repo at <code className="text-ink">website/public/</code> — changing the link
+        here to a file that isn&apos;t there gives visitors a 404 where the page promises a
+        download, so only change it alongside a deploy that ships the new file.
+      </p>
+      <TextRow
+        label="Heading"
+        value={download.heading}
+        max={70}
+        onChange={(heading) => patch({ ...download, heading })}
+      />
+      <TextAreaRow
+        label="Body"
+        value={download.body}
+        rows={3}
+        onChange={(body) => patch({ ...download, body })}
+      />
+      <fieldset className="rounded-md border border-border-subtle p-3">
+        <legend className="px-1 text-xs font-medium uppercase tracking-wide text-ink-muted">
+          The file
+        </legend>
+        <FieldGrid>
+          <TextRow
+            label="Button label"
+            value={download.ctaLabel}
+            onChange={(ctaLabel) => patch({ ...download, ctaLabel })}
+          />
+          <TextRow
+            label="File path"
+            value={download.href}
+            placeholder="/birthday-tracker-printable.pdf"
+            onChange={(href) => patch({ ...download, href })}
+            helper="Served straight from public/ — no route sits in between."
+          />
+        </FieldGrid>
+        <FieldGrid>
+          <TextRow
+            label="Save-as name"
+            value={download.fileName}
+            placeholder="birthday-tracker-printable.pdf"
+            onChange={(fileName) => patch({ ...download, fileName })}
+            helper="What the browser calls the file once saved."
+          />
+          <TextRow
+            label="File details"
+            value={download.meta}
+            placeholder="PDF · 1 page · US Letter and A4"
+            onChange={(meta) => patch({ ...download, meta })}
+            helper="The small print under the button. Keep it true to the file."
+          />
+        </FieldGrid>
+      </fieldset>
+      <div>
+        <BulletListEditor
+          values={download.points}
+          onChange={(points) => patch({ ...download, points })}
+        />
+        <p className="mt-1.5 text-xs text-ink-muted">
+          What&apos;s actually in the file — these are the claims a visitor checks the
+          moment it opens, so they have to match it.
+        </p>
+      </div>
+      <fieldset className="rounded-md border border-border-subtle p-3">
+        <legend className="px-1 text-xs font-medium uppercase tracking-wide text-ink-muted">
+          Secondary link
+        </legend>
+        <FieldGrid>
+          <TextRow
+            label="Label"
+            value={download.secondaryCta.label}
+            onChange={(label) =>
+              patch({ ...download, secondaryCta: { ...download.secondaryCta, label } })
+            }
+            helper="Leave blank to hide it — the “or do it digitally instead” escape hatch."
+          />
+          <TextRow
+            label="Link"
+            value={download.secondaryCta.href}
+            placeholder="/signup"
+            onChange={(href) =>
+              patch({ ...download, secondaryCta: { ...download.secondaryCta, href } })
+            }
+          />
+        </FieldGrid>
+      </fieldset>
     </>
   );
 }

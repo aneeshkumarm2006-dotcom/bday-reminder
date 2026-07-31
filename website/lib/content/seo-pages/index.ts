@@ -2,6 +2,7 @@ import { birthdayAlarmPage } from "./birthday-alarm";
 import { birthdayCalendarPage } from "./birthday-calendar";
 import { birthdayCountdownAppPage } from "./birthday-countdown-app";
 import { birthdayTrackerPage } from "./birthday-tracker";
+import { birthdayTrackerPrintablePage } from "./birthday-tracker-printable";
 import { familyBirthdayCalendarPage } from "./family-birthday-calendar";
 import { freePage } from "./free";
 import type { SeoLandingPageDef } from "./types";
@@ -26,6 +27,7 @@ export const SEO_LANDING_PAGES: readonly SeoLandingPageDef[] = [
   birthdayCalendarPage,
   birthdayCountdownAppPage,
   birthdayTrackerPage,
+  birthdayTrackerPrintablePage,
   birthdayAlarmPage,
   familyBirthdayCalendarPage,
   freePage,

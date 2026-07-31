@@ -19,7 +19,7 @@ export const metadata: Metadata = { title: "Keyword pages" };
  *
  * There's no "new page" button and there never will be: a page here is a data
  * file plus a route in the repo, written against an SEO brief. This screen edits
- * the copy of the six that exist.
+ * the copy of the ones that exist.
  */
 export default async function SeoPagesListPage() {
   if (!(await isSeoAuthenticated())) redirect("/seoteam/login");
@@ -38,7 +38,7 @@ export default async function SeoPagesListPage() {
       <AdminPage
         wide
         title="Keyword pages"
-        description="The six landing pages that target the search terms the homepage can't. Rewrite any of them; the layout stays the site's."
+        description="The landing pages that target the search terms the homepage can't. Rewrite any of them; the layout stays the site's."
       >
         {!isDbConfigured() && (
           <div className="mb-6">
