@@ -73,6 +73,50 @@ export async function metadataForPath(
 }
 
 /**
+ * The effective `PageMeta` for page N of a paginated listing route.
+ *
+ * `getPageMeta` is keyed by path alone, so every `?page=N` of a listing inherits
+ * page 1's canonical and title — i.e. each deeper page tells Google "I'm really
+ * page 1". That's not cosmetic: pages 2+ hold posts that appear on no other URL,
+ * and a canonical pointing away from them is an invitation to drop them.
+ *
+ * So pages 2+ self-canonicalise and say which page they are in the title and
+ * description. Page 1 is returned untouched — `?page=1` is a URL nothing links
+ * to, and it has to stay byte-identical to `/blog` either way.
+ *
+ * Only `title`/`description` are suffixed; an OG or Twitter title the admin
+ * typed by hand is left as written, and one they left empty still falls back to
+ * the numbered title inside `buildPageMetadata`. The canonical is rebuilt from
+ * the route path rather than extended from the stored one, because a canonical
+ * typed on the Page SEO screen is a statement about page 1.
+ *
+ * Pass `totalPages` when the caller already knows it — the page number is lifted
+ * straight into the canonical, so it should be one the listing can actually
+ * show, not whatever integer was in the query string.
+ */
+export function paginatedPageMeta(
+  meta: PageMeta,
+  page: number,
+  totalPages?: number,
+): PageMeta {
+  if (page <= 1) return meta;
+
+  const label =
+    totalPages && totalPages > 1 ? `Page ${page} of ${totalPages}` : `Page ${page}`;
+  const href = `${meta.path}?page=${page}`;
+  const title = meta.title.trim();
+  const description = meta.description.trim();
+
+  return {
+    ...meta,
+    title: title ? `${title} · ${label}` : label,
+    description: description ? `${label}. ${description}` : label,
+    canonical: href,
+    path: href,
+  };
+}
+
+/**
  * True when the Page SEO screen actually set this field. `getPageMeta` has
  * already collapsed the override into the route's shipped default, so "still
  * byte-identical to what shipped" is the only signal left for "untouched".

@@ -1,5 +1,7 @@
 import sanitizeHtml from "sanitize-html";
 
+import { normalizeHref } from "./link-normalize";
+
 /** Merge rel tokens, de-duped, order-stable. */
 function mergeRel(existing: string | undefined, add: string): string {
   const set = new Set(
@@ -14,6 +16,10 @@ function mergeRel(existing: string | undefined, add: string): string {
  * in depth — the editor is password-gated) and strips the junk styling that
  * pasting from a word processor brings. Keyword backlinks are injected later at
  * render time (see keyword-links.ts), against this already-clean HTML.
+ *
+ * It also normalizes hrefs (see link-normalize.ts) so newly written links can't
+ * reintroduce the http/apex/dead-domain URLs the render-time pass exists to
+ * repair — here the attribute is already parsed, so it's the cheapest place.
  */
 export function sanitizePostHtml(dirty: string): string {
   if (!dirty) return "";
@@ -32,6 +38,7 @@ export function sanitizePostHtml(dirty: string): string {
       h1: sanitizeHtml.simpleTransform("h2", {}),
       a: (tagName, attribs) => {
         const out: Record<string, string> = { ...attribs };
+        if (out.href) out.href = normalizeHref(out.href);
         if (out.target === "_blank") {
           out.rel = mergeRel(out.rel, "noopener noreferrer");
         }

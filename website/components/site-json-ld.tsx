@@ -4,7 +4,7 @@ import { buildSiteJsonLd } from "@/lib/content/site-json-ld";
 
 /**
  * Site-level structured data for the homepage: an Organization, the WebSite it
- * publishes, and the product itself as a WebApplication. Bundled in one
+ * publishes, and the product itself as a free Service. Bundled in one
  * `@graph` so the nodes cross-reference by `@id`. Emitted as
  * <script type="application/ld+json"> with the same XSS-safe escaping the blog
  * schema uses.

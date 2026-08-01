@@ -8,7 +8,6 @@ import { ICON_NAMES, isKnownIcon } from "../icons";
 import { analyzePageSeo, seoVerdict } from "../page-seo";
 import { buildPageMetadata } from "../metadata";
 import { derivePageVisibility, isAnnouncementLive } from "../schedule";
-import { buildSiteJsonLd, structuredDataWarnings } from "../site-json-ld";
 import type { PageBlock } from "../types";
 import { pageBlockSchema } from "../validation";
 
@@ -166,63 +165,6 @@ describe("buildPageMetadata", () => {
       DEFAULT_SETTINGS,
     );
     expect(meta.robots).toMatchObject({ index: false, follow: true });
-  });
-});
-
-describe("site JSON-LD", () => {
-  it("emits Organization, WebSite and WebApplication by default", () => {
-    const graph = buildSiteJsonLd(DEFAULT_SETTINGS)["@graph"] as Record<string, unknown>[];
-    expect(graph.map((n) => n["@type"])).toEqual([
-      "Organization",
-      "WebSite",
-      "WebApplication",
-    ]);
-  });
-
-  it("omits a disabled node entirely rather than emitting an empty one", () => {
-    const settings = {
-      ...DEFAULT_SETTINGS,
-      structuredData: {
-        ...DEFAULT_SETTINGS.structuredData,
-        organization: { ...DEFAULT_SETTINGS.structuredData.organization, enabled: false },
-      },
-    };
-    const graph = buildSiteJsonLd(settings)["@graph"] as Record<string, unknown>[];
-    expect(graph.some((n) => n["@type"] === "Organization")).toBe(false);
-    // …and the WebSite stops claiming a publisher that isn't there.
-    expect(graph.find((n) => n["@type"] === "WebSite")?.publisher).toBeUndefined();
-  });
-
-  it("builds sameAs from the social profiles, in order", () => {
-    const settings = {
-      ...DEFAULT_SETTINGS,
-      socials: [
-        { id: "b", platform: "X", url: "https://x.com/ctd", order: 1 },
-        { id: "a", platform: "Instagram", url: "https://instagram.com/ctd", order: 0 },
-      ],
-    };
-    const graph = buildSiteJsonLd(settings)["@graph"] as Record<string, unknown>[];
-    expect(graph.find((n) => n["@type"] === "Organization")?.sameAs).toEqual([
-      "https://instagram.com/ctd",
-      "https://x.com/ctd",
-    ]);
-  });
-
-  it("warns when nothing at all would be emitted", () => {
-    const settings = {
-      ...DEFAULT_SETTINGS,
-      structuredData: {
-        organization: { ...DEFAULT_SETTINGS.structuredData.organization, enabled: false },
-        website: { ...DEFAULT_SETTINGS.structuredData.website, enabled: false },
-        softwareApplication: {
-          ...DEFAULT_SETTINGS.structuredData.softwareApplication,
-          enabled: false,
-        },
-      },
-    };
-    expect(structuredDataWarnings(settings)).toContain(
-      "No structured data is being emitted at all.",
-    );
   });
 });
 

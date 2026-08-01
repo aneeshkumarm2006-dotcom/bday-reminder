@@ -522,12 +522,16 @@ const JSON_LD_TYPES = new Set([
   "HowTo",
   "ItemList",
   "LocalBusiness",
+  "Offer",
   "Organization",
   "Person",
   "Product",
   "Question",
   "Recipe",
   "Review",
+  // The site graph's own product node is a Service carrying an Offer, so a
+  // page-level custom block mirroring that shape has to be allowed through.
+  "Service",
   "SoftwareApplication",
   "VideoObject",
   "WebApplication",

@@ -2,6 +2,7 @@ import { isValidObjectId } from "mongoose";
 
 import { connectDb } from "./db";
 import { Post, type PostDoc } from "./models";
+import { rotateRelated } from "./seo-meta";
 import { serializePost } from "./serialize";
 import { slugify } from "./slug";
 import type {
@@ -138,6 +139,57 @@ export async function getPublishedPostBySlug(
     ...publishedFilter(),
   }).lean();
   return doc ? serializePost(doc as unknown as PostDoc) : null;
+}
+
+/** The fields a related-post link needs. Deliberately no `body` — see below. */
+export interface RelatedPost {
+  slug: string;
+  title: string;
+  excerpt: string;
+  /** ISO date to show under the link (`publishedAt`, falling back to creation). */
+  date: string;
+}
+
+/**
+ * The other posts to link to from the bottom of `/blog/<slug>`.
+ *
+ * Every post used to have exactly one incoming internal link — the blog index —
+ * which also stranded anything on index page 2+ at crawl depth 3 or 4. Linking
+ * each post to the N newest wouldn't fix that (the same N would collect every
+ * link), so the ordering is a rotation: sort published posts newest-first and
+ * take the N that follow this one, wrapping at the end. That hands every post the
+ * same number of incoming links and no post is more than a couple of hops in.
+ *
+ * The projection drops `body`, which is the whole weight of a post, so pulling
+ * the full list to find our position stays a cheap read.
+ */
+export async function getRelatedPosts(
+  slug: string,
+  limit = 3,
+): Promise<RelatedPost[]> {
+  await connectDb();
+  const docs = (await Post.find(publishedFilter())
+    .select("slug title excerpt publishedAt createdAt")
+    .sort({ publishedAt: -1, createdAt: -1 })
+    .lean()) as unknown as {
+    slug: string;
+    title: string;
+    excerpt?: string;
+    publishedAt?: Date | null;
+    createdAt?: Date;
+  }[];
+
+  const rows: RelatedPost[] = docs.map((d) => ({
+    slug: d.slug,
+    title: d.title,
+    excerpt: d.excerpt ?? "",
+    date: new Date(d.publishedAt ?? d.createdAt ?? 0).toISOString(),
+  }));
+
+  const current = rows.findIndex((r) => r.slug === slug.toLowerCase());
+  // Unknown slug (a preview, say) — the newest posts are the sensible default.
+  if (current < 0) return rows.slice(0, limit);
+  return rotateRelated(rows, current, limit);
 }
 
 export async function getAllPosts(): Promise<PostT[]> {

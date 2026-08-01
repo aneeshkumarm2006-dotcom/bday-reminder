@@ -1,5 +1,5 @@
 import { getSiteSettings } from "@/lib/content/get";
-import { buildSiteJsonLd, ORG_ID, WEBSITE_ID } from "@/lib/content/site-json-ld";
+import { APP_ID, buildSiteJsonLd, ORG_ID, WEBSITE_ID } from "@/lib/content/site-json-ld";
 import { siteConfig } from "@/lib/site";
 
 /**
@@ -14,7 +14,7 @@ import { siteConfig } from "@/lib/site";
  * name in one place updates the homepage and every blog post at once.
  */
 
-export { ORG_ID, WEBSITE_ID };
+export { APP_ID, ORG_ID, WEBSITE_ID };
 
 // A real, crawlable 512×512 PNG logo, replacing the old `/icon.svg` (which no
 // longer exists — the static file was superseded by the generated `/icon` route).

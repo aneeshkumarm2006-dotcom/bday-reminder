@@ -171,12 +171,22 @@ export function StructuredDataForm({ initial }: { initial: SiteSettings }) {
         />
       </AdminSection>
 
+      {/*
+        The product node is a schema.org Service, not a SoftwareApplication —
+        Google's Software App rich result requires an aggregateRating or review,
+        and we will not invent one, so we stop claiming that result instead. See
+        the why-comment in lib/content/site-json-ld.ts. The stored settings key
+        is still `softwareApplication` and still carries inert
+        `applicationCategory` / `operatingSystem` members: renaming them would
+        orphan the persisted Mongo doc. They are no longer emitted, so they are
+        no longer editable here.
+      */}
       <AdminSection
-        title="Application"
-        description="The product as a WebApplication, including its price."
+        title="Product"
+        description="The product as a free Service, including its price."
       >
         <ToggleRow
-          label="Emit WebApplication markup"
+          label="Emit Service markup"
           checked={app.enabled}
           onCheckedChange={(enabled) =>
             setDraft({ ...draft, softwareApplication: { ...app, enabled } })
@@ -188,24 +198,6 @@ export function StructuredDataForm({ initial }: { initial: SiteSettings }) {
             value={app.name}
             defaultHint={settings.identity.name}
             onChange={(name) => setDraft({ ...draft, softwareApplication: { ...app, name } })}
-          />
-          <TextRow
-            label="Application category"
-            value={app.applicationCategory}
-            placeholder="LifestyleApplication"
-            onChange={(applicationCategory) =>
-              setDraft({ ...draft, softwareApplication: { ...app, applicationCategory } })
-            }
-          />
-        </FieldGrid>
-        <FieldGrid>
-          <TextRow
-            label="Operating system"
-            value={app.operatingSystem}
-            placeholder="Web browser"
-            onChange={(operatingSystem) =>
-              setDraft({ ...draft, softwareApplication: { ...app, operatingSystem } })
-            }
           />
           <FieldGrid>
             <TextRow

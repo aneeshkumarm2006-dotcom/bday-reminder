@@ -1,3 +1,4 @@
+import { isInternalHref, normalizeHref } from "./link-normalize";
 import type { Keyword, KeywordRel, LinkOccurrences } from "./types";
 
 /**
@@ -13,6 +14,10 @@ import type { Keyword, KeywordRel, LinkOccurrences } from "./types";
  *   document (avoids over-optimization); "all" links every occurrence.
  * - External links open in a new tab with rel="noopener" plus nofollow/sponsored
  *   when requested (dofollow adds nothing extra).
+ * - Destination URLs are typed by hand in the admin, so they get the same href
+ *   normalization the post body does (link-normalize.ts). A row that ends up
+ *   pointing at our own site becomes a root-relative link and loses the new-tab
+ *   treatment, which only ever made sense for somebody else's page.
  */
 
 const SKIP_TAGS = new Set([
@@ -38,11 +43,18 @@ function escapeAttr(value: string): string {
     .replace(/>/g, "&gt;");
 }
 
-function relFor(rel: KeywordRel): string {
-  const parts = ["noopener"];
+function relFor(rel: KeywordRel, internal: boolean): string {
+  const parts = internal ? [] : ["noopener"];
   if (rel === "nofollow") parts.push("nofollow");
   else if (rel === "sponsored") parts.push("sponsored");
   return parts.join(" ");
+}
+
+/** The `target`/`rel` pair for one destination, as attributes ready to inline. */
+function anchorAttrs(url: string, rel: KeywordRel): string {
+  const internal = isInternalHref(url);
+  const relValue = relFor(rel, internal);
+  return `${internal ? "" : ' target="_blank"'}${relValue ? ` rel="${relValue}"` : ""}`;
 }
 
 function isHttpUrl(url: string): boolean {
@@ -68,9 +80,10 @@ function replaceInTextSegment(
     if (mode === "first" && used.has(key)) continue; // already linked once → leave as text
     out += text.slice(last, match.index);
     // `matched` is a slice of already-escaped HTML text, so emit it as-is.
-    out += `<a href="${escapeAttr(cfg.url)}" target="_blank" rel="${relFor(
+    out += `<a href="${escapeAttr(cfg.url)}"${anchorAttrs(
+      cfg.url,
       cfg.rel,
-    )}">${matched}</a>`;
+    )}>${matched}</a>`;
     last = match.index + matched.length;
     if (mode === "first") used.add(key);
     // Guard against a zero-length match (shouldn't happen with real keywords).
@@ -95,7 +108,9 @@ export function linkifyKeywords(
   for (const k of valid) {
     const trimmed = k.keyword.trim();
     const key = trimmed.toLowerCase();
-    if (!byText.has(key)) byText.set(key, { ...k, keyword: trimmed });
+    if (!byText.has(key)) {
+      byText.set(key, { ...k, keyword: trimmed, url: normalizeHref(k.url.trim()) });
+    }
   }
 
   // Longest keyword first so a phrase wins over a word it contains.

@@ -1,41 +1,33 @@
-"use client";
+import type { Metadata } from "next";
+import type { ReactNode } from "react";
 
-import { useRouter } from "next/navigation";
-import { useEffect, type ReactNode } from "react";
-
-import { Sidebar } from "@/components/app/sidebar";
-import { LoadingBlock } from "@/components/ui/spinner";
-import { useAuth } from "@/providers/auth-provider";
+import { AppShell } from "./app-shell";
 
 /**
- * The authenticated app shell. Client-side auth guard (tokens live in
- * localStorage, so there's no server session to gate on): while loading, show a
- * spinner; if signed out, bounce to /login. Renders the persistent Sidebar.
+ * Every screen in this group sits behind the sign-in guard, so a crawler only
+ * ever sees the spinner — an empty shell with no h1 and no copy. Marking the
+ * subtree noindex keeps those husks out of the index (Semrush was flagging
+ * /calendar for a missing h1 and thin content) while `follow: true` lets the
+ * links out of them still carry weight.
+ *
+ * `canonical: null` is the load-bearing half: metadata merges shallowly, so
+ * without this the whole group inherits the root layout's `canonical: "/"` and
+ * tells Google these pages *are* the homepage. One layout covers a dozen paths,
+ * so there's no honest self-referential URL to put here — none is correct.
+ *
+ * `nocache` because these render a signed-in person's own birthdays.
  */
+export const metadata: Metadata = {
+  title: "Your reminders",
+  robots: {
+    index: false,
+    follow: true,
+    nocache: true,
+    googleBot: { index: false, follow: true },
+  },
+  alternates: { canonical: null },
+};
+
 export default function AppLayout({ children }: { children: ReactNode }) {
-  const { status } = useAuth();
-  const router = useRouter();
-
-  useEffect(() => {
-    if (status === "unauthenticated") {
-      router.replace("/login");
-    }
-  }, [status, router]);
-
-  if (status !== "authenticated") {
-    return (
-      <div className="flex min-h-dvh items-center justify-center">
-        <LoadingBlock />
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex min-h-dvh w-full flex-col lg:flex-row">
-      <Sidebar />
-      <main className="min-w-0 flex-1 px-4 py-6 sm:px-8 sm:py-10">
-        <div className="mx-auto w-full max-w-6xl">{children}</div>
-      </main>
-    </div>
-  );
+  return <AppShell>{children}</AppShell>;
 }

@@ -49,7 +49,73 @@ export default async function ContactPage() {
             </Link>
           </div>
         )}
+        <ContactGuidance />
       </LegalPage>
     </>
+  );
+}
+
+// `LegalPage` applies its prose classes to `html` only; children render in a
+// plain stack beneath it, so the few elements below carry their own.
+const headingClass = "mt-2 font-display text-xl font-semibold text-ink";
+const linkClass = "text-biro underline underline-offset-2";
+
+/**
+ * The part of the page a reader actually needs: what an email to us can settle,
+ * what they can do faster themselves, and how long we take.
+ *
+ * It lives here rather than in the admin-managed `contact` legal doc because it
+ * describes the product's own screens (Settings, a person's profile, a shared
+ * list) and has to move when those move, not when someone edits copy.
+ */
+function ContactGuidance() {
+  return (
+    <div className="flex flex-col gap-6 leading-relaxed text-ink-secondary">
+      <h2 className={headingClass}>What to write to us about</h2>
+      <p>
+        Bugs, mostly. If a reminder never arrived, or turned up at the wrong hour, tell
+        us the name it was for and roughly when you expected it. That&rsquo;s usually
+        enough to find the run it belongs to and see what it did.
+      </p>
+      <p>
+        Imports are the other common one. If a spreadsheet went in with ninety names and
+        came out with sixty, send us the file and we&rsquo;ll tell you which rows the
+        parser couldn&rsquo;t read.
+      </p>
+      <p>
+        Feature requests are fine too. And if you think you&rsquo;ve found a security
+        problem, say so in the subject line; that one gets read first.
+      </p>
+
+      <h2 className={headingClass}>Things you don&rsquo;t need us for</h2>
+      <p>
+        You can delete your account yourself, under Settings, then Danger zone, on the
+        web or in the app. It erases your people, events, reminders and shared list
+        memberships on the spot. You don&rsquo;t have to ask, and we can&rsquo;t put it
+        back.
+      </p>
+      <p>
+        The same goes for how reminders reach you: the channel, the lead time and the
+        hour they fire are all in Settings, and any of it can be overridden for one
+        person from their profile. To get out of a shared list, open it and leave. The
+        reminders stop for you straight away, and nothing you added to your own list
+        goes with it.
+      </p>
+      <p>
+        If the question is what we store, that&rsquo;s written out in the{" "}
+        <Link href="/privacy" className={linkClass}>
+          privacy policy
+        </Link>
+        , down to what the notification providers see when a reminder goes out.
+      </p>
+
+      <h2 className={headingClass}>How long we take</h2>
+      <p>
+        There&rsquo;s no support desk behind this address. It&rsquo;s read by the people
+        who build the app, and weekends are slower. If a week goes by with nothing back,
+        send it again rather than assume we decided not to answer; mail does occasionally
+        land in the wrong folder.
+      </p>
+    </div>
   );
 }

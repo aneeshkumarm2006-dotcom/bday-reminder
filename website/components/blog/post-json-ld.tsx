@@ -1,6 +1,8 @@
+import { normalizeAuthorName } from "@/lib/content/site-json-ld";
 import { siteConfig } from "@/lib/site";
 import { organizationNode } from "@/lib/structured-data";
 
+import { buildPostDescription } from "@/lib/blog/seo-meta";
 import type { Post } from "@/lib/blog/types";
 import { isHttpUrl, jsonLdScript } from "@/lib/blog/url";
 
@@ -21,15 +23,22 @@ export async function PostJsonLd({ post }: { post: Post }) {
     ? post.coverImage
     : `${siteConfig.url}/opengraph-image`;
 
+  // Roughly twenty posts were published with no excerpt, which left the
+  // description empty here; the same helper that fills their meta description
+  // fills it from the body. It can still come back empty for a body-less draft,
+  // and an absent property beats an empty one.
+  const description = buildPostDescription(post);
+
   const blogPosting = {
     "@context": "https://schema.org",
     "@type": "BlogPosting",
     headline: post.metaTitle || post.title,
-    description: post.excerpt,
+    ...(description ? { description } : {}),
     image: [image],
     datePublished: post.publishedAt ?? post.createdAt,
     dateModified: post.updatedAt,
-    author: { "@type": "Person", name: post.author || siteConfig.name },
+    // Posts from before the rename are still signed by the retired brand.
+    author: { "@type": "Person", name: normalizeAuthorName(post.author) },
     // Same Organization entity as the homepage (matched by @id), with a real
     // crawlable logo — the old `/icon.svg` no longer exists.
     publisher,

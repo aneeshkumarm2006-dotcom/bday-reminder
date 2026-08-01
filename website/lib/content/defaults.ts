@@ -76,7 +76,9 @@ export const DEFAULT_SETTINGS: SiteSettings = {
     endAt: null,
   },
   robotsExtraDisallows: [],
-  llmsTxtEnabled: false,
+  // On by default: `/llms.txt` is a plain summary of pages that are already
+  // public, and crawlers (and SEO audits) expect it to be there rather than 404.
+  llmsTxtEnabled: true,
   structuredData: {
     organization: {
       enabled: true,

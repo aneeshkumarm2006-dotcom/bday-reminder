@@ -93,8 +93,19 @@ test.describe("public site renders its defaults with no database", () => {
     expect(body).toContain("sitemap.xml");
   });
 
-  test("llms.txt is off until it's switched on", async ({ request }) => {
-    expect((await request.get("/llms.txt")).status()).toBe(404);
+  test("llms.txt serves the site summary in the llmstxt.org shape", async ({
+    request,
+  }) => {
+    // On by default now (lib/content/defaults.ts), so this serves even with no
+    // database — the key pages come from STATIC_ROUTES, not from Mongo.
+    const res = await request.get("/llms.txt");
+    expect(res.status()).toBe(200);
+    const body = await res.text();
+    expect(body.startsWith("# Birthday Reminders")).toBe(true);
+    expect(body).toContain("\n> ");
+    expect(body).toContain("## Key pages");
+    // Every item in a section has to be a link, the contact address included.
+    expect(body).toContain("](mailto:");
   });
 
   test("an unknown slug 404s rather than erroring", async ({ page }) => {
