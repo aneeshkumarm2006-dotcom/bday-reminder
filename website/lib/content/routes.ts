@@ -1,5 +1,5 @@
 import { getAllSitePages, getAllPageMeta, defaultPageMeta } from "./get";
-import { SEO_LANDING_PAGES } from "./seo-pages";
+import { STATIC_ROUTES, type RegistryRoute } from "./static-routes";
 import type { PageMeta } from "./types";
 
 /**
@@ -10,40 +10,13 @@ import type { PageMeta } from "./types";
  *   - `custom`  — a page built in the page builder (its meta lives at `/slug`);
  *   - `blog`    — posts, which keep their own per-post SEO in the blog editor.
  *     They appear here as read-only rows so nobody hunts for them in two places.
+ *
+ * The hardcoded rows live in `./static-routes` so client code can read them
+ * without pulling this module's Mongo imports into the browser bundle; they're
+ * re-exported here because this is where callers expect to find them.
  */
-export type RouteKind = "static" | "custom" | "blog";
-
-export interface RegistryRoute {
-  path: string;
-  label: string;
-  kind: RouteKind;
-  /** Where the SEO team edits this route's metadata. */
-  editHref?: string;
-  /**
-   * The homepage opts out of the `%s · Site name` template so its exact
-   * keyword-led title is used verbatim (this was already true before the admin).
-   */
-  absoluteTitle?: boolean;
-}
-
-export const STATIC_ROUTES: RegistryRoute[] = [
-  { path: "/", label: "Home", kind: "static", absoluteTitle: true },
-  // The keyword landing pages. Their copy is code, but their metadata is tuned
-  // here like any other route — and like the homepage they use their brief's
-  // title verbatim, so they opt out of the `%s · Site name` template too.
-  ...SEO_LANDING_PAGES.map(
-    (page): RegistryRoute => ({
-      path: `/${page.slug}`,
-      label: page.label,
-      kind: "static",
-      absoluteTitle: true,
-    }),
-  ),
-  { path: "/blog", label: "Blog index", kind: "static" },
-  { path: "/contact", label: "Contact", kind: "static" },
-  { path: "/privacy", label: "Privacy policy", kind: "static" },
-  { path: "/terms", label: "Terms of service", kind: "static" },
-];
+export { STATIC_ROUTES };
+export type { RegistryRoute, RouteKind } from "./static-routes";
 
 export interface RouteRow extends RegistryRoute {
   /** Effective metadata (override merged over the route's hardcoded defaults). */

@@ -1,4 +1,6 @@
-import { STATIC_ROUTES } from "@/lib/content/routes";
+// `@/lib/content/routes` re-exports this, but importing it from there would
+// drag that module's Mongo reads into the blog editor's client bundle.
+import { STATIC_ROUTES } from "@/lib/content/static-routes";
 import { siteConfig } from "@/lib/site";
 
 /**
