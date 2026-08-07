@@ -5,6 +5,7 @@ import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { configApi, googleLoginUrl } from "@/lib/api";
+import { stashNextPath } from "@/lib/next-path";
 
 /**
  * "Continue with Google" (identity login). A full-page navigation to the
@@ -15,8 +16,19 @@ import { configApi, googleLoginUrl } from "@/lib/api";
  *
  * Note: signing in requests identity ONLY (name + email). The Gmail "send as
  * you" permission is a separate, later opt-in on the reminder/auto-send screens.
+ *
+ * `next` is the page the user was originally heading for (an invite link, say).
+ * It can't ride along in the URL — the round-trip goes through Google and the
+ * backend, which hand back only their own token — so it waits in sessionStorage
+ * for /auth/google to pick up.
  */
-export function GoogleAuthButton({ label = "Continue with Google" }: { label?: string }) {
+export function GoogleAuthButton({
+  label = "Continue with Google",
+  next,
+}: {
+  label?: string;
+  next?: string | null;
+}) {
   const { data: config } = useQuery({ queryKey: ["config"], queryFn: () => configApi.get() });
   const [busy, setBusy] = useState(false);
 
@@ -37,6 +49,7 @@ export function GoogleAuthButton({ label = "Continue with Google" }: { label?: s
         disabled={busy}
         onClick={() => {
           setBusy(true);
+          stashNextPath(next);
           window.location.href = googleLoginUrl;
         }}
       >

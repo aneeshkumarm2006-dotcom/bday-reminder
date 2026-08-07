@@ -16,7 +16,6 @@ import { Dialog } from "@/components/ui/dialog";
 import { Label, Textarea, TextField } from "@/components/ui/input";
 import { useToast } from "@/components/ui/toast";
 import { ApiError, gmailApi, type SmsChannel } from "@/lib/api";
-import { clearGmailReturn } from "@/lib/gmail-return";
 import {
   defaultGreeting,
   EMAIL_MAX,
@@ -159,9 +158,13 @@ export function AutoSendDialog({
       void refreshUser().then((me) => {
         if (cancelled || !me?.gmailConnected) return;
         setConnectWaiting(false);
-        // This tab kept its state through the round-trip, so the parked copy is
-        // spent — drop it before it can redirect an unrelated connect later.
-        clearGmailReturn();
+        // Deliberately NOT clearing the parked draft here. This tab getting
+        // focus back doesn't mean it won: on a phone the consent tab replaces
+        // the view and Settings is already bouncing back to a fresh load of this
+        // page, which needs that record. Dropping it from here handed the user
+        // an empty form. It's safe to leave — the restoring page consumes it,
+        // restore only runs on an explicit ?resume=gmail, and the TTL sweeps the
+        // rest (see lib/gmail-return.ts).
       });
     };
     window.addEventListener("focus", check);
@@ -196,7 +199,6 @@ export function AutoSendDialog({
     const me = await refreshUser();
     if (me?.gmailConnected) {
       setConnectWaiting(false);
-      clearGmailReturn();
     } else {
       toast({ message: "Gmail isn't connected yet. Finish the Google sign-in first.", tone: "error" });
     }

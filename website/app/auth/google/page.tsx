@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useRef, useState } from "react";
 
 import { AuthShell } from "@/components/app/auth-shell";
+import { DEFAULT_AFTER_AUTH, takeStashedNextPath, withNext } from "@/lib/next-path";
 import { useAuth } from "@/providers/auth-provider";
 
 /**
@@ -29,10 +30,16 @@ function GoogleCallback() {
       router.replace("/login?google=error");
       return;
     }
+    // Where they were originally heading, parked before the hand-off to Google.
+    const next = takeStashedNextPath();
     completeGoogleSession(handoff)
       // A brand-new Google account never saw a signup form, so it's the one
       // path that still owes us a birthday. Everyone else goes straight in.
-      .then(({ isNew }) => router.replace(isNew ? "/welcome/birthday" : "/calendar"))
+      .then(({ isNew }) =>
+        router.replace(
+          isNew ? withNext("/welcome/birthday", next) : (next ?? DEFAULT_AFTER_AUTH),
+        ),
+      )
       .catch(() => {
         setFailed(true);
         router.replace("/login?google=error");

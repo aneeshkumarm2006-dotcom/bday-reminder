@@ -87,6 +87,11 @@ export const viewport: Viewport = {
     { media: "(prefers-color-scheme: light)", color: "#fcfbf8" },
     { media: "(prefers-color-scheme: dark)", color: "#18171a" },
   ],
+  // Shrink the layout viewport when the on-screen keyboard opens, so a `fixed`
+  // bottom-sheet dialog is laid out above it instead of behind it. Chromium
+  // honours this; Safari ignores it, which is why Dialog also measures
+  // `visualViewport` itself (see components/ui/dialog.tsx).
+  interactiveWidget: "resizes-content",
 };
 
 export default async function RootLayout({

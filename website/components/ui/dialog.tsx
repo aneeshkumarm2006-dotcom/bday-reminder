@@ -3,6 +3,7 @@
 import { X } from "lucide-react";
 import * as React from "react";
 
+import { useKeyboardInset } from "@/lib/use-keyboard-inset";
 import { cn } from "@/lib/utils";
 
 /**
@@ -10,6 +11,11 @@ import { cn } from "@/lib/utils";
  * (DESIGN.md §8). Centered card on desktop, bottom-sheet feel on mobile.
  * Closes on Escape, backdrop click, and the corner button. Locks scroll while
  * open and restores focus to the trigger on close.
+ *
+ * On a phone it also sits above the on-screen keyboard: the panel is `fixed`,
+ * so nothing scrolls it clear on its own, and the fields low in the auto-send
+ * popup (message, send time) were landing behind the keyboard. The inset lifts
+ * the whole thing and shrinks its ceiling to what's still visible.
  */
 export function Dialog({
   open,
@@ -27,6 +33,7 @@ export function Dialog({
   className?: string;
 }) {
   const panelRef = React.useRef<HTMLDivElement>(null);
+  const keyboardInset = useKeyboardInset(open);
 
   React.useEffect(() => {
     if (!open) return;
@@ -48,6 +55,7 @@ export function Dialog({
   return (
     <div
       className="fixed inset-0 z-50 flex items-end justify-center sm:items-center"
+      style={keyboardInset ? { bottom: keyboardInset } : undefined}
       role="dialog"
       aria-modal="true"
       aria-label={title}
@@ -61,9 +69,14 @@ export function Dialog({
         ref={panelRef}
         tabIndex={-1}
         className={cn(
-          "relative z-10 max-h-[90vh] w-full overflow-y-auto rounded-t-2xl border border-border-subtle bg-surface p-6 shadow-xl outline-none sm:max-w-lg sm:rounded-2xl",
+          "relative z-10 max-h-[90dvh] w-full overflow-y-auto rounded-t-2xl border border-border-subtle bg-surface p-6 shadow-xl outline-none sm:max-w-lg sm:rounded-2xl",
           className,
         )}
+        // With the keyboard up there's much less room; cap against what's left
+        // so the panel scrolls internally instead of running off the top.
+        style={
+          keyboardInset ? { maxHeight: `calc(90dvh - ${keyboardInset}px)` } : undefined
+        }
       >
         <div className="mb-4 flex items-start justify-between gap-4">
           <div>

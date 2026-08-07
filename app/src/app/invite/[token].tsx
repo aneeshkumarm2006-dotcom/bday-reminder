@@ -12,7 +12,7 @@ import {
   type DatePartsStrings,
 } from '@/components/date-parts-field';
 import { ListCatchUp } from '@/components/list-catch-up';
-import { Button, Screen, Text, ToggleRow } from '@/components/ui';
+import { Button, FormScrollView, Screen, Text, ToggleRow } from '@/components/ui';
 import { ApiError, invitesApi, type InvitePreview, type SharedListView } from '@/lib/api';
 import { cn, focusRing } from '@/lib/cn';
 import { monthAbbr } from '@/lib/dates';
@@ -129,130 +129,136 @@ export default function InviteScreen() {
   return (
     <Screen edges={['top', 'bottom']}>
       <Stack.Screen options={{ headerShown: false, presentation: 'modal' }} />
-      <View className="flex-1 items-center justify-center px-6">
-        {loading ? (
-          <ActivityIndicator color={t.biro} />
-        ) : error ? (
-          <View className="items-center gap-4">
-            <Text variant="heading" className="text-center">
-              {error}
-            </Text>
-            <Button variant="secondary" onPress={() => router.replace('/lists')}>
-              Go to Lists
-            </Button>
-          </View>
-        ) : preview ? (
-          <View className="w-full max-w-[360px] items-center">
-            <View className="mb-4 h-14 w-14 items-center justify-center rounded-full bg-surface-sunken">
-              {step === 'birthday' ? (
-                <Cake color={t.inkMuted} size={24} strokeWidth={1.75} />
+      {/* The birthday step types into a date field low on a centered card, so it
+          needs the keyboard-aware scroller — `flexGrow` keeps the card centered
+          while the keyboard is down and lets it scroll once the keyboard lifts. */}
+      <FormScrollView contentContainerStyle={{ flexGrow: 1 }}>
+        <View className="flex-1 items-center justify-center px-6 py-6">
+          {loading ? (
+            <ActivityIndicator color={t.biro} />
+          ) : error ? (
+            <View className="items-center gap-4">
+              <Text variant="heading" className="text-center">
+                {error}
+              </Text>
+              <Button variant="secondary" onPress={() => router.replace('/lists')}>
+                Go to Lists
+              </Button>
+            </View>
+          ) : preview ? (
+            <View className="w-full max-w-[360px] items-center">
+              <View className="mb-4 h-14 w-14 items-center justify-center rounded-full bg-surface-sunken">
+                {step === 'birthday' ? (
+                  <Cake color={t.inkMuted} size={24} strokeWidth={1.75} />
+                ) : (
+                  <Users color={t.inkMuted} size={24} strokeWidth={1.75} />
+                )}
+              </View>
+
+              {step === 'preview' ? (
+                <>
+                  <Text variant="heading" className="text-center">
+                    {preview.inviterName} invited you to “{preview.listName}”
+                  </Text>
+                  <Text variant="body" className="mt-2 text-center text-ink-secondary">
+                    {preview.peopleCount === 0
+                      ? 'You’ll see everyone in this list and can add and edit them, with your own reminder settings.'
+                      : `${preview.peopleCount} ${preview.peopleCount === 1 ? 'birthday is' : 'birthdays are'} waiting inside. You’ll get your own reminders for the ones you keep.`}
+                  </Text>
+
+                  <View className="mt-6 w-full gap-2">
+                    {preview.alreadyMember ? (
+                      <>
+                        <Text variant="caption" className="text-center text-ink-muted">
+                          You’re already in this list.
+                        </Text>
+                        <Button fullWidth loading={accepting} onPress={() => accept(true)}>
+                          Open list
+                        </Button>
+                      </>
+                    ) : (
+                      <Button fullWidth onPress={() => setStep('birthday')}>
+                        Continue
+                      </Button>
+                    )}
+                    <Button variant="ghost" fullWidth onPress={() => router.replace('/lists')}>
+                      Not now
+                    </Button>
+                  </View>
+                </>
               ) : (
-                <Users color={t.inkMuted} size={24} strokeWidth={1.75} />
+                <>
+                  <Text variant="heading" className="text-center">
+                    Share your birthday with “{preview.listName}”?
+                  </Text>
+
+                  <View className="mt-5 w-full gap-3">
+                    {knowsBirthday ? (
+                      <>
+                        <ToggleRow
+                          title="Share my birthday"
+                          helper={`We’ll add ${monthAbbr(storedBirthday!.month)} ${storedBirthday!.day} to this list so everyone gets a reminder.`}
+                          value={shareBirthday}
+                          onValueChange={setShareBirthday}
+                        />
+                        {shareBirthday ? (
+                          <Pressable
+                            onPress={() => setEditingDate(true)}
+                            hitSlop={8}
+                            accessibilityRole="button"
+                            className={cn('self-start rounded-sm', focusRing)}
+                          >
+                            <Text variant="caption" className="text-biro">
+                              Use a different date
+                            </Text>
+                          </Pressable>
+                        ) : null}
+                      </>
+                    ) : (
+                      <>
+                        <Text variant="body" className="text-center text-ink-secondary">
+                          Add your birthday and this list will celebrate you too.
+                        </Text>
+                        <DatePartsField
+                          label="Your birthday"
+                          value={birthday}
+                          onChange={setBirthday}
+                          error={dateError}
+                          hint="The year is optional."
+                          a11y={{
+                            month: 'Your birthday month',
+                            day: 'Your birthday day',
+                            year: 'Your birth year, optional',
+                          }}
+                        />
+                      </>
+                    )}
+
+                    <Text variant="caption" className="text-center text-ink-muted">
+                      Only the people in this list see it. You can remove it any time.
+                    </Text>
+                  </View>
+
+                  <View className="mt-6 w-full gap-2">
+                    <Button fullWidth loading={accepting} onPress={() => accept(shareBirthday)}>
+                      {`Join ${preview.listName}`}
+                    </Button>
+                    {!knowsBirthday ? (
+                      <Button variant="ghost" fullWidth onPress={() => accept(false)}>
+                        Join without sharing
+                      </Button>
+                    ) : (
+                      <Button variant="ghost" fullWidth onPress={() => setStep('preview')}>
+                        Back
+                      </Button>
+                    )}
+                  </View>
+                </>
               )}
             </View>
-
-            {step === 'preview' ? (
-              <>
-                <Text variant="heading" className="text-center">
-                  {preview.inviterName} invited you to “{preview.listName}”
-                </Text>
-                <Text variant="body" className="mt-2 text-center text-ink-secondary">
-                  {preview.peopleCount === 0
-                    ? 'You’ll see everyone in this list and can add and edit them, with your own reminder settings.'
-                    : `${preview.peopleCount} ${preview.peopleCount === 1 ? 'birthday is' : 'birthdays are'} waiting inside. You’ll get your own reminders for the ones you keep.`}
-                </Text>
-
-                <View className="mt-6 w-full gap-2">
-                  {preview.alreadyMember ? (
-                    <>
-                      <Text variant="caption" className="text-center text-ink-muted">
-                        You’re already in this list.
-                      </Text>
-                      <Button fullWidth loading={accepting} onPress={() => accept(true)}>
-                        Open list
-                      </Button>
-                    </>
-                  ) : (
-                    <Button fullWidth onPress={() => setStep('birthday')}>
-                      Continue
-                    </Button>
-                  )}
-                  <Button variant="ghost" fullWidth onPress={() => router.replace('/lists')}>
-                    Not now
-                  </Button>
-                </View>
-              </>
-            ) : (
-              <>
-                <Text variant="heading" className="text-center">
-                  Share your birthday with “{preview.listName}”?
-                </Text>
-
-                <View className="mt-5 w-full gap-3">
-                  {knowsBirthday ? (
-                    <>
-                      <ToggleRow
-                        title="Share my birthday"
-                        helper={`We’ll add ${monthAbbr(storedBirthday!.month)} ${storedBirthday!.day} to this list so everyone gets a reminder.`}
-                        value={shareBirthday}
-                        onValueChange={setShareBirthday}
-                      />
-                      {shareBirthday ? (
-                        <Pressable
-                          onPress={() => setEditingDate(true)}
-                          hitSlop={8}
-                          accessibilityRole="button"
-                          className={cn('self-start rounded-sm', focusRing)}>
-                          <Text variant="caption" className="text-biro">
-                            Use a different date
-                          </Text>
-                        </Pressable>
-                      ) : null}
-                    </>
-                  ) : (
-                    <>
-                      <Text variant="body" className="text-center text-ink-secondary">
-                        Add your birthday and this list will celebrate you too.
-                      </Text>
-                      <DatePartsField
-                        label="Your birthday"
-                        value={birthday}
-                        onChange={setBirthday}
-                        error={dateError}
-                        hint="The year is optional."
-                        a11y={{
-                          month: 'Your birthday month',
-                          day: 'Your birthday day',
-                          year: 'Your birth year, optional',
-                        }}
-                      />
-                    </>
-                  )}
-
-                  <Text variant="caption" className="text-center text-ink-muted">
-                    Only the people in this list see it. You can remove it any time.
-                  </Text>
-                </View>
-
-                <View className="mt-6 w-full gap-2">
-                  <Button fullWidth loading={accepting} onPress={() => accept(shareBirthday)}>
-                    {`Join ${preview.listName}`}
-                  </Button>
-                  {!knowsBirthday ? (
-                    <Button variant="ghost" fullWidth onPress={() => accept(false)}>
-                      Join without sharing
-                    </Button>
-                  ) : (
-                    <Button variant="ghost" fullWidth onPress={() => setStep('preview')}>
-                      Back
-                    </Button>
-                  )}
-                </View>
-              </>
-            )}
-          </View>
-        ) : null}
-      </View>
+          ) : null}
+        </View>
+      </FormScrollView>
     </Screen>
   );
 }

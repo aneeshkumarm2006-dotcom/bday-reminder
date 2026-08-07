@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
 
 import { AuthShell } from "@/components/app/auth-shell";
 import {
@@ -15,12 +15,19 @@ import { GoogleAuthButton } from "@/components/app/google-auth-button";
 import { Button } from "@/components/ui/button";
 import { TextField } from "@/components/ui/input";
 import { ApiError } from "@/lib/api";
+import { DEFAULT_AFTER_AUTH, safeNextPath, withNext } from "@/lib/next-path";
 import { useAuth } from "@/providers/auth-provider";
 
-/** Create an account (FR-1). Timezone is auto-detected by the auth provider. */
-export default function SignupPage() {
+/**
+ * Create an account (FR-1). Timezone is auto-detected by the auth provider.
+ * Honours `?next=` so someone who arrived on an invite link and signed up here
+ * lands back on the invite rather than an empty calendar.
+ */
+function SignupForm() {
   const { status, signUp } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const next = safeNextPath(searchParams.get("next")) ?? DEFAULT_AFTER_AUTH;
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -29,8 +36,8 @@ export default function SignupPage() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (status === "authenticated") router.replace("/calendar");
-  }, [status, router]);
+    if (status === "authenticated") router.replace(next);
+  }, [status, router, next]);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,7 +53,7 @@ export default function SignupPage() {
     setBusy(true);
     try {
       await signUp({ name: name.trim(), email: email.trim(), password, birthday });
-      router.replace("/calendar");
+      router.replace(next);
     } catch (err) {
       setError(
         err instanceof ApiError && err.status === 409
@@ -64,7 +71,10 @@ export default function SignupPage() {
       footer={
         <>
           Already have an account?{" "}
-          <Link href="/login" className="font-medium text-biro hover:underline">
+          <Link
+            href={withNext("/login", searchParams.get("next"))}
+            className="font-medium text-biro hover:underline"
+          >
             Sign in
           </Link>
         </>
@@ -114,7 +124,22 @@ export default function SignupPage() {
           {busy ? "Creating account…" : "Create account"}
         </Button>
       </form>
-      <GoogleAuthButton label="Sign up with Google" />
+      <GoogleAuthButton label="Sign up with Google" next={searchParams.get("next")} />
     </AuthShell>
+  );
+}
+
+// useSearchParams (for ?next=) must sit under a Suspense boundary.
+export default function SignupPage() {
+  return (
+    <Suspense
+      fallback={
+        <AuthShell title="Create your account" subtitle="Free forever. No ads, no paid tier.">
+          <span />
+        </AuthShell>
+      }
+    >
+      <SignupForm />
+    </Suspense>
   );
 }

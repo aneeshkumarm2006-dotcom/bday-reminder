@@ -13,9 +13,9 @@ import {
   type OAuthPlatform,
 } from '../lib/google-oauth';
 import { asyncHandler } from '../lib/async-handler';
-import { loadEnv } from '../lib/env';
 import { HttpError } from '../lib/http-error';
 import { logger } from '../lib/logger';
+import { websiteOrigin } from '../lib/public-urls';
 import { decryptToken, encryptToken } from '../lib/token-crypto';
 import { requireAuth } from '../middleware/require-auth';
 import { User } from '../models/User';
@@ -29,11 +29,6 @@ import { User } from '../models/User';
  */
 
 export const integrationsRouter = Router();
-
-/** First configured website origin (the value may be a comma-separated list). */
-function websiteOrigin(): string {
-  return loadEnv().WEBSITE_ORIGIN.split(',')[0].trim().replace(/\/+$/, '');
-}
 
 /** Where to send the browser after the Gmail callback, per originating platform. */
 function returnUrl(platform: OAuthPlatform, status: 'connected' | 'error'): string {

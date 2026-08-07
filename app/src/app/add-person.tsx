@@ -1,7 +1,7 @@
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { CalendarPlus, Camera, X } from 'lucide-react-native';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, View } from 'react-native';
 
 import { AddEventSheet } from '@/components/add-event-sheet';
@@ -251,6 +251,19 @@ export default function AddPersonScreen() {
     resume === '1' ? 'pending' : 'none',
   );
 
+  // The initializer above only fires when this screen mounts *fresh*. Coming back
+  // from Gmail consent it often doesn't: the router can hand `resume=1` to the
+  // add-person screen already sitting in the stack, which keeps the state it had
+  // when the browser took over — and on Android that Intent has usually already
+  // wiped it. So watch the param itself and kick the restore either way.
+  // Adjusting state during render (rather than in an effect) so the restore
+  // starts before the hydrate/list-fetch effects below get a chance to seed.
+  const [seenResume, setSeenResume] = useState(resume);
+  if (resume !== seenResume) {
+    setSeenResume(resume);
+    if (resume === '1') setResumeState('pending');
+  }
+
   useEffect(() => {
     let active = true;
     configApi
@@ -274,6 +287,12 @@ export default function AddPersonScreen() {
       active = false;
     };
   }, []);
+
+  // Whether this screen has already put fields on the page (from a draft or from
+  // the server). Only matters when a resume finds nothing parked: on a *reused*
+  // screen the fields on screen are the user's own, so re-seeding from the server
+  // would throw their edits away.
+  const seeded = useRef(false);
 
   // Coming back from Gmail consent: put the form back exactly as it was left and
   // reopen the auto-send sheet on top of it. Consuming the parked record here is
@@ -322,14 +341,19 @@ export default function AddPersonScreen() {
           setEmailSheetOpen(true);
         }
         setHydrating(false);
+        seeded.current = true;
         // 'restored' keeps the server hydrate and list fetch off - the draft is
         // authoritative, including any edits made before leaving for Google.
         setResumeState('restored');
         if (gmail === 'error') toast.show("Couldn't connect Gmail. Please try again.");
         return;
       }
-      // Nothing parked (expired, or storage failed) - seed the normal way.
-      setResumeState('none');
+      if (gmail === 'error') toast.show("Couldn't connect Gmail. Please try again.");
+      // Nothing parked (expired, or storage failed). Seed the normal way - unless
+      // this screen survived the round-trip and already has fields on it, in
+      // which case a server hydrate would wipe what the user typed. Keeping what
+      // is already there is strictly better than replacing it with stale data.
+      setResumeState(seeded.current ? 'restored' : 'none');
     })();
     return () => {
       active = false;
@@ -378,6 +402,7 @@ export default function AddPersonScreen() {
           listsApi.list().catch(() => ({ lists: [] as SharedListView[] })),
         ]);
         if (!active) return;
+        seeded.current = true;
         setName(person.fullName);
         setType(person.type);
         setMonth(String(person.dob.month));

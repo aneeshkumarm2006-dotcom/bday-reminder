@@ -3,7 +3,6 @@ import { z } from 'zod';
 
 import { asyncHandler } from '../lib/async-handler';
 import { startSession } from '../lib/auth-tokens';
-import { loadEnv } from '../lib/env';
 import {
   buildLoginConsentUrl,
   exchangeCodeForIdentity,
@@ -15,6 +14,7 @@ import {
 } from '../lib/google-oauth';
 import { unauthorized } from '../lib/http-error';
 import { logger } from '../lib/logger';
+import { websiteOrigin } from '../lib/public-urls';
 import { DEFAULT_TIMEZONE } from '../lib/region';
 import { serializeUser } from '../lib/serialize';
 import { validateBody } from '../middleware/validate';
@@ -33,11 +33,6 @@ import { User } from '../models/User';
  */
 
 export const googleAuthRouter = Router();
-
-/** First configured website origin (the value may be a comma-separated list). */
-function websiteOrigin(): string {
-  return loadEnv().WEBSITE_ORIGIN.split(',')[0].trim().replace(/\/+$/, '');
-}
 
 /**
  * GET /auth/google/start - top-level navigation target for the "Continue with

@@ -23,7 +23,6 @@ import {
 import { PhoneField } from '@/components/phone-field';
 import { ApiError } from '@/lib/api';
 import { connectGmail } from '@/lib/gmail-auth';
-import { clearPendingReturn } from '@/lib/pending-return';
 import { isE164 } from '@/lib/phone';
 import { timeZoneLabel } from '@/lib/timezones';
 import {
@@ -179,13 +178,15 @@ export function AutoSendSheet({
       await onBeforeConnect?.(currentDraft());
       const result = await connectGmail();
       if (result === 'connected') {
-        // The session captured the redirect, so this screen was never torn down
-        // and the parked copy is spent - drop it before it can hijack a later,
-        // unrelated connect.
-        await clearPendingReturn();
+        // Deliberately NOT clearing the parked draft here. On Android the
+        // redirect can resolve this session AND arrive as a fresh Intent, and
+        // the screen that Intent rebuilds is reading the same record - clearing
+        // it from here won that race often enough to hand the user back an empty
+        // form. It costs nothing to leave: the restoring screen consumes it,
+        // restore only happens on an explicit `resume=1` navigation, and the TTL
+        // sweeps whatever is left (see lib/pending-return.ts).
         await refreshUser();
-      }
-      else if (result === 'error') toast.show("Couldn't connect Gmail. Please try again.");
+      } else if (result === 'error') toast.show("Couldn't connect Gmail. Please try again.");
       // 'dismissed' → nothing changes; the sheet stays open, still not connected.
     } catch {
       toast.show("Couldn't connect Gmail. Please try again.");

@@ -6,11 +6,11 @@ import { z } from 'zod';
 import { syncUsersReminders } from '../jobs/reminder-engine';
 import { usersOfLists } from '../lib/access';
 import { asyncHandler } from '../lib/async-handler';
-import { loadEnv } from '../lib/env';
 import { badRequest, forbidden, notFound } from '../lib/http-error';
 import { sendInviteEmail } from '../lib/invite-email';
 import { buildListView } from '../lib/list-view';
 import { deletePersonCascade } from '../lib/person-cascade';
+import { inviteBaseUrl } from '../lib/public-urls';
 import { ensureSelfPersonInList, removeSelfFromList } from '../lib/self-person';
 import { serializeInvite } from '../lib/serialize';
 import { requireAuth } from '../middleware/require-auth';
@@ -166,7 +166,8 @@ listsRouter.post(
       invitedBy: req.userId,
     });
 
-    const acceptUrl = `${loadEnv().APP_ORIGIN}/invite/${token}`;
+    // Public web link, not APP_ORIGIN - see lib/public-urls.ts for why.
+    const acceptUrl = `${inviteBaseUrl()}/invite/${token}`;
     const emailOutcome = await sendInviteEmail({
       to: target,
       listName: list.name,

@@ -1,10 +1,11 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, type ReactNode } from "react";
 
 import { Sidebar } from "@/components/app/sidebar";
 import { LoadingBlock } from "@/components/ui/spinner";
+import { withNext } from "@/lib/next-path";
 import { useAuth } from "@/providers/auth-provider";
 
 /**
@@ -19,12 +20,18 @@ import { useAuth } from "@/providers/auth-provider";
 export function AppShell({ children }: { children: ReactNode }) {
   const { status } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
     if (status === "unauthenticated") {
-      router.replace("/login");
+      // Carry the path through the detour. An invite link is the case that
+      // matters: it's opened by someone who usually has no account yet, and
+      // without this they finish signing up on the calendar with the invite
+      // gone. Query strings aren't carried — no authed route needs one to
+      // resolve, and round-tripping them re-triggers ?gmail=/?resume= effects.
+      router.replace(withNext("/login", pathname));
     }
-  }, [status, router]);
+  }, [status, router, pathname]);
 
   if (status !== "authenticated") {
     return (

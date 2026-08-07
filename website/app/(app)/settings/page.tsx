@@ -5,7 +5,7 @@ import { useTheme } from "next-themes";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { CalendarDays, ChevronRight, CloudDownload, Mail, Upload } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
   ChannelToggles,
@@ -53,26 +53,38 @@ export default function SettingsPage() {
   // When the connect was started from somewhere else — the person form, say —
   // that page parked itself first; hand straight back to it instead of stranding
   // the user here with their half-filled form gone.
+  // The handler awaits /me before it strips the query, so a re-render in that
+  // window would otherwise run it a second time.
+  const gmailReturnHandled = useRef(false);
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const outcome = params.get("gmail");
-    if (!outcome) return;
-    if (outcome === "connected") void refreshUser();
+    if (!outcome || gmailReturnHandled.current) return;
+    gmailReturnHandled.current = true;
 
-    const parked = peekGmailReturn();
-    if (parked) {
-      // Desktop runs the consent in a second tab: close it and let the original
-      // tab, which still holds the live form, pick the connection up on focus.
-      // Phones don't allow that, so fall through to a navigation instead.
-      window.close();
-      const sep = parked.returnTo.includes("?") ? "&" : "?";
-      router.replace(`${parked.returnTo}${sep}resume=gmail&gmail=${outcome}`);
-      return;
-    }
+    void (async () => {
+      // Await the refresh before going anywhere. The page we bounce to reads
+      // `user.gmailConnected` on its first render to decide whether the
+      // auto-send popup shows "connected" or another "Continue with Google" —
+      // navigating while /me is still in flight lands it on the stale `false`
+      // and the connection looks like it didn't take.
+      if (outcome === "connected") await refreshUser();
 
-    if (outcome === "connected") toast({ message: "Gmail connected.", tone: "success" });
-    else toast({ message: "Couldn't connect Gmail. Please try again.", tone: "error" });
-    window.history.replaceState({}, "", "/settings");
+      const parked = peekGmailReturn();
+      if (parked) {
+        // Desktop runs the consent in a second tab: close it and let the
+        // original tab, which still holds the live form, pick the connection up
+        // on focus. Phones don't allow that, so fall through to a navigation.
+        window.close();
+        const sep = parked.returnTo.includes("?") ? "&" : "?";
+        router.replace(`${parked.returnTo}${sep}resume=gmail&gmail=${outcome}`);
+        return;
+      }
+
+      if (outcome === "connected") toast({ message: "Gmail connected.", tone: "success" });
+      else toast({ message: "Couldn't connect Gmail. Please try again.", tone: "error" });
+      window.history.replaceState({}, "", "/settings");
+    })();
   }, [refreshUser, toast, router]);
 
   const onConnectGmail = async () => {

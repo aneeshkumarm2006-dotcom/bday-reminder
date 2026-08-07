@@ -23,6 +23,11 @@ const EnvSchema = z.object({
   APP_ORIGIN: z.string().default('http://localhost:8081'),
   WEBSITE_ORIGIN: z.string().default('http://localhost:3000'),
 
+  // Base for shared-list invite accept links (`<base>/invite/<token>`). Optional:
+  // defaults to the first WEBSITE_ORIGIN entry, which is where the invite landing
+  // page lives. See lib/public-urls.ts.
+  INVITE_BASE_URL: z.string().optional(),
+
   // The backend's own publicly-reachable base URL. Used to build the calendar
   // subscribe link (`<API_PUBLIC_URL>/calendar/<token>.ics`) the app shows in
   // Stage 9; set it to the deployed API origin in production.

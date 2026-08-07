@@ -9,13 +9,19 @@ import { GoogleAuthButton } from "@/components/app/google-auth-button";
 import { Button } from "@/components/ui/button";
 import { TextField } from "@/components/ui/input";
 import { ApiError } from "@/lib/api";
+import { DEFAULT_AFTER_AUTH, safeNextPath, withNext } from "@/lib/next-path";
 import { useAuth } from "@/providers/auth-provider";
 
-/** Email + password login (FR-1). Redirects to the app once a session exists. */
+/**
+ * Email + password login (FR-1). Redirects to the app once a session exists —
+ * to `?next=` when the guard sent them here from somewhere specific (an invite
+ * link, say), otherwise the calendar.
+ */
 function LoginForm() {
   const { status, signIn } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const next = safeNextPath(searchParams.get("next")) ?? DEFAULT_AFTER_AUTH;
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -32,8 +38,8 @@ function LoginForm() {
 
   // Already signed in (e.g. opened /login with a live session) → into the app.
   useEffect(() => {
-    if (status === "authenticated") router.replace("/calendar");
-  }, [status, router]);
+    if (status === "authenticated") router.replace(next);
+  }, [status, router, next]);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,7 +47,7 @@ function LoginForm() {
     setBusy(true);
     try {
       await signIn(email.trim(), password);
-      router.replace("/calendar");
+      router.replace(next);
     } catch (err) {
       setError(
         err instanceof ApiError && err.status === 401
@@ -59,7 +65,10 @@ function LoginForm() {
       footer={
         <>
           New here?{" "}
-          <Link href="/signup" className="font-medium text-biro hover:underline">
+          <Link
+            href={withNext("/signup", searchParams.get("next"))}
+            className="font-medium text-biro hover:underline"
+          >
             Create an account
           </Link>
         </>
@@ -93,7 +102,7 @@ function LoginForm() {
           {busy ? "Signing in…" : "Sign in"}
         </Button>
       </form>
-      <GoogleAuthButton label="Sign in with Google" />
+      <GoogleAuthButton label="Sign in with Google" next={searchParams.get("next")} />
     </AuthShell>
   );
 }

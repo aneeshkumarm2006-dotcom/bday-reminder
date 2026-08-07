@@ -40,8 +40,12 @@ export function Sheet({
       // the ones the rest of the app sees.
       navigationBarTranslucent>
       {/* The sheet sits on the bottom edge, exactly where the keyboard opens —
-          lift the whole thing so its fields stay visible while you type. */}
-      <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
+          lift the whole thing so its fields stay visible while you type.
+          `automaticOffset` is what makes that work *inside a Modal*: a Modal is
+          its own Android window / iOS presentation, so without it the view
+          measures its offset against the root window and under-lifts, leaving
+          the lowest field still tucked behind the keyboard. */}
+      <KeyboardAvoidingView behavior="padding" automaticOffset style={{ flex: 1 }}>
         <Pressable className="flex-1 justify-end bg-black/40" onPress={onClose}>
           <Pressable
             // Stop taps inside the sheet from closing it.
