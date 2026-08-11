@@ -30,6 +30,13 @@ app/expo-env.d.ts
 .env.local
 .env.*.local
 
+# Firebase service-account private keys — can send push to every user and grant
+# admin access to the project. Never commit. (app/google-services.json is NOT a
+# secret and IS committed — see app/.gitignore for why.)
+*-firebase-adminsdk-*.json
+bday-1b97f-*.json
+GoogleService-Info.plist
+
 # Logs
 *.log
 npm-debug.log*
