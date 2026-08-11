@@ -18,6 +18,7 @@
     },
     "android": {
       "package": "com.circlethedate.app",
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#FCFBF8",
         "foregroundImage": "./assets/images/android-icon-foreground.png",

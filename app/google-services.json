@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "689664526287",
+    "project_id": "bday-1b97f",
+    "storage_bucket": "bday-1b97f.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:689664526287:android:b1f8271e7d2fb9fc44b4ba",
+        "android_client_info": {
+          "package_name": "com.circlethedate.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDcAQQDdz5me7ftF4B8J01unPZ3YUF8TQw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -5,9 +5,13 @@
 expo-env.d.ts
 # @end expo-cli
 
-# Firebase / FCM secrets — never commit these
-google-services.json
+# NOTE: google-services.json is deliberately NOT ignored. It ships inside every
+# APK (its API key is restricted to this app's package + signing cert), and EAS
+# Build archives the project via git — ignoring it would silently produce a build
+# with no FCM config, so push would fail at runtime with no build-time error.
 GoogleService-Info.plist
-# Firebase service-account private key (used for EAS push credentials)
+# Firebase service-account private key (used for EAS push credentials) — this one
+# IS a real secret: it can send push to every user. Never commit it.
 *-firebase-adminsdk-*.json
+bday-1b97f-*.json
 bday-reminder-*.json
