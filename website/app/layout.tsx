@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Hanken_Grotesk, Inter } from "next/font/google";
+import localFont from "next/font/local";
 
 import { AnalyticsScripts } from "@/components/analytics-scripts";
 import { ThemeProvider } from "@/components/theme-provider";
@@ -11,16 +11,29 @@ import "./globals.css";
 
 // Display / numerals + body / UI (DESIGN.md §4, §12.3). Two weights each; the
 // ring's day-number is a Hanken hero, everything functional is Inter.
-const hanken = Hanken_Grotesk({
-  subsets: ["latin"],
-  weight: ["500", "600"],
+//
+// These are vendored in `app/fonts/` rather than pulled from `next/font/google`
+// on purpose. The Google loader downloads the woff2 files at build time, and
+// Google rotates the hashed filenames in its CSS: once Turbopack's build cache
+// held a stale stylesheet, every `src: url(...)` in it 404'd and the deploy
+// died with "Can't resolve @vercel/turbopack-next/internal/font/google/font".
+// Vendoring makes the build hermetic — nothing to fetch, nothing to go stale.
+//
+// Regenerate with `npm run fonts:build` after changing a family or weight.
+const hanken = localFont({
+  src: [
+    { path: "./fonts/HankenGrotesk-Medium.woff2", weight: "500", style: "normal" },
+    { path: "./fonts/HankenGrotesk-SemiBold.woff2", weight: "600", style: "normal" },
+  ],
   variable: "--font-hanken",
   display: "swap",
 });
 
-const inter = Inter({
-  subsets: ["latin"],
-  weight: ["400", "500"],
+const inter = localFont({
+  src: [
+    { path: "./fonts/Inter-Regular.woff2", weight: "400", style: "normal" },
+    { path: "./fonts/Inter-Medium.woff2", weight: "500", style: "normal" },
+  ],
   variable: "--font-inter",
   display: "swap",
 });

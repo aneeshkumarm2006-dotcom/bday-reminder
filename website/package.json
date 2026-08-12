@@ -11,7 +11,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "e2e": "playwright test",
-    "seed:content": "tsx scripts/seed-content.ts"
+    "seed:content": "tsx scripts/seed-content.ts",
+    "fonts:build": "python scripts/build-fonts.py"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.101.1",

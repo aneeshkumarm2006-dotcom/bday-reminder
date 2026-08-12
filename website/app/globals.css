@@ -68,7 +68,8 @@
 
 /* Map tokens to Tailwind utilities (DESIGN.md §12.2). `inline` keeps the
    var() reference so utilities pick up the live light/dark value. Fonts come
-   from next/font (§12.3): --font-hanken (display) + --font-inter (body). */
+   from next/font/local (§12.3), vendored in app/fonts/ and wired up in
+   app/layout.tsx: --font-hanken (display) + --font-inter (body). */
 @theme inline {
   --color-paper: var(--paper);
   --color-surface: var(--surface);
