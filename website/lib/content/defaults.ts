@@ -116,7 +116,7 @@ export const DEFAULT_LANDING_SECTIONS: LandingSection[] = [
     badge: "Free birthday & event reminders",
     heading: "Remember, and act.",
     subheading:
-      "The free way to never miss a birthday and actually do something about it. Store the dates that matter, get reminded in time, and send a greeting in one tap.",
+      "The free way to never miss a birthday, an anniversary, or any date you'd hate to let pass. Keep them all in one birthday tracker, get birthday reminders while there's still time to act, and send a greeting in one tap.",
     primaryCta: { label: "Start for free", href: "/signup" },
     secondaryCta: { label: "Log in", href: "/login" },
     footnote: "Free on web, iOS, and Android. No ads, no paid tier.",
@@ -140,7 +140,7 @@ export const DEFAULT_LANDING_SECTIONS: LandingSection[] = [
     visible: true,
     anchor: "features",
     heading: "Everything you need to never forget",
-    sub: "Built around one idea, counting down to a date for someone you care about, and nothing that gets in the way.",
+    sub: "Built around one idea: counting down to a date for someone you care about. A birthday reminder app that holds birthdays, anniversaries, and whatever else you add, with nothing in the way.",
     rows: [
       {
         id: "row-reminders",
@@ -190,13 +190,13 @@ export const DEFAULT_LANDING_SECTIONS: LandingSection[] = [
         id: "card-lists",
         icon: "Users",
         title: "Shared family lists",
-        body: "Track the same birthdays together. Invite family, everyone can add and edit, and each person keeps their own reminder settings.",
+        body: "One shared family birthday calendar instead of six private ones. Invite family, everyone can add and edit, and each person keeps their own reminder settings.",
       },
       {
         id: "card-calendar",
         icon: "CalendarDays",
         title: "Calendar sync",
-        body: "Subscribe to your birthdays in Apple, Google, or Outlook. It stays in sync as you add, edit, and remove people.",
+        body: "Subscribe to your birthday reminder calendar in Apple Calendar, Google Calendar, or Outlook. It stays in sync as you add, edit, and remove people.",
       },
       {
         id: "card-gifts",
@@ -279,14 +279,34 @@ export const DEFAULT_LANDING_SECTIONS: LandingSection[] = [
         a: "It takes the dates out of your head and puts them somewhere that can reach you. Add people once — or import them from your contacts in a single pass — and every year after that, the reminder comes to you instead of you having to go and check.",
       },
       {
+        id: "faq-tracker",
+        q: "What is the best way to keep track of birthdays?",
+        a: "Pick one place, put every date in it, and let it do the remembering. A birthday tracker holds the birthdays, anniversaries, and pets' dates for family, friends, and coworkers in a single list, and tells you before each one instead of waiting for you to go and look.",
+      },
+      {
         id: "faq-3",
         q: "What is a shared family calendar for birthdays?",
         a: "One list of the family's dates that everyone can see and add to. It stops the whole thing resting on the one relative who happens to remember everybody, and each person still picks how they'd like to be reminded.",
       },
       {
+        id: "faq-family-share",
+        q: "Can I share birthday reminders with my family?",
+        a: "Yes. Invite people to a family birthday calendar and everyone in it can add and edit dates, so the list keeps up without one person maintaining it. Reminders aren't shared, though — each member gets their own, on the channels and at the times they picked.",
+      },
+      {
         id: "faq-4",
         q: "Can I get SMS birthday reminders?",
         a: "Yes, along with WhatsApp, push, email, and an in-app feed. SMS and WhatsApp have a monthly fair-use cap, since every message costs real money to send; past the cap, the reminder still reaches you by push and email.",
+      },
+      {
+        id: "faq-calendar-sync",
+        q: "Can I sync birthday reminders with my calendar?",
+        a: "Yes. Subscribe once and your birthday reminder calendar shows up in Google Calendar, Apple Calendar, or Outlook, next to everything else you have on. Add someone or fix a date and the feed catches up on its own, so there's nothing to re-import.",
+      },
+      {
+        id: "faq-free",
+        q: "Can I get free birthday reminders?",
+        a: "Yes, and free in the boring sense: no contact limit, no ads, and no paid tier to upgrade to. Reminders, the widget, calendar sync, and shared lists are all in the free account on web, iOS, and Android. The one limit is the monthly fair-use cap on SMS and WhatsApp, because those cost money to send.",
       },
       {
         id: "faq-5",

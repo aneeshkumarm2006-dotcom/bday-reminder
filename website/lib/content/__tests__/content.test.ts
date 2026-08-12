@@ -31,7 +31,7 @@ describe("landing defaults", () => {
 
   it("keeps the FAQ list as the single source for the accordion and the schema", () => {
     const faq = DEFAULT_LANDING.sections.find((s) => s.type === "faq");
-    expect(faq && faq.type === "faq" && faq.items.length).toBe(8);
+    expect(faq && faq.type === "faq" && faq.items.length).toBe(12);
   });
 });
 
