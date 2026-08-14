@@ -1,4 +1,4 @@
-import { SEO_LANDING_PAGES } from "./seo-pages";
+import { SEO_LANDING_PAGES, SEO_LANDING_PATHS } from "./seo-pages";
 
 /**
  * The hardcoded half of the route registry, kept in its own module because it
@@ -44,3 +44,46 @@ export const STATIC_ROUTES: RegistryRoute[] = [
   { path: "/privacy", label: "Privacy policy", kind: "static" },
   { path: "/terms", label: "Terms of service", kind: "static" },
 ];
+
+/**
+ * Every public route whose code emits a page graph. Used by `revalidate.ts` to
+ * fan a structured-data edit out to the pages that embed the Organization and
+ * WebSite nodes, not just the homepage.
+ */
+export const GRAPH_ROUTES: string[] = [
+  "/",
+  ...SEO_LANDING_PATHS,
+  "/blog",
+  "/contact",
+  "/privacy",
+  "/terms",
+];
+
+/**
+ * The schema types a route's own code already puts in its `@graph`.
+ *
+ * Lives here rather than in `page-graph.ts` because the Meta manager is a client
+ * component and needs it to warn, live, that a pasted block duplicates an entity
+ * the page emits anyway. Deliberately a coarse list of type names: it answers
+ * "would this collide?", not "what exactly is emitted?".
+ */
+export function emittedTypesFor(path: string): string[] {
+  const site = ["Organization", "WebSite"];
+  if (path === "/") {
+    return [...site, "WebApplication", "WebPage", "FAQPage", "ImageObject"];
+  }
+  if (SEO_LANDING_PATHS.includes(path)) {
+    return [...site, "WebPage", "FAQPage", "BreadcrumbList"];
+  }
+  if (path === "/blog") {
+    return [...site, "CollectionPage", "Blog", "ItemList", "BreadcrumbList"];
+  }
+  if (path.startsWith("/blog/")) {
+    return [...site, "WebPage", "BlogPosting", "ImageObject", "BreadcrumbList"];
+  }
+  if (path === "/contact") {
+    return [...site, "ContactPage", "ContactPoint", "ImageObject", "BreadcrumbList"];
+  }
+  // /privacy, /terms and every admin-built page share the same plain shape.
+  return [...site, "WebPage", "FAQPage", "BreadcrumbList"];
+}

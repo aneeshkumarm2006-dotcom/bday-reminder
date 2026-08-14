@@ -1,7 +1,12 @@
 import { isDbConfigured } from "@/lib/blog/db";
 import { getPublishedPosts } from "@/lib/blog/posts";
 import { buildPostDescription } from "@/lib/blog/seo-meta";
-import { getPublishedSitePages, getSiteSettings } from "@/lib/content/get";
+import {
+  getLandingContent,
+  getPublishedSitePages,
+  getSiteSettings,
+} from "@/lib/content/get";
+import { featureListFromSections } from "@/lib/content/page-graph";
 import { STATIC_ROUTES } from "@/lib/content/routes";
 import { siteConfig } from "@/lib/site";
 
@@ -31,6 +36,18 @@ export async function GET(): Promise<Response> {
   if (settings.identity.tagline.trim()) {
     lines.push("", settings.identity.tagline.trim());
   }
+
+  // What the product actually does, read off the same visible features section
+  // the homepage renders and the WebApplication's `featureList` is built from.
+  // It goes in the free-prose area rather than its own H2, because llmstxt.org
+  // sections are link lists and features aren't links. This is the cheapest
+  // thing on the site to make an answer engine accurate about us: plain text, no
+  // schema to validate, and regenerated on every request.
+  const features = featureListFromSections((await getLandingContent("published")).sections);
+  if (features.length > 0) {
+    lines.push("", `What it does: ${features.join("; ")}.`);
+  }
+
   lines.push("", "## Key pages", "");
 
   for (const route of STATIC_ROUTES) {

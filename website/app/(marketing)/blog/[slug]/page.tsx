@@ -16,6 +16,7 @@ import { buildPostTitle, postDescription } from "@/lib/blog/seo-meta";
 import type { Post } from "@/lib/blog/types";
 import { isHttpUrl } from "@/lib/blog/url";
 import { getSiteSettings } from "@/lib/content/get";
+import { normalizeAuthorName } from "@/lib/content/site-json-ld";
 import { siteConfig } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
@@ -81,7 +82,9 @@ export async function generateMetadata({
       url: `${siteConfig.url}${canonical}`,
       publishedTime: post.publishedAt ?? undefined,
       modifiedTime: post.updatedAt,
-      authors: post.author ? [post.author] : undefined,
+      // Same normalisation as the byline and the JSON-LD: a post signed by the
+      // retired brand shouldn't reintroduce it in an OG tag.
+      authors: post.author ? [normalizeAuthorName(post.author)] : undefined,
       images,
     },
     twitter: {

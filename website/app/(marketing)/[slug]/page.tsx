@@ -1,14 +1,13 @@
 import type { Metadata } from "next";
 import { notFound, permanentRedirect, redirect } from "next/navigation";
 
-import { CustomJsonLd } from "@/components/custom-json-ld";
 import { PageBlocks } from "@/components/marketing/page-blocks";
-import { jsonLdScript } from "@/lib/blog/url";
+import { PageGraph } from "@/components/page-graph";
 import { getPageMeta, getPublishedSitePage } from "@/lib/content/get";
 import { buildPageMetadata } from "@/lib/content/metadata";
 import { getSiteSettings } from "@/lib/content/get";
+import { faqItemsFromBlocks } from "@/lib/content/page-graph";
 import { resolveRedirect, recordNotFound } from "@/lib/content/redirects";
-import { siteConfig } from "@/lib/site";
 
 /**
  * Renderer for admin-built custom pages.
@@ -57,27 +56,22 @@ export default async function CustomPage({ params }: Params) {
   }
 
   const meta = await getPageMeta(`/${page.slug}`);
-  const breadcrumb = {
-    "@context": "https://schema.org",
-    "@type": "BreadcrumbList",
-    itemListElement: [
-      { "@type": "ListItem", position: 1, name: "Home", item: siteConfig.url },
-      {
-        "@type": "ListItem",
-        position: 2,
-        name: page.title,
-        item: `${siteConfig.url}/${page.slug}`,
-      },
-    ],
-  };
 
   return (
     <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: jsonLdScript(breadcrumb) }}
+      {/* One FAQPage for the page, merged from every faq block on it — the
+          per-block markup this replaced emitted a second FAQPage for a second
+          block, which describes two pages that don't exist. */}
+      <PageGraph
+        path={`/${page.slug}`}
+        name={meta.title || page.title}
+        description={meta.description}
+        breadcrumb={[{ name: "Home", path: "/" }, { name: page.title }]}
+        faq={faqItemsFromBlocks(page.blocks)}
+        datePublished={page.publishedAt ?? undefined}
+        dateModified={page.updatedAt}
+        customJsonLd={meta.customJsonLd}
       />
-      <CustomJsonLd json={meta.customJsonLd} />
       <PageBlocks blocks={page.blocks} />
     </>
   );

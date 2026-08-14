@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
-import { CustomJsonLd } from "@/components/custom-json-ld";
 import { LegalPage } from "@/components/legal-page";
+import { PageGraph } from "@/components/page-graph";
 import { getLegalDoc, getPageMeta } from "@/lib/content/get";
 import { metadataForPath } from "@/lib/content/metadata";
 
@@ -16,7 +16,15 @@ export default async function TermsPage() {
 
   return (
     <>
-      <CustomJsonLd json={meta.customJsonLd} />
+      {/* No `dateModified` — see the privacy page for why `doc.updated` can't
+          become one. */}
+      <PageGraph
+        path="/terms"
+        name={meta.title || doc.title}
+        description={meta.description}
+        breadcrumb={[{ name: "Home", path: "/" }, { name: doc.title }]}
+        customJsonLd={meta.customJsonLd}
+      />
       {/* `html` is sanitized on write — see the legal API route. */}
       <LegalPage
         title={doc.title}

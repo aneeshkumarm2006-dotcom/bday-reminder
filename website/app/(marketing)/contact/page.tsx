@@ -2,8 +2,8 @@ import { Mail } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { CustomJsonLd } from "@/components/custom-json-ld";
 import { LegalPage } from "@/components/legal-page";
+import { PageGraph } from "@/components/page-graph";
 import { buttonVariants } from "@/components/ui/button";
 import { getLegalDoc, getPageMeta, getSiteSettings } from "@/lib/content/get";
 import { metadataForPath } from "@/lib/content/metadata";
@@ -26,7 +26,19 @@ export default async function ContactPage() {
 
   return (
     <>
-      <CustomJsonLd json={meta.customJsonLd} />
+      {/* The second of the two pages that describe the company in full, and the
+          only one where the address is actually on screen — which is what makes
+          a contactPoint here a true representation rather than a claim. */}
+      <PageGraph
+        path="/contact"
+        type="ContactPage"
+        name={meta.title || doc.title}
+        description={meta.description}
+        about="organization"
+        fullOrganization
+        breadcrumb={[{ name: "Home", path: "/" }, { name: doc.title }]}
+        customJsonLd={meta.customJsonLd}
+      />
       <LegalPage
         title={doc.title}
         updated={doc.updated || undefined}

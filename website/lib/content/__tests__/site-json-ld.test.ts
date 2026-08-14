@@ -5,6 +5,9 @@ import { siteConfig } from "@/lib/site";
 import { DEFAULT_SETTINGS } from "../defaults";
 import {
   APP_ID,
+  LOGO_ID,
+  ORG_ID,
+  authorNode,
   buildSiteJsonLd,
   normalizeAuthorName,
   structuredDataWarnings,
@@ -20,11 +23,12 @@ function nodeOfType(settings: SiteSettings, type: string) {
 }
 
 describe("site JSON-LD", () => {
-  it("emits Organization, WebSite and the product Service by default", () => {
+  it("emits Organization, its logo, WebSite and the product by default", () => {
     expect(graphOf(DEFAULT_SETTINGS).map((n) => n["@type"])).toEqual([
       "Organization",
+      "ImageObject",
       "WebSite",
-      "Service",
+      "WebApplication",
     ]);
   });
 
@@ -40,7 +44,7 @@ describe("site JSON-LD", () => {
     // …and the nodes that referenced it stop claiming a publisher/provider
     // that isn't in the graph.
     expect(nodeOfType(settings, "WebSite")?.publisher).toBeUndefined();
-    expect(nodeOfType(settings, "Service")?.provider).toBeUndefined();
+    expect(nodeOfType(settings, "WebApplication")?.provider).toBeUndefined();
   });
 
   it("builds sameAs from the social profiles, in order", () => {
@@ -57,30 +61,79 @@ describe("site JSON-LD", () => {
     ]);
   });
 
-  it("never applies for the Software App rich result it can't satisfy", () => {
-    // Google requires aggregateRating or review for that result, and we don't
-    // have either — so no type in the SoftwareApplication family goes out.
-    const types = graphOf(DEFAULT_SETTINGS).map((n) => n["@type"]);
-    for (const banned of ["SoftwareApplication", "WebApplication", "MobileApplication"]) {
-      expect(types).not.toContain(banned);
-    }
-    // …and no invented rating sneaks in to make one eligible.
+  it("never invents a rating to satisfy the Software App rich result", () => {
+    // The app node is a WebApplication, so Google will report it as missing the
+    // aggregateRating that result requires. That error is accepted and permanent
+    // — real app ratings come from the stores, and fabricating one here would
+    // breach Google's review policy. This assertion is what stops a future
+    // "fix" for that Search Console row.
     const json = JSON.stringify(buildSiteJsonLd(DEFAULT_SETTINGS));
     expect(json).not.toContain("aggregateRating");
-    expect(json).not.toContain("\"review\"");
+    expect(json).not.toContain('"review"');
+  });
+
+  it("makes no machine-readable claim about a platform that isn't shipped", () => {
+    // The native apps are still "coming soon" on the page and still named for
+    // the retired brand in app.json, so `operatingSystem` says "Any" — the
+    // schema.org convention for something that runs in a browser — and the
+    // store-shaped properties are absent entirely.
+    //
+    // Scoped to the structured fields on purpose: `description` mirrors the
+    // marketing copy, iOS mention and all, and markup that repeats what the page
+    // says is exactly what's wanted. It's the machine-readable assertion that
+    // must not run ahead of reality.
+    const app = nodeOfType(DEFAULT_SETTINGS, "WebApplication") as Record<string, unknown>;
+    expect(app.operatingSystem).toBe("Any");
+    for (const claim of ["downloadUrl", "screenshot", "softwareVersion", "fileSize"]) {
+      expect(app).not.toHaveProperty(claim);
+    }
+    expect(String(app.operatingSystem)).not.toMatch(/iOS|Android/);
+    expect(app.installUrl).toBe(`${siteConfig.url}/signup`);
   });
 
   it("gives the product an @id and a complete free offer", () => {
-    const service = nodeOfType(DEFAULT_SETTINGS, "Service");
-    expect(service?.["@id"]).toBe(APP_ID);
-    expect(service?.url).toBe(siteConfig.url);
-    expect(service?.offers).toEqual({
+    const app = nodeOfType(DEFAULT_SETTINGS, "WebApplication");
+    expect(app?.["@id"]).toBe(APP_ID);
+    expect(app?.url).toBe(siteConfig.url);
+    expect(app?.isAccessibleForFree).toBe(true);
+    expect(app?.offers).toEqual({
       "@type": "Offer",
       price: "0",
       priceCurrency: "USD",
       availability: "https://schema.org/InStock",
-      url: siteConfig.url,
+      url: `${siteConfig.url}/signup`,
     });
+  });
+
+  it("keeps the logo a referenceable node rather than an inline object", () => {
+    // So a page's `primaryImageOfPage` can point at the same image instead of
+    // describing a second copy of it.
+    const org = nodeOfType(DEFAULT_SETTINGS, "Organization");
+    expect(org?.logo).toEqual({ "@id": LOGO_ID });
+    expect(nodeOfType(DEFAULT_SETTINGS, "ImageObject")?.["@id"]).toBe(LOGO_ID);
+  });
+
+  it("emits a contact point only when there is a way to make contact", () => {
+    const org = nodeOfType(DEFAULT_SETTINGS, "Organization") as Record<string, unknown>;
+    expect(org.contactPoint).toEqual([
+      {
+        "@type": "ContactPoint",
+        contactType: "customer support",
+        email: DEFAULT_SETTINGS.identity.contactEmail,
+        url: `${siteConfig.url}/contact`,
+        availableLanguage: ["en"],
+      },
+    ]);
+
+    const settings = {
+      ...DEFAULT_SETTINGS,
+      identity: { ...DEFAULT_SETTINGS.identity, contactEmail: "" },
+      structuredData: {
+        ...DEFAULT_SETTINGS.structuredData,
+        organization: { ...DEFAULT_SETTINGS.structuredData.organization, email: "" },
+      },
+    };
+    expect(nodeOfType(settings, "Organization")?.contactPoint).toBeUndefined();
   });
 
   it("warns when nothing at all would be emitted", () => {
@@ -112,9 +165,43 @@ describe("site JSON-LD", () => {
         },
       },
     };
-    expect(structuredDataWarnings(settings)).toEqual([
-      "The application's offer needs a price (use 0 for free).",
-    ]);
+    const warnings = structuredDataWarnings(settings);
+    expect(warnings).toContain("The application's offer needs a price (use 0 for free).");
+    expect(warnings.join(" ")).not.toContain("category");
+  });
+
+  it("tells the reader the Search Console rating error is expected", () => {
+    // Left as a standing note rather than a one-off: the row never goes away, so
+    // whoever opens the report next needs to find the reason without digging.
+    expect(structuredDataWarnings(DEFAULT_SETTINGS).join(" ")).toContain(
+      "Search Console will report the homepage's app markup as missing a rating",
+    );
+  });
+
+  it("flags an empty sameAs, the biggest missing entity signal", () => {
+    expect(structuredDataWarnings(DEFAULT_SETTINGS).join(" ")).toContain("no sameAs");
+    const withSocial = {
+      ...DEFAULT_SETTINGS,
+      socials: [{ id: "a", platform: "X", url: "https://x.com/br", order: 0 }],
+    };
+    expect(structuredDataWarnings(withSocial).join(" ")).not.toContain("no sameAs");
+  });
+});
+
+describe("authorNode", () => {
+  it("returns the Organization for a brand byline, which is what the page shows", () => {
+    // Nothing stored means no byline renders, so a Person would be marking up
+    // content that isn't on the page — and a company isn't a person anyway.
+    expect(authorNode("")).toEqual({ "@id": ORG_ID });
+    expect(authorNode("   ")).toEqual({ "@id": ORG_ID });
+    expect(authorNode("circle the date")).toEqual({ "@id": ORG_ID });
+    expect(authorNode("The Circle the date team")).toEqual({ "@id": ORG_ID });
+    expect(authorNode(siteConfig.name)).toEqual({ "@id": ORG_ID });
+  });
+
+  it("returns a Person for a name a person actually has", () => {
+    expect(authorNode("Aneesh")).toEqual({ "@type": "Person", name: "Aneesh" });
+    expect(authorNode("Dana Circle")).toEqual({ "@type": "Person", name: "Dana Circle" });
   });
 });
 

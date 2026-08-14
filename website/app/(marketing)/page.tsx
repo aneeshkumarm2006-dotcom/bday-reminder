@@ -1,11 +1,14 @@
 import type { Metadata } from "next";
 
-import { CustomJsonLd } from "@/components/custom-json-ld";
 import { LandingSections } from "@/components/marketing/landing-sections";
-import { SiteJsonLd } from "@/components/site-json-ld";
+import { PageGraph } from "@/components/page-graph";
 import { SmoothScroll } from "@/components/smooth-scroll";
 import { getLandingContent, getPageMeta } from "@/lib/content/get";
 import { metadataForPath } from "@/lib/content/metadata";
+import {
+  faqItemsFromLandingSections,
+  featureListFromSections,
+} from "@/lib/content/page-graph";
 
 // Static-friendly homepage, refreshed hourly so newly published posts surface in
 // the "From the blog" strip without a redeploy (the /blog index is force-dynamic).
@@ -36,8 +39,22 @@ export default async function Home() {
 
   return (
     <>
-      <SiteJsonLd />
-      <CustomJsonLd json={meta.customJsonLd} />
+      {/* The one page that describes the company and the product in full, so it
+          carries the complete Organization, WebSite and WebApplication nodes;
+          every other route references them by @id. The FAQ and feature list are
+          read back off the same sections the page renders, so hiding a section
+          in the admin removes it from the markup too. */}
+      <PageGraph
+        path="/"
+        name={meta.title}
+        description={meta.description}
+        about="app"
+        fullOrganization
+        includeApp
+        faq={faqItemsFromLandingSections(sections)}
+        featureList={featureListFromSections(sections)}
+        customJsonLd={meta.customJsonLd}
+      />
       <SmoothScroll />
       <LandingSections sections={sections} />
     </>

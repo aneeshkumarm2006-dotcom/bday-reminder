@@ -95,6 +95,19 @@ export function htmlToPlainText(html: string): string {
 }
 
 /**
+ * Words in an HTML fragment, for `BlogPosting.wordCount`.
+ *
+ * Deliberately built on `htmlToBlocks` rather than `readingTimeMinutes`, which
+ * uses a looser parse: this one drops `script`/`style`/`noscript` first, so a
+ * post carrying an embed doesn't have the embed's source counted as prose.
+ */
+export function wordCount(html: string): number {
+  const text = htmlToPlainText(html ?? "");
+  if (!text) return 0;
+  return text.split(/\s+/).filter(Boolean).length;
+}
+
+/**
  * Every prefix of `title` that ends on a clause boundary, longest first — the
  * candidates for a shorter but still human headline. "50th Birthday Party Ideas:
  * Creative Ways to Celebrate a Milestone Birthday" yields "50th Birthday Party

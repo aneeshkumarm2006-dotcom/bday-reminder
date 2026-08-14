@@ -9,7 +9,6 @@ import { HeroTodayRing, StepRing } from "@/components/today-rings";
 import { buttonVariants } from "@/components/ui/button";
 import { isDbConfigured } from "@/lib/blog/db";
 import { getPublishedPosts } from "@/lib/blog/posts";
-import { jsonLdScript } from "@/lib/blog/url";
 import type {
   FaqSection as FaqSectionContent,
   FeaturePreview,
@@ -399,30 +398,18 @@ export async function LatestPosts({ content }: { content: LatestPostsSectionCont
 
 /* ----------------------------------- faq ---------------------------------- */
 
+/**
+ * The FAQ accordion. It emits no JSON-LD of its own: `FAQPage` is a subtype of
+ * `WebPage`, so the questions belong on the page's own node in `<PageGraph>`
+ * rather than in a second, competing page entity. Each route passes the same
+ * `items` array to both, so the two still can't drift.
+ */
 export function Faq({ content }: { content: FaqSectionContent }) {
-  // Single source of truth: the visible accordion and the FAQPage JSON-LD both
-  // read from `content.items`, so they can never drift out of sync.
-  const faqJsonLd = {
-    "@context": "https://schema.org",
-    "@type": "FAQPage",
-    mainEntity: content.items.map((item) => ({
-      "@type": "Question",
-      name: item.q,
-      acceptedAnswer: { "@type": "Answer", text: item.a },
-    })),
-  };
-
   return (
     <section
       id={content.anchor}
       className="mx-auto w-full max-w-3xl scroll-mt-20 px-5 py-20"
     >
-      {content.items.length > 0 && (
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: jsonLdScript(faqJsonLd) }}
-        />
-      )}
       <Reveal className="text-center">
         <h2 className="font-display text-3xl font-semibold tracking-[-0.01em] text-ink">
           {content.heading}

@@ -4,6 +4,7 @@ import { PostBody } from "@/components/blog/post-body";
 import { formatDate } from "@/lib/blog/format";
 import { readingTimeMinutes } from "@/lib/blog/reading-time";
 import type { Post } from "@/lib/blog/types";
+import { normalizeAuthorName } from "@/lib/content/site-json-ld";
 
 /**
  * The public article body — breadcrumb, title, meta row, cover, and the post
@@ -36,7 +37,10 @@ export function PostArticle({ post }: { post: Post }) {
       <div className="mt-3 flex flex-wrap items-center gap-2 text-sm text-ink-muted">
         {post.author && (
           <>
-            <span>{post.author}</span>
+            {/* Through the same helper the JSON-LD uses, so a post signed by the
+                retired brand doesn't show one name here and another in the
+                markup. */}
+            <span>{normalizeAuthorName(post.author)}</span>
             <span aria-hidden="true">·</span>
           </>
         )}

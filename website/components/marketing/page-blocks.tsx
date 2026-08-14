@@ -4,7 +4,6 @@ import Link from "next/link";
 import { ContentIcon } from "@/components/content-icon";
 import { Reveal } from "@/components/reveal";
 import { buttonVariants } from "@/components/ui/button";
-import { jsonLdScript } from "@/lib/blog/url";
 import type {
   ComparisonTableBlock,
   CtaBlock,
@@ -293,25 +292,16 @@ function ComparisonTableBlockView({ block }: { block: ComparisonTableBlock }) {
   );
 }
 
+/**
+ * Renders the accordion only. The FAQPage markup is built once per page from
+ * every faq block, up in the route — emitting it here gave a page with two faq
+ * blocks two FAQPage nodes, which describes two pages that don't exist.
+ */
 function FaqBlockView({ block }: { block: FaqBlock }) {
   if (block.items.length === 0) return null;
-  // One source for the accordion and the FAQPage structured data.
-  const faqJsonLd = {
-    "@context": "https://schema.org",
-    "@type": "FAQPage",
-    mainEntity: block.items.map((item) => ({
-      "@type": "Question",
-      name: item.q,
-      acceptedAnswer: { "@type": "Answer", text: item.a },
-    })),
-  };
 
   return (
     <section className="mx-auto w-full max-w-3xl px-5 py-14">
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: jsonLdScript(faqJsonLd) }}
-      />
       {(block.heading || block.sub) && (
         <Reveal className="text-center">
           {block.heading && (

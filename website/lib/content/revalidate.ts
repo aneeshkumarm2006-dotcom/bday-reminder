@@ -1,6 +1,7 @@
 import { revalidatePath } from "next/cache";
 
 import { SEO_LANDING_PATHS } from "./seo-pages";
+import { GRAPH_ROUTES } from "./static-routes";
 import type { EntityType } from "./types";
 
 /**
@@ -40,6 +41,11 @@ export function revalidateFor(entity: EntityType, target: RevalidateTarget = {})
       // Title template, verification codes, analytics, announcement bar, JSON-LD:
       // all of it is layout-level, so everything downstream has to go.
       safeRevalidate("/", "layout");
+      // Belt and braces for the JSON-LD specifically. Every public page now
+      // embeds the Organization and WebSite nodes in its own graph, not just the
+      // homepage, so renaming the organisation has to reach all of them — and
+      // these are the ISR routes where being wrong means being wrong for an hour.
+      for (const path of GRAPH_ROUTES) safeRevalidate(path);
       safeRevalidate("/robots.txt");
       safeRevalidate("/sitemap.xml");
       safeRevalidate("/llms.txt");

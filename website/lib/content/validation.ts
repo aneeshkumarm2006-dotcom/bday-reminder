@@ -1,7 +1,10 @@
 import { z } from "zod";
 
+import { siteConfig } from "@/lib/site";
+
 import { isReservedSlug } from "./reserved-slugs";
 import { ICON_NAMES } from "./icons";
+import { emittedTypesFor } from "./static-routes";
 
 /**
  * Zod schemas for every admin payload. Validation happens in the route handler
@@ -117,15 +120,76 @@ export const socialLinkSchema = z.object({
   order: z.number().int().min(0).max(999).default(0),
 });
 
+/**
+ * schema.org's own contactType vocabulary. A free-text value here is a silent
+ * no-op for consumers, so the field is an enum rather than a text input.
+ */
+export const CONTACT_POINT_TYPES = [
+  "customer support",
+  "technical support",
+  "billing support",
+  "sales",
+  "press",
+] as const;
+
+/**
+ * The 25 values Google accepts for `applicationCategory`. Anything outside this
+ * list is ignored, so the admin picks rather than types.
+ */
+export const APPLICATION_CATEGORIES = [
+  "BusinessApplication",
+  "BrowserApplication",
+  "CommunicationApplication",
+  "DesignApplication",
+  "DesktopEnhancementApplication",
+  "DeveloperApplication",
+  "DriverApplication",
+  "EducationalApplication",
+  "EntertainmentApplication",
+  "FinanceApplication",
+  "GameApplication",
+  "HealthApplication",
+  "HomeApplication",
+  "LifestyleApplication",
+  "MultimediaApplication",
+  "ReferenceApplication",
+  "SecurityApplication",
+  "ShoppingApplication",
+  "SocialNetworkingApplication",
+  "SportsApplication",
+  "TravelApplication",
+  "UtilitiesApplication",
+] as const;
+
+/** Year, year-month, or full date — anything looser invents a day. */
+const foundingDate = z
+  .string()
+  .trim()
+  .max(10)
+  .default("")
+  .refine((v) => v === "" || /^\d{4}(-\d{2}(-\d{2})?)?$/.test(v), {
+    message: "Founding date must be YYYY, YYYY-MM or YYYY-MM-DD.",
+  });
+
 export const structuredDataSchema = z.object({
   organization: z
     .object({
       enabled: z.boolean().default(true),
       name: z.string().trim().max(200).default(""),
       legalName: z.string().trim().max(200).default(""),
+      alternateName: z.string().trim().max(200).default(""),
+      foundingDate,
       logoUrl: imageUrl.default(""),
       description: z.string().trim().max(1000).default(""),
       email: z.string().trim().max(200).default(""),
+      contactPoint: z
+        .object({
+          enabled: z.boolean().default(true),
+          contactType: z.enum(CONTACT_POINT_TYPES).default("customer support"),
+          email: z.string().trim().max(200).default(""),
+          telephone: z.string().trim().max(40).default(""),
+        })
+        .prefault({}),
     })
     .prefault({}),
   website: z
@@ -133,15 +197,26 @@ export const structuredDataSchema = z.object({
       enabled: z.boolean().default(true),
       name: z.string().trim().max(200).default(""),
       description: z.string().trim().max(1000).default(""),
-      inLanguage: z.string().trim().max(20).default("en-US"),
+      inLanguage: z
+        .string()
+        .trim()
+        .max(20)
+        .default("en-US")
+        .refine((v) => v === "" || /^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$/.test(v), {
+          message: "Language must be a BCP-47 tag like en-US.",
+        }),
     })
     .prefault({}),
   softwareApplication: z
     .object({
       enabled: z.boolean().default(true),
       name: z.string().trim().max(200).default(""),
-      applicationCategory: z.string().trim().max(120).default(""),
+      applicationCategory: z
+        .union([z.enum(APPLICATION_CATEGORIES), z.literal("")])
+        .default(""),
+      applicationSubCategory: z.string().trim().max(120).default(""),
       operatingSystem: z.string().trim().max(120).default(""),
+      browserRequirements: z.string().trim().max(200).default(""),
       price: z.string().trim().max(20).default("0"),
       priceCurrency: z.string().trim().max(10).default("USD"),
       description: z.string().trim().max(1000).default(""),
@@ -512,25 +587,52 @@ export const saveSeoPageSchema = z.object({
 
 /* -------------------------------- page meta ------------------------------- */
 
+/**
+ * The read-time allowlist. Deliberately permissive and append-only: it runs
+ * again on every render (`CustomJsonLd`), and that component fails closed, so
+ * *removing* an entry here silently unpublishes markup that is live today.
+ * Types we no longer want pasted are discouraged at write time instead — see
+ * `DISCOURAGED_JSON_LD_TYPES`.
+ *
+ * The nested entries are not optional decoration. `walk()` checks every `@type`
+ * in the tree, so a parent without its mandatory children is unusable: before
+ * `ListItem` was listed, a correct `BreadcrumbList` — the exact shape this site
+ * emits — was rejected, and the same was true of `FAQPage` without `Answer`,
+ * `Organization` with an `ImageObject` logo, and `Review` with a `Rating`.
+ */
 const JSON_LD_TYPES = new Set([
+  "AboutPage",
+  "AggregateRating",
+  "Answer",
   "Article",
+  "Blog",
   "BlogPosting",
   "BreadcrumbList",
+  "CollectionPage",
+  "ContactPage",
+  "ContactPoint",
   "Course",
   "Event",
   "FAQPage",
   "HowTo",
+  "ImageObject",
   "ItemList",
+  "ItemPage",
+  "ListItem",
   "LocalBusiness",
+  "MobileApplication",
   "Offer",
   "Organization",
   "Person",
+  "Place",
+  "PostalAddress",
   "Product",
   "Question",
+  "Rating",
   "Recipe",
   "Review",
-  // The site graph's own product node is a Service carrying an Offer, so a
-  // page-level custom block mirroring that shape has to be allowed through.
+  // The site graph carried a Service node before the WebApplication swap, and
+  // a page-level block mirroring that shape still has to be allowed through.
   "Service",
   "SoftwareApplication",
   "VideoObject",
@@ -538,6 +640,83 @@ const JSON_LD_TYPES = new Set([
   "WebPage",
   "WebSite",
 ]);
+
+/**
+ * Allowed to keep rendering, refused on new saves.
+ *
+ * `HowTo` lost its rich result in 2023. `Recipe` and `Course` have nothing to do
+ * with a birthday-reminder site. `LocalBusiness` describes a physical place that
+ * doesn't exist, and is the exact type Google's self-serving-review prohibition
+ * attaches to. `Product` invites the "product snippet with no price or rating"
+ * error that the site's app node was reshaped to avoid.
+ */
+export const DISCOURAGED_JSON_LD_TYPES: Record<string, string> = {
+  HowTo: "Google retired HowTo rich results in 2023.",
+  Recipe: "Recipe markup doesn't describe anything on this site.",
+  Course: "Course markup doesn't describe anything on this site.",
+  LocalBusiness: "There's no physical location, and this type attracts review-policy scrutiny.",
+  Product: "The product is software — the site already emits a WebApplication node.",
+};
+
+/** Placeholder tokens copied straight out of an SEO brief, e.g. `[PASTE LIVE ANSWER]`. */
+const PLACEHOLDER_TOKEN = /\[[A-Z][A-Z0-9 _/-]{3,}\]/;
+
+/** How deep `walk()` will recurse before giving up on a hand-pasted blob. */
+const MAX_JSON_LD_DEPTH = 20;
+
+/** Every `@type` string in a parsed JSON-LD tree, in encounter order. */
+function collectTypes(parsed: unknown): string[] {
+  const found: string[] = [];
+  const walk = (node: unknown, depth: number) => {
+    if (depth > MAX_JSON_LD_DEPTH) return;
+    if (Array.isArray(node)) return node.forEach((n) => walk(n, depth + 1));
+    if (!node || typeof node !== "object") return;
+    const rec = node as Record<string, unknown>;
+    const type = rec["@type"];
+    for (const t of Array.isArray(type) ? type : [type]) {
+      if (typeof t === "string") found.push(t);
+    }
+    Object.values(rec).forEach((v) => walk(v, depth + 1));
+  };
+  walk(parsed, 0);
+  return found;
+}
+
+/** The `@type`s of the outermost nodes only — a single node, an array, or an `@graph`. */
+function topLevelTypes(parsed: unknown): string[] {
+  const nodes = Array.isArray(parsed)
+    ? parsed
+    : parsed && typeof parsed === "object" && Array.isArray((parsed as Record<string, unknown>)["@graph"])
+      ? ((parsed as Record<string, unknown>)["@graph"] as unknown[])
+      : [parsed];
+  const out: string[] = [];
+  for (const node of nodes) {
+    if (!node || typeof node !== "object") continue;
+    const type = (node as Record<string, unknown>)["@type"];
+    for (const t of Array.isArray(type) ? type : [type]) {
+      if (typeof t === "string") out.push(t);
+    }
+  }
+  return out;
+}
+
+/** Every absolute http(s) URL sitting in an `@id` or `url` anywhere in the tree. */
+function collectEntityUrls(parsed: unknown): string[] {
+  const out: string[] = [];
+  const walk = (node: unknown, depth: number) => {
+    if (depth > MAX_JSON_LD_DEPTH) return;
+    if (Array.isArray(node)) return node.forEach((n) => walk(n, depth + 1));
+    if (!node || typeof node !== "object") return;
+    const rec = node as Record<string, unknown>;
+    for (const key of ["@id", "url"]) {
+      const value = rec[key];
+      if (typeof value === "string" && /^https?:\/\//i.test(value)) out.push(value);
+    }
+    Object.values(rec).forEach((v) => walk(v, depth + 1));
+  };
+  walk(parsed, 0);
+  return out;
+}
 
 /**
  * Custom JSON-LD is parsed, then every `@type` in the tree is checked against
@@ -554,22 +733,76 @@ export function validateJsonLd(raw: string): { ok: true } | { ok: false; error: 
   } catch {
     return { ok: false, error: "That isn't valid JSON." };
   }
-  const bad: string[] = [];
-  const walk = (node: unknown) => {
-    if (Array.isArray(node)) return node.forEach(walk);
-    if (!node || typeof node !== "object") return;
-    const rec = node as Record<string, unknown>;
-    const type = rec["@type"];
-    for (const t of Array.isArray(type) ? type : [type]) {
-      if (typeof t === "string" && !JSON_LD_TYPES.has(t)) bad.push(t);
-    }
-    Object.values(rec).forEach(walk);
-  };
-  walk(parsed);
+  const bad = collectTypes(parsed).filter((t) => !JSON_LD_TYPES.has(t));
   if (bad.length > 0) {
     return { ok: false, error: `Unsupported @type: ${[...new Set(bad)].join(", ")}.` };
   }
   return { ok: true };
+}
+
+/**
+ * Problems worth blocking on a *new* save that aren't worth un-publishing an old
+ * document over: a duplicate of an entity the route already emits, an `@id` on
+ * the wrong host, a discouraged type, or a placeholder token straight out of a
+ * brief.
+ *
+ * The host check earns its keep on its own. An SEO brief that hardcodes
+ * `https://www.example.com/#organization` while the code builds IDs from a
+ * bare-domain `siteConfig.url` mints a second Organization that can never
+ * reconcile with the first — an error that looks like working markup.
+ *
+ * Returns [] for anything unparseable; `validateJsonLd` owns that message.
+ */
+export function jsonLdConflicts(raw: string, path: string): string[] {
+  const value = raw.trim();
+  if (!value) return [];
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(value);
+  } catch {
+    return [];
+  }
+
+  const problems: string[] = [];
+
+  if (PLACEHOLDER_TOKEN.test(value)) {
+    problems.push(
+      "This contains a placeholder like [PASTE LIVE ANSWER]. Fill in the real text — markup must match what's on the page.",
+    );
+  }
+
+  for (const type of new Set(collectTypes(parsed))) {
+    const reason = DISCOURAGED_JSON_LD_TYPES[type];
+    if (reason) problems.push(`${type} isn't used on this site. ${reason}`);
+  }
+
+  const emitted = new Set(emittedTypesFor(path));
+  const duplicated = [...new Set(topLevelTypes(parsed))].filter((t) => emitted.has(t));
+  if (duplicated.length > 0) {
+    problems.push(
+      `This page already emits ${duplicated.join(", ")} — a second copy competes with it instead of adding to it.`,
+    );
+  }
+
+  const expectedHost = hostOf(siteConfig.url);
+  const foreign = [...new Set(collectEntityUrls(parsed))].filter(
+    (url) => hostOf(url) !== expectedHost,
+  );
+  if (foreign.length > 0) {
+    problems.push(
+      `@id and url must be on ${expectedHost} — found ${foreign.slice(0, 3).join(", ")}. A different host creates a separate entity.`,
+    );
+  }
+
+  return problems;
+}
+
+function hostOf(url: string): string {
+  try {
+    return new URL(url).host.replace(/^www\./, "");
+  } catch {
+    return "";
+  }
 }
 
 const customJsonLd = z
@@ -603,7 +836,16 @@ export const pageMetaSchema = z.object({
     })
     .prefault({}),
   customJsonLd,
-});
+})
+  // Route-aware checks live here rather than on the field, because they need the
+  // sibling `path`. They also only run on write: `validateJsonLd` re-runs at
+  // render time and fails closed, so a rule tightened there would blank markup
+  // that is already published. This one only ever refuses a new save.
+  .superRefine((value, ctx) => {
+    for (const problem of jsonLdConflicts(value.customJsonLd, value.path)) {
+      ctx.addIssue({ code: "custom", path: ["customJsonLd"], message: problem });
+    }
+  });
 
 /* ------------------------------- navigation ------------------------------- */
 

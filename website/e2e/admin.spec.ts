@@ -61,9 +61,27 @@ test.describe("public site renders its defaults with no database", () => {
     await expect(
       page.getByRole("heading", { name: "Frequently asked questions" }),
     ).toBeVisible();
-    // The FAQ accordion and its FAQPage schema come from one list.
+    // One graph per page, always. Two blocks means something started emitting
+    // its own script again, which is how the entities drifted apart before.
     const jsonLd = await page.locator('script[type="application/ld+json"]').allTextContents();
-    expect(jsonLd.join(" ")).toContain("FAQPage");
+    expect(jsonLd).toHaveLength(1);
+
+    const graph = JSON.parse(jsonLd[0])["@graph"] as Record<string, unknown>[];
+    const page$ = graph.find((node) => String(node["@id"]).endsWith("#webpage"));
+    // The FAQ accordion and the questions in the markup come from one list, and
+    // they hang off the page node rather than a second page entity.
+    expect(page$?.["@type"]).toEqual(["WebPage", "FAQPage"]);
+    expect((page$?.mainEntity as unknown[]).length).toBeGreaterThan(0);
+
+    // Every reference resolves inside this page — no pointer to a node that
+    // isn't here.
+    const ids = new Set(graph.map((node) => node["@id"]));
+    for (const node of graph) {
+      for (const value of Object.values(node)) {
+        const ref = (value as Record<string, unknown>)?.["@id"];
+        if (typeof ref === "string") expect(ids).toContain(ref);
+      }
+    }
   });
 
   test("the header and footer render the default navigation", async ({ page }) => {

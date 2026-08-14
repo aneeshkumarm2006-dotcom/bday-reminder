@@ -175,16 +175,32 @@ export interface StructuredDataConfig {
     enabled: boolean;
     name: string;
     legalName: string;
+    alternateName: string;
+    /** ISO `YYYY`, `YYYY-MM` or `YYYY-MM-DD`, or "" for unknown. */
+    foundingDate: string;
     logoUrl: string;
     description: string;
     email: string;
+    contactPoint: {
+      enabled: boolean;
+      contactType: string;
+      /** "" inherits `organization.email`, then `identity.contactEmail`. */
+      email: string;
+      telephone: string;
+    };
   };
   website: { enabled: boolean; name: string; description: string; inLanguage: string };
+  /**
+   * The product node. Named for the settings key it has always had; the markup it
+   * builds is a `WebApplication` (see `site-json-ld.ts`).
+   */
   softwareApplication: {
     enabled: boolean;
     name: string;
     applicationCategory: string;
+    applicationSubCategory: string;
     operatingSystem: string;
+    browserRequirements: string;
     price: string;
     priceCurrency: string;
     description: string;

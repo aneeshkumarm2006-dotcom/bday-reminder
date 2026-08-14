@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { isReservedSlug, RESERVED_SLUGS } from "../reserved-slugs";
 import {
   createSitePageSchema,
+  jsonLdConflicts,
   navigationSchema,
   normalizePath,
   pageMetaSchema,
@@ -198,6 +199,70 @@ describe("validateJsonLd", () => {
     expect(
       pageMetaSchema.safeParse({ path: "/", customJsonLd: '{"@type":"Nope"}' }).success,
     ).toBe(false);
+  });
+
+  /**
+   * `walk()` checks every nested `@type`, so an allowlisted parent whose
+   * mandatory children were missing from the list was unusable — including the
+   * exact shapes this site emits itself. Each case below was rejected before the
+   * nested types were added.
+   */
+  it("accepts the complete form of the types it allows", () => {
+    const shapes = [
+      '{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home"}]}',
+      '{"@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Q","acceptedAnswer":{"@type":"Answer","text":"A"}}]}',
+      '{"@type":"Organization","logo":{"@type":"ImageObject","url":"https://example.com/l.png"}}',
+      '{"@type":"Review","reviewRating":{"@type":"Rating","ratingValue":5}}',
+      '{"@type":"ItemList","itemListElement":[{"@type":"ListItem","position":1}]}',
+      '{"@type":"Organization","contactPoint":{"@type":"ContactPoint","contactType":"customer support"}}',
+    ];
+    for (const shape of shapes) {
+      expect(validateJsonLd(shape), shape).toEqual({ ok: true });
+    }
+  });
+});
+
+describe("jsonLdConflicts", () => {
+  const org = '{"@type":"Organization","name":"Birthday Reminders"}';
+
+  it("refuses a duplicate of an entity the route already emits", () => {
+    expect(jsonLdConflicts(org, "/").join(" ")).toContain("already emits");
+    // A type this route doesn't emit is fine.
+    expect(jsonLdConflicts('{"@type":"Event","name":"Launch"}', "/")).toEqual([]);
+  });
+
+  it("refuses an @id on another host, which would mint a second entity", () => {
+    // The failure this prevents looks like working markup: an SEO brief that
+    // hardcodes a www. origin the code doesn't use creates an Organization that
+    // can never reconcile with the real one.
+    const foreign = '{"@type":"Event","@id":"https://www.example.com/#organization"}';
+    expect(jsonLdConflicts(foreign, "/privacy").join(" ")).toContain("separate entity");
+  });
+
+  it("refuses placeholder tokens pasted straight out of a brief", () => {
+    // Adding `Answer` to the allowlist removed the accidental protection that
+    // used to stop exactly this.
+    const brief =
+      '{"@type":"Event","description":"[PASTE LIVE ANSWER]"}';
+    expect(jsonLdConflicts(brief, "/privacy").join(" ")).toContain("placeholder");
+  });
+
+  it("refuses a type that no longer earns anything", () => {
+    expect(jsonLdConflicts('{"@type":"HowTo"}', "/privacy").join(" ")).toContain(
+      "retired HowTo",
+    );
+    // …but it still renders if it's already stored, so nothing goes dark.
+    expect(validateJsonLd('{"@type":"HowTo"}').ok).toBe(true);
+  });
+
+  it("is enforced on save, with the route in hand", () => {
+    expect(
+      pageMetaSchema.safeParse({ path: "/", customJsonLd: org }).success,
+    ).toBe(false);
+    expect(
+      pageMetaSchema.safeParse({ path: "/privacy", customJsonLd: '{"@type":"Event"}' })
+        .success,
+    ).toBe(true);
   });
 });
 

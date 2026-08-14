@@ -4,11 +4,12 @@ import { cache } from "react";
 
 import { BlogPagination } from "@/components/blog/blog-pagination";
 import { PostCard } from "@/components/blog/post-card";
-import { CustomJsonLd } from "@/components/custom-json-ld";
+import { PageGraph } from "@/components/page-graph";
 import { isDbConfigured } from "@/lib/blog/db";
 import { getPublishedPosts, type PaginatedPosts } from "@/lib/blog/posts";
 import { getAllSeoPageContent, getPageMeta, getSiteSettings } from "@/lib/content/get";
 import { buildPageMetadata, paginatedPageMeta } from "@/lib/content/metadata";
+import { canonicalUrl, itemListId, postListItems } from "@/lib/content/page-graph";
 
 // Render on every request so newly published posts appear instantly (no redeploy).
 export const dynamic = "force-dynamic";
@@ -73,9 +74,37 @@ export default async function BlogIndexPage({
     getAllSeoPageContent("published"),
   ]);
 
+  const posts = data?.posts ?? [];
+  // The list describes the posts on *this* pagination page, not the whole blog:
+  // page 2 self-canonicalises, so its markup has to be about page 2. Positions
+  // restart at 1 for the same reason.
+  const listNodes =
+    posts.length > 0
+      ? [
+          {
+            "@type": "ItemList",
+            "@id": itemListId("/blog"),
+            itemListOrder: "https://schema.org/ItemListOrderDescending",
+            numberOfItems: posts.length,
+            itemListElement: postListItems(posts),
+          },
+        ]
+      : [];
+
   return (
     <div className="mx-auto w-full max-w-5xl px-5 py-12 sm:py-16">
-      <CustomJsonLd json={meta.customJsonLd} />
+      <PageGraph
+        path="/blog"
+        type="CollectionPage"
+        additionalTypes={["Blog"]}
+        name={meta.title || "Blog"}
+        description={meta.description}
+        url={data && data.page > 1 ? `${canonicalUrl("/blog")}?page=${data.page}` : undefined}
+        breadcrumb={[{ name: "Home", path: "/" }, { name: "Blog" }]}
+        nodes={listNodes}
+        mainEntityId={listNodes.length > 0 ? itemListId("/blog") : undefined}
+        customJsonLd={meta.customJsonLd}
+      />
       <header className="mb-10">
         <h1 className="font-display text-3xl font-semibold text-ink sm:text-4xl">
           Blog

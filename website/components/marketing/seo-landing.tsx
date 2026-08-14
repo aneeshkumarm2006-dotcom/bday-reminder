@@ -10,13 +10,12 @@ import {
   ValueProp,
   previewFor,
 } from "@/components/marketing/landing-sections";
+import { PageGraph } from "@/components/page-graph";
 import { Reveal } from "@/components/reveal";
 import { HeroTodayRing } from "@/components/today-rings";
 import { buttonVariants } from "@/components/ui/button";
-import { jsonLdScript } from "@/lib/blog/url";
-import { getAllSeoPageContent } from "@/lib/content/get";
+import { getAllSeoPageContent, getPageMeta } from "@/lib/content/get";
 import type { SeoDownload, SeoLandingPageDef } from "@/lib/content/seo-pages/types";
-import { siteConfig } from "@/lib/site";
 
 /**
  * Renderer for the keyword landing pages (`/birthday-calendar`, `/free`, …).
@@ -27,9 +26,8 @@ import { siteConfig } from "@/lib/site";
  * is the hero, which takes the product shot(s) each brief asks for instead of
  * the homepage's fixed pair.
  *
- * Two structured-data blocks come out of here: a BreadcrumbList (this page sits
- * one level under the homepage) and the FAQPage emitted by the shared FAQ
- * section, which reads the same items the accordion renders.
+ * Structured data comes out of here rather than the seven route files, so all
+ * seven stay three lines long and can't drift apart.
  */
 export async function SeoLandingPage({ page }: { page: SeoLandingPageDef }) {
   const path = `/${page.slug}`;
@@ -40,25 +38,21 @@ export async function SeoLandingPage({ page }: { page: SeoLandingPageDef }) {
   const siblings = (await getAllSeoPageContent("published")).filter(
     (sibling) => sibling.slug !== page.slug,
   );
-  const breadcrumb = {
-    "@context": "https://schema.org",
-    "@type": "BreadcrumbList",
-    itemListElement: [
-      { "@type": "ListItem", position: 1, name: "Home", item: siteConfig.url },
-      {
-        "@type": "ListItem",
-        position: 2,
-        name: page.label,
-        item: `${siteConfig.url}${path}`,
-      },
-    ],
-  };
+  const meta = await getPageMeta(path);
 
   return (
     <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: jsonLdScript(breadcrumb) }}
+      {/* `about` points at the app by @id without redefining it: the node lives
+          on the homepage alone, so one product doesn't become seven rival
+          software entities across the cluster. */}
+      <PageGraph
+        path={path}
+        name={meta.title || page.title}
+        description={meta.description || page.description}
+        about="app"
+        breadcrumb={[{ name: "Home", path: "/" }, { name: page.label }]}
+        faq={page.faq.items.map((item) => ({ q: item.q, a: item.a }))}
+        customJsonLd={meta.customJsonLd}
       />
 
       <SeoHero page={page} />

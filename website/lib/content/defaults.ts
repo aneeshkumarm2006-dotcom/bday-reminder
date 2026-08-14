@@ -84,9 +84,19 @@ export const DEFAULT_SETTINGS: SiteSettings = {
       enabled: true,
       name: siteConfig.name,
       legalName: "",
+      alternateName: "",
+      foundingDate: "",
       logoUrl: `${siteConfig.url}/icons/512`,
       description: siteConfig.description,
       email: siteConfig.contactEmail,
+      contactPoint: {
+        enabled: true,
+        contactType: "customer support",
+        // Empty falls back to organization.email → identity.contactEmail, so the
+        // address is stated in one place and can't drift between the two nodes.
+        email: "",
+        telephone: "",
+      },
     },
     website: {
       enabled: true,
@@ -94,11 +104,19 @@ export const DEFAULT_SETTINGS: SiteSettings = {
       description: siteConfig.description,
       inLanguage: "en-US",
     },
+    // `softwareApplication` is the settings key, not the emitted @type — renaming
+    // it would orphan every stored document, so it stays while the node it builds
+    // is a WebApplication.
     softwareApplication: {
       enabled: true,
       name: siteConfig.name,
       applicationCategory: "LifestyleApplication",
-      operatingSystem: "Web browser",
+      applicationSubCategory: "Birthday and event reminders",
+      // "Any" is schema.org's convention for platform-agnostic software. "Web
+      // browser" is not an operating system, and naming iOS or Android here would
+      // claim shipped native apps that don't exist yet.
+      operatingSystem: "Any",
+      browserRequirements: "Requires JavaScript. Requires HTML5.",
       price: "0",
       priceCurrency: "USD",
       description: siteConfig.description,

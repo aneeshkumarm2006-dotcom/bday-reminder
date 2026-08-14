@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
-import { CustomJsonLd } from "@/components/custom-json-ld";
 import { SeoLandingPage } from "@/components/marketing/seo-landing";
-import { getPageMeta, getSeoPageContent } from "@/lib/content/get";
+import { getSeoPageContent } from "@/lib/content/get";
 import { seoLandingMetadata } from "@/lib/content/metadata";
 
 /**
@@ -18,15 +17,11 @@ export function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function BirthdayTrackerPrintableRoute() {
-  const [meta, page] = await Promise.all([
-    getPageMeta("/birthday-tracker-printable"),
-    getSeoPageContent("birthday-tracker-printable", "published"),
-  ]);
+  const page = await getSeoPageContent("birthday-tracker-printable", "published");
   if (!page) notFound();
 
   return (
     <>
-      <CustomJsonLd json={meta.customJsonLd} />
       <SeoLandingPage page={page} />
     </>
   );

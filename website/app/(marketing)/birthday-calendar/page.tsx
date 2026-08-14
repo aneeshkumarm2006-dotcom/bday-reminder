@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
-import { CustomJsonLd } from "@/components/custom-json-ld";
 import { SeoLandingPage } from "@/components/marketing/seo-landing";
-import { getPageMeta, getSeoPageContent } from "@/lib/content/get";
+import { getSeoPageContent } from "@/lib/content/get";
 import { seoLandingMetadata } from "@/lib/content/metadata";
 
 /**
@@ -32,17 +31,13 @@ export function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function BirthdayCalendarRoute() {
-  const [meta, page] = await Promise.all([
-    getPageMeta("/birthday-calendar"),
-    getSeoPageContent("birthday-calendar", "published"),
-  ]);
+  const page = await getSeoPageContent("birthday-calendar", "published");
   // Only null for a slug with no page file, and this route hardcodes one that
   // exists — the guard is for the type, not for reality.
   if (!page) notFound();
 
   return (
     <>
-      <CustomJsonLd json={meta.customJsonLd} />
       <SeoLandingPage page={page} />
     </>
   );

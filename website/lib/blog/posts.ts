@@ -320,13 +320,23 @@ export async function deletePost(id: string): Promise<boolean> {
   return Boolean(res);
 }
 
-/** Best-effort view counter; never throws into the render path. */
+/**
+ * Best-effort view counter; never throws into the render path.
+ *
+ * `timestamps: false` is load-bearing, not tidiness. The schema sets
+ * `timestamps: true`, which Mongoose also applies to `updateOne` — so without
+ * this, every single page view moved `updatedAt`. That field is the post's
+ * `dateModified` in its structured data *and* its `lastModified` in the sitemap,
+ * so a counter meant to be invisible was telling Google that every post on the
+ * site had been rewritten today, every day.
+ */
 export async function incrementViews(slug: string): Promise<void> {
   try {
     await connectDb();
     await Post.updateOne(
       { slug: slug.toLowerCase(), ...publishedFilter() },
       { $inc: { views: 1 } },
+      { timestamps: false },
     );
   } catch {
     // monitoring metric only — ignore failures
