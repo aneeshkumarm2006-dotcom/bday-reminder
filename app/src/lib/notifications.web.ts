@@ -7,6 +7,10 @@ export async function registerForPushNotifications(): Promise<string | null> {
   return null;
 }
 
-export async function unregisterPushNotifications(_token: string): Promise<void> {
+export async function unregisterPushNotifications(_token?: string): Promise<void> {
   // No-op on web.
+}
+
+export async function getPushPermissionStatus(): Promise<'granted' | 'denied' | 'undetermined'> {
+  return 'denied';
 }

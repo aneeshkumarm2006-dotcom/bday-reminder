@@ -45,6 +45,16 @@ export const pushProvider: ChannelProvider = {
       title: payload.headline,
       body: payload.message,
       sound: 'default' as const,
+      // Android routes every notification through a channel. Naming it
+      // explicitly pins delivery to the HIGH-importance "Reminders" channel the
+      // app creates at startup (see app/src/lib/notifications.ts) instead of
+      // letting it land on whatever fallback channel the OS picks - which is
+      // what silently downgraded reminders to no heads-up, no sound.
+      channelId: 'default',
+      // A reminder is time-critical by definition: it is about today. Without
+      // this, Android battery optimisation may hold it until the next
+      // maintenance window - i.e. deliver a "today" reminder tomorrow.
+      priority: 'high' as const,
       data: { personId: payload.personId, reminderId: payload.reminderId },
     }));
 

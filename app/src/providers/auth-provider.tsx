@@ -10,6 +10,7 @@ import {
 } from 'react';
 
 import {
+  ApiError,
   authApi,
   setUnauthorizedHandler,
   type AuthUser,
@@ -21,8 +22,9 @@ import {
   signInWithGoogle as runGoogleSignIn,
   type GoogleSignInStatus,
 } from '@/lib/google-auth';
-import { registerForPushNotifications } from '@/lib/notifications';
+import { registerForPushNotifications, unregisterPushNotifications } from '@/lib/notifications';
 import { clearTokens, loadTokens, saveTokens } from '@/lib/token-store';
+import { clearCachedUser, loadCachedUser, saveCachedUser } from '@/lib/user-cache';
 import { clearWidget } from '@/lib/widget';
 
 /**
@@ -114,6 +116,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<AuthStatus>('loading');
   const [user, setUser] = useState<AuthUser | null>(null);
   const [needsBirthdayPrompt, setNeedsBirthdayPrompt] = useState(false);
+  /**
+   * True once this launch has actually reached the server - either by signing in
+   * or by revalidating the cached session. `status` alone no longer implies it:
+   * a cached user makes us "authenticated" before the first byte comes back, and
+   * the network-bound work below (minting a push token, PATCHing the timezone)
+   * would then fire into a dead connection and silently give up for the session.
+   */
+  const [serverConfirmed, setServerConfirmed] = useState(false);
   const dismissBirthdayPrompt = useCallback(() => setNeedsBirthdayPrompt(false), []);
 
   // Mirror of `user` for optimistic updates that need the pre-edit snapshot to
@@ -121,29 +131,52 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const userRef = useRef<AuthUser | null>(null);
   useEffect(() => {
     userRef.current = user;
+    // Mirror every accepted user shape into the launch cache from one place, so
+    // sign-in, sign-up, Google, profile edits and the timezone sync all keep it
+    // fresh without each having to remember to. Sign-out and delete clear it.
+    if (user) void saveCachedUser(user);
   }, [user]);
 
-  // Re-hydrate the session on launch.
+  // Re-hydrate the session on launch: cached user first so the splash can come
+  // down at once, then revalidate against the server behind it. A hard 401 on
+  // that revalidation still signs the user out through `setUnauthorizedHandler`
+  // below, so the cache buys latency, not trust.
   useEffect(() => {
     let active = true;
     (async () => {
       const tokens = await loadTokens();
       if (!tokens) {
+        await clearCachedUser();
         if (active) setStatus('unauthenticated');
         return;
       }
+
+      const cached = await loadCachedUser();
+      if (cached && active) {
+        setUser(cached);
+        setStatus('authenticated');
+      }
+
       try {
         const me = await authApi.me();
-        if (active) {
-          setUser(me);
-          setStatus('authenticated');
-        }
-      } catch {
-        await clearTokens();
-        if (active) {
+        if (!active) return;
+        setUser(me);
+        setStatus('authenticated');
+        setServerConfirmed(true);
+      } catch (err) {
+        if (!active) return;
+        if (err instanceof ApiError && err.status === 401) {
+          // The server rejected the session - drop everything.
+          await Promise.all([clearTokens(), clearCachedUser()]);
           setUser(null);
           setStatus('unauthenticated');
+          return;
         }
+        // Offline, or the API is still cold-starting. Keep the tokens: a
+        // network blip must not cost the user their session. With a cache we
+        // simply stay on the app; without one there is no user to render, so
+        // fall back to login and let the next launch re-hydrate.
+        if (!cached) setStatus('unauthenticated');
       }
     })();
     return () => {
@@ -156,6 +189,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUnauthorizedHandler(() => {
       setUser(null);
       setStatus('unauthenticated');
+      setServerConfirmed(false);
+      // Drop the launch cache too, or the next launch would briefly show the
+      // app for a session the server has already rejected.
+      void clearCachedUser();
     });
     return () => setUnauthorizedHandler(null);
   }, []);
@@ -165,7 +202,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // (FR-52). Both are best-effort and native-aware (push no-ops on web).
   const userTimezone = user?.timezone ?? null;
   useEffect(() => {
-    if (status !== 'authenticated') return;
+    if (status !== 'authenticated' || !serverConfirmed) return;
     let active = true;
     void registerForPushNotifications();
     const deviceTz = detectTimezone();
@@ -182,13 +219,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       active = false;
     };
-  }, [status, userTimezone]);
+  }, [status, serverConfirmed, userTimezone]);
 
   const signIn = useCallback(async (email: string, password: string) => {
     const res = await authApi.login({ email, password });
     await saveTokens({ accessToken: res.accessToken, refreshToken: res.refreshToken });
     setUser(res.user);
     setStatus('authenticated');
+    setServerConfirmed(true);
   }, []);
 
   const signInWithGoogle = useCallback(async (): Promise<GoogleSignInStatus> => {
@@ -199,6 +237,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(googleUser);
       setNeedsBirthdayPrompt(result.session.isNew && !googleUser.birthday);
       setStatus('authenticated');
+      setServerConfirmed(true);
     }
     return result.status;
   }, []);
@@ -210,6 +249,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(session.user);
       setNeedsBirthdayPrompt(session.isNew && !session.user.birthday);
       setStatus('authenticated');
+      setServerConfirmed(true);
       return true;
     } catch {
       // Expired/replayed handoff or a network failure - the route sends the user
@@ -240,29 +280,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await saveTokens({ accessToken: res.accessToken, refreshToken: res.refreshToken });
       setUser(res.user);
       setStatus('authenticated');
+      setServerConfirmed(true);
     },
     [],
   );
 
   const signOut = useCallback(async () => {
+    // Hand the push token back BEFORE the access token goes away - otherwise
+    // the device stays attached to this account server-side and keeps buzzing
+    // with its birthdays, including for whoever signs in on this phone next.
+    await unregisterPushNotifications();
     const tokens = await loadTokens();
     if (tokens) await authApi.logout(tokens.refreshToken);
-    await clearTokens();
+    await Promise.all([clearTokens(), clearCachedUser()]);
     // Wipe the home-screen widget so it never shows the signed-out user's data
     // (Stage 10). Native-only + best-effort; a no-op on web.
     void clearWidget();
     setUser(null);
     setStatus('unauthenticated');
+    setServerConfirmed(false);
   }, []);
 
   const deleteAccount = useCallback(async () => {
     // Server wipes all data + revokes the tokens; on success mirror signOut's
     // local teardown. No logout call - the refresh token is already gone.
     await authApi.deleteAccount();
-    await clearTokens();
+    await Promise.all([clearTokens(), clearCachedUser()]);
     void clearWidget();
     setUser(null);
     setStatus('unauthenticated');
+    setServerConfirmed(false);
   }, []);
 
   const updateProfile = useCallback(async (patch: UpdateMeInput) => {

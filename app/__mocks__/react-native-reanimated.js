@@ -51,7 +51,13 @@ module.exports = {
   useAnimatedStyle: (fn) => callOrEmpty(fn),
   useAnimatedRef: () => React.createRef(),
   useReducedMotion: () => true,
-  withTiming: identity,
+  // Completion callbacks fire synchronously with `finished: true` - the launch
+  // screen hands control back to the app from one, so a mock that swallowed it
+  // would leave that path untestable.
+  withTiming: (value, _config, callback) => {
+    if (typeof callback === 'function') callback(true);
+    return value;
+  },
   withDelay: (_delay, value) => value,
   withSpring: identity,
   withRepeat: identity,

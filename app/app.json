@@ -2,13 +2,13 @@
   "expo": {
     "name": "Circle the date",
     "slug": "app",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "circlethedate",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon",
+      "icon": "./assets/images/icon.png",
       "bundleIdentifier": "com.circlethedate.app",
       "entitlements": {
         "com.apple.security.application-groups": [
@@ -19,7 +19,7 @@
     "android": {
       "package": "com.circlethedate.app",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#FCFBF8",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
@@ -31,7 +31,7 @@
       "blockedPermissions": [
         "android.permission.WRITE_CONTACTS"
       ],
-      "versionCode": 4
+      "versionCode": 5
     },
     "web": {
       "output": "static",
@@ -42,13 +42,244 @@
       [
         "expo-splash-screen",
         {
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 170,
+          "resizeMode": "contain",
           "backgroundColor": "#FCFBF8",
           "dark": {
+            "image": "./assets/images/splash-icon-dark.png",
             "backgroundColor": "#18171A"
+          }
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/notification-icon.png",
+          "color": "#2C4BD8",
+          "defaultChannel": "default"
+        }
+      ],
+      "./plugins/with-launcher-only-icon-aliases",
+      [
+        "@howincodes/expo-dynamic-app-icon",
+        {
+          "day01": {
+            "ios": "./assets/images/day-icons/ios/01.png",
+            "android": {
+              "foregroundImage": "./assets/images/day-icons/android/01.png",
+              "backgroundColor": "#FCFBF8"
+            }
           },
-          "android": {
-            "image": "./assets/images/splash-icon.png",
-            "imageWidth": 76
+          "day02": {
+            "ios": "./assets/images/day-icons/ios/02.png",
+            "android": {
+              "foregroundImage": "./assets/images/day-icons/android/02.png",
+              "backgroundColor": "#FCFBF8"
+            }
+          },
+          "day03": {
+            "ios": "./assets/images/day-icons/ios/03.png",
+            "android": {
+              "foregroundImage": "./assets/images/day-icons/android/03.png",
+              "backgroundColor": "#FCFBF8"
+            }
+          },
+          "day04": {
+            "ios": "./assets/images/day-icons/ios/04.png",
+            "android": {
+              "foregroundImage": "./assets/images/day-icons/android/04.png",
+              "backgroundColor": "#FCFBF8"
+            }
+          },
+          "day05": {
+            "ios": "./assets/images/day-icons/ios/05.png",
+            "android": {
+              "foregroundImage": "./assets/images/day-icons/android/05.png",
+              "backgroundColor": "#FCFBF8"
+            }
+          },
+          "day06": {
+            "ios": "./assets/images/day-icons/ios/06.png",
+            "android": {
+              "foregroundImage": "./assets/images/day-icons/android/06.png",
+              "backgroundColor": "#FCFBF8"
+            }
+          },
+          "day07": {
+            "ios": "./assets/images/day-icons/ios/07.png",
+            "android": {
+              "foregroundImage": "./assets/images/day-icons/android/07.png",
+              "backgroundColor": "#FCFBF8"
+            }
+          },
+          "day08": {
+            "ios": "./assets/images/day-icons/ios/08.png",
+            "android": {
+              "foregroundImage": "./assets/images/day-icons/android/08.png",
+              "backgroundColor": "#FCFBF8"
+            }
+          },
+          "day09": {
+            "ios": "./assets/images/day-icons/ios/09.png",
+            "android": {
+              "foregroundImage": "./assets/images/day-icons/android/09.png",
+              "backgroundColor": "#FCFBF8"
+            }
+          },
+          "day10": {
+            "ios": "./assets/images/day-icons/ios/10.png",
+            "android": {
+              "foregroundImage": "./assets/images/day-icons/android/10.png",
+              "backgroundColor": "#FCFBF8"
+            }
+          },
+          "day11": {
+            "ios": "./assets/images/day-icons/ios/11.png",
+            "android": {
+              "foregroundImage": "./assets/images/day-icons/android/11.png",
+              "backgroundColor": "#FCFBF8"
+            }
+          },
+          "day12": {
+            "ios": "./assets/images/day-icons/ios/12.png",
+            "android": {
+              "foregroundImage": "./assets/images/day-icons/android/12.png",
+              "backgroundColor": "#FCFBF8"
+            }
+          },
+          "day13": {
+            "ios": "./assets/images/day-icons/ios/13.png",
+            "android": {
+              "foregroundImage": "./assets/images/day-icons/android/13.png",
+              "backgroundColor": "#FCFBF8"
+            }
+          },
+          "day14": {
+            "ios": "./assets/images/day-icons/ios/14.png",
+            "android": {
+              "foregroundImage": "./assets/images/day-icons/android/14.png",
+              "backgroundColor": "#FCFBF8"
+            }
+          },
+          "day15": {
+            "ios": "./assets/images/day-icons/ios/15.png",
+            "android": {
+              "foregroundImage": "./assets/images/day-icons/android/15.png",
+              "backgroundColor": "#FCFBF8"
+            }
+          },
+          "day16": {
+            "ios": "./assets/images/day-icons/ios/16.png",
+            "android": {
+              "foregroundImage": "./assets/images/day-icons/android/16.png",
+              "backgroundColor": "#FCFBF8"
+            }
+          },
+          "day17": {
+            "ios": "./assets/images/day-icons/ios/17.png",
+            "android": {
+              "foregroundImage": "./assets/images/day-icons/android/17.png",
+              "backgroundColor": "#FCFBF8"
+            }
+          },
+          "day18": {
+            "ios": "./assets/images/day-icons/ios/18.png",
+            "android": {
+              "foregroundImage": "./assets/images/day-icons/android/18.png",
+              "backgroundColor": "#FCFBF8"
+            }
+          },
+          "day19": {
+            "ios": "./assets/images/day-icons/ios/19.png",
+            "android": {
+              "foregroundImage": "./assets/images/day-icons/android/19.png",
+              "backgroundColor": "#FCFBF8"
+            }
+          },
+          "day20": {
+            "ios": "./assets/images/day-icons/ios/20.png",
+            "android": {
+              "foregroundImage": "./assets/images/day-icons/android/20.png",
+              "backgroundColor": "#FCFBF8"
+            }
+          },
+          "day21": {
+            "ios": "./assets/images/day-icons/ios/21.png",
+            "android": {
+              "foregroundImage": "./assets/images/day-icons/android/21.png",
+              "backgroundColor": "#FCFBF8"
+            }
+          },
+          "day22": {
+            "ios": "./assets/images/day-icons/ios/22.png",
+            "android": {
+              "foregroundImage": "./assets/images/day-icons/android/22.png",
+              "backgroundColor": "#FCFBF8"
+            }
+          },
+          "day23": {
+            "ios": "./assets/images/day-icons/ios/23.png",
+            "android": {
+              "foregroundImage": "./assets/images/day-icons/android/23.png",
+              "backgroundColor": "#FCFBF8"
+            }
+          },
+          "day24": {
+            "ios": "./assets/images/day-icons/ios/24.png",
+            "android": {
+              "foregroundImage": "./assets/images/day-icons/android/24.png",
+              "backgroundColor": "#FCFBF8"
+            }
+          },
+          "day25": {
+            "ios": "./assets/images/day-icons/ios/25.png",
+            "android": {
+              "foregroundImage": "./assets/images/day-icons/android/25.png",
+              "backgroundColor": "#FCFBF8"
+            }
+          },
+          "day26": {
+            "ios": "./assets/images/day-icons/ios/26.png",
+            "android": {
+              "foregroundImage": "./assets/images/day-icons/android/26.png",
+              "backgroundColor": "#FCFBF8"
+            }
+          },
+          "day27": {
+            "ios": "./assets/images/day-icons/ios/27.png",
+            "android": {
+              "foregroundImage": "./assets/images/day-icons/android/27.png",
+              "backgroundColor": "#FCFBF8"
+            }
+          },
+          "day28": {
+            "ios": "./assets/images/day-icons/ios/28.png",
+            "android": {
+              "foregroundImage": "./assets/images/day-icons/android/28.png",
+              "backgroundColor": "#FCFBF8"
+            }
+          },
+          "day29": {
+            "ios": "./assets/images/day-icons/ios/29.png",
+            "android": {
+              "foregroundImage": "./assets/images/day-icons/android/29.png",
+              "backgroundColor": "#FCFBF8"
+            }
+          },
+          "day30": {
+            "ios": "./assets/images/day-icons/ios/30.png",
+            "android": {
+              "foregroundImage": "./assets/images/day-icons/android/30.png",
+              "backgroundColor": "#FCFBF8"
+            }
+          },
+          "day31": {
+            "ios": "./assets/images/day-icons/ios/31.png",
+            "android": {
+              "foregroundImage": "./assets/images/day-icons/android/31.png",
+              "backgroundColor": "#FCFBF8"
+            }
           }
         }
       ],

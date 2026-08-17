@@ -470,17 +470,24 @@ export default function SettingsScreen() {
           iOS or Android.
         </Text>
 
-        <SectionLabel>Design</SectionLabel>
-        <Card
-          onPress={() => router.push('/ring-preview')}
-          accessibilityLabel="Ring preview"
-          className="flex-row items-center justify-between">
-          <View className="flex-row items-center gap-3">
-            <Icon icon={Sparkles} size={20} />
-            <Text variant="body">Ring preview</Text>
-          </View>
-          <Icon icon={ChevronRight} size={20} />
-        </Card>
+        {/* Ring preview is a QA/design reference surface, not a feature - a
+            "Design > Ring preview" row means nothing to someone who installed a
+            birthday reminder app. Dev builds only; the route itself stays. */}
+        {__DEV__ ? (
+          <>
+            <SectionLabel>Design</SectionLabel>
+            <Card
+              onPress={() => router.push('/ring-preview')}
+              accessibilityLabel="Ring preview"
+              className="flex-row items-center justify-between">
+              <View className="flex-row items-center gap-3">
+                <Icon icon={Sparkles} size={20} />
+                <Text variant="body">Ring preview</Text>
+              </View>
+              <Icon icon={ChevronRight} size={20} />
+            </Card>
+          </>
+        ) : null}
 
         <View className="mt-8">
           <Button variant="secondary" fullWidth onPress={onLogout}>

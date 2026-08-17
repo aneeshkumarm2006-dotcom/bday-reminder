@@ -9,17 +9,32 @@ import { useFonts } from 'expo-font';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import { LaunchScreen } from '@/components/launch-screen';
 import { ConfirmProvider, ToastProvider } from '@/components/ui';
+import { startAppIconSync } from '@/lib/app-icon';
+import { useNotificationRouting } from '@/lib/notification-routing';
 import { AuthProvider, useAuth } from '@/providers/auth-provider';
 import { ThemeProvider, useThemePreference, useTokens } from '@/theme/theme-provider';
 
-// Keep the splash up until fonts are ready and the session is resolved.
+/**
+ * Launch is two screens pretending to be one:
+ *
+ *  1. the native splash - a static mark on paper, the only thing that can be on
+ *     screen before React exists, and
+ *  2. `<LaunchScreen>` - the same mark, animated, circling today's date.
+ *
+ * The native one is dismissed the moment the animated one has painted (see
+ * `onLayout` below), so the seam never shows. It fades rather than cuts because
+ * the two are pixel-near but not pixel-identical.
+ */
 void SplashScreen.preventAutoHideAsync();
+SplashScreen.setOptions({ duration: 300, fade: true });
 
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
@@ -28,6 +43,11 @@ export default function RootLayout() {
     Inter_400Regular,
     Inter_500Medium,
   });
+
+  // Keep the launcher icon circling today's date for as long as the app lives.
+  // Deliberately outside the auth tree: the icon is not personal data and a
+  // signed-out user's phone should still show the right day.
+  useEffect(() => startAppIconSync(), []);
 
   if (!fontsLoaded && !fontError) return null;
 
@@ -61,10 +81,21 @@ function RootNavigator() {
   const router = useRouter();
   const tokens = useTokens();
 
+  // The animated launch screen sits over the stack until it has both played out
+  // AND the session has resolved, so it covers the auth redirect below rather
+  // than letting the user watch login flash past on the way to the app. It owns
+  // that wait itself (`ready`) so it can never be unmounted and replayed.
+  const [launchDone, setLaunchDone] = useState(false);
+  const onLaunchFinished = useCallback(() => setLaunchDone(true), []);
+  const onLaunchPainted = useCallback(() => void SplashScreen.hideAsync(), []);
+
+  // Tapping a reminder opens the person it is about (the push payload has always
+  // carried `personId`). Gated on a resolved session so a cold-start tap is not
+  // immediately replaced by the auth redirect below.
+  useNotificationRouting(status === 'authenticated');
+
   useEffect(() => {
     if (status === 'loading') return;
-    // Session resolved - reveal the app.
-    void SplashScreen.hideAsync();
 
     const inAuthGroup = segments[0] === '(auth)';
     // The Google sign-in deep-link return lands here still unauthenticated and
@@ -86,24 +117,34 @@ function RootNavigator() {
   }, [status, segments, router, needsBirthdayPrompt, user?.birthday]);
 
   return (
-    <Stack
-      screenOptions={{
-        headerShown: false,
-        contentStyle: { backgroundColor: tokens.paper },
-      }}>
-      <Stack.Screen name="(auth)" />
-      <Stack.Screen name="(tabs)" />
-      <Stack.Screen name="google-login" />
-      <Stack.Screen name="welcome-birthday" />
-      <Stack.Screen name="google-import-connected" />
-      <Stack.Screen name="gmail-connected" />
-      <Stack.Screen name="add-person" options={{ presentation: 'modal' }} />
-      <Stack.Screen name="import" options={{ presentation: 'modal' }} />
-      <Stack.Screen name="person/[id]" />
-      <Stack.Screen name="list/[id]" />
-      <Stack.Screen name="calendar-sync" />
-      <Stack.Screen name="invite/[token]" options={{ presentation: 'modal' }} />
-    </Stack>
+    <View style={{ flex: 1 }}>
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          contentStyle: { backgroundColor: tokens.paper },
+        }}>
+        <Stack.Screen name="(auth)" />
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="google-login" />
+        <Stack.Screen name="welcome-birthday" />
+        <Stack.Screen name="google-import-connected" />
+        <Stack.Screen name="gmail-connected" />
+        <Stack.Screen name="add-person" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="import" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="person/[id]" />
+        <Stack.Screen name="list/[id]" />
+        <Stack.Screen name="calendar-sync" />
+        <Stack.Screen name="invite/[token]" options={{ presentation: 'modal' }} />
+      </Stack>
+
+      {launchDone ? null : (
+        <LaunchScreen
+          ready={status !== 'loading'}
+          onPainted={onLaunchPainted}
+          onFinished={onLaunchFinished}
+        />
+      )}
+    </View>
   );
 }
 

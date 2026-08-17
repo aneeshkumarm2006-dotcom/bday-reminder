@@ -1,6 +1,6 @@
 import SignUpScreen from '@/app/(auth)/sign-up';
 
-import { fireEvent, renderWithTheme, screen } from '../../../test-utils/render';
+import { act, fireEvent, renderWithTheme, screen } from '../../../test-utils/render';
 
 /**
  * Form validation (TODO Stage 13). The sign-up screen validates before calling
@@ -34,6 +34,21 @@ describe('SignUpScreen validation', () => {
     fireEvent.changeText(screen.getByLabelText('Birthday day'), day);
     if (year) fireEvent.changeText(screen.getByLabelText('Birthday year, optional'), year);
   };
+
+  /**
+   * Submit a form that gets past validation and let the submit settle.
+   *
+   * `submit` is async: it awaits `signUp` and only then flips `loading` back
+   * off. `fireEvent` wraps the press in a *synchronous* `act`, which returns
+   * before that promise resolves, so the trailing `setLoading(false)` lands
+   * outside `act` and React warns. An async `act` flushes pending microtasks
+   * before it exits, so the whole submit happens inside it. The validation
+   * tests below return early - no promise, no need for this.
+   */
+  const submitAndSettle = () =>
+    act(async () => {
+      fireEvent.press(screen.getByRole('button', { name: 'Create account' }));
+    });
 
   it('requires a name before submitting', () => {
     renderWithTheme(<SignUpScreen />);
@@ -71,13 +86,13 @@ describe('SignUpScreen validation', () => {
     expect(mockSignUp).not.toHaveBeenCalled();
   });
 
-  it('calls signUp with trimmed values when the form is valid', () => {
+  it('calls signUp with trimmed values when the form is valid', async () => {
     renderWithTheme(<SignUpScreen />);
     fireEvent.changeText(screen.getByPlaceholderText('Your name'), '  Michael Brooks  ');
     fireEvent.changeText(screen.getByPlaceholderText('you@example.com'), '  michael@example.com  ');
     fireEvent.changeText(screen.getByPlaceholderText('At least 8 characters'), 'supersecret');
     fillBirthday('March', '12', '1988');
-    fireEvent.press(screen.getByRole('button', { name: 'Create account' }));
+    await submitAndSettle();
     expect(mockSignUp).toHaveBeenCalledWith({
       name: 'Michael Brooks',
       email: 'michael@example.com',
@@ -86,12 +101,12 @@ describe('SignUpScreen validation', () => {
     });
   });
 
-  it('keeps the birth year optional', () => {
+  it('keeps the birth year optional', async () => {
     renderWithTheme(<SignUpScreen />);
     fireEvent.changeText(screen.getByPlaceholderText('Your name'), 'Michael');
     fireEvent.changeText(screen.getByPlaceholderText('At least 8 characters'), 'supersecret');
     fillBirthday('July', '4');
-    fireEvent.press(screen.getByRole('button', { name: 'Create account' }));
+    await submitAndSettle();
     expect(mockSignUp).toHaveBeenCalledWith(
       expect.objectContaining({ birthday: { month: 7, day: 4, year: null } }),
     );

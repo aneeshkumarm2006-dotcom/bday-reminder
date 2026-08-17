@@ -35,9 +35,12 @@ const RING_PATH = 'M33 8 C49 7 58 19 57 32 C56 47 41 57 26 55 C12 53 6 39 9 25 C
 // draw-on. Slightly longer than the true length so the line fully hides/reveals.
 const PATH_LENGTH = 160;
 
-const BOX = { sm: 40, md: 56, lg: 72 } as const;
-const STROKE = { sm: 2, md: 2.4, lg: 3 } as const;
-const NUM = { sm: 16, md: 20, lg: 26 } as const;
+// `xl` is the launch screen's ring - the same mark the icon is cut from, at a
+// size where the draw-on actually reads as a pen circling the date.
+const BOX = { sm: 40, md: 56, lg: 72, xl: 132 } as const;
+const STROKE = { sm: 2, md: 2.4, lg: 3, xl: 4 } as const;
+const NUM = { sm: 16, md: 20, lg: 26, xl: 46 } as const;
+const MONTH = { sm: 10, md: 10, lg: 10, xl: 17 } as const;
 
 export type RingState = 'upcoming' | 'today' | 'done' | 'past';
 export type RingSize = keyof typeof BOX;
@@ -71,6 +74,7 @@ export function DateRing({
   const box = BOX[size];
   const stroke = STROKE[size];
   const num = NUM[size];
+  const monthSize = MONTH[size];
   const filled = state === 'today';
   const animate = filled && !reducedMotion;
 
@@ -149,8 +153,8 @@ export function DateRing({
         <RNText
           style={{
             fontFamily: fontFamily.body,
-            fontSize: 10,
-            lineHeight: 13,
+            fontSize: monthSize,
+            lineHeight: Math.round(monthSize * 1.3),
             letterSpacing: 0.4,
             color: monthColor,
           }}>
