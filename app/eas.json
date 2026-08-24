@@ -28,6 +28,15 @@
       "env": {
         "EXPO_PUBLIC_API_URL": "https://bday-api-1j78.onrender.com"
       }
+    },
+    "simulator": {
+      "extends": "preview",
+      "ios": {
+        "simulator": true
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://bday-api-1j78.onrender.com"
+      }
     }
   },
   "submit": {
