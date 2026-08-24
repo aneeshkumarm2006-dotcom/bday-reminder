@@ -9,7 +9,7 @@ import {
   toDateParts,
   type DatePartsStrings,
 } from '@/components/date-parts-field';
-import { GoogleSignInButton } from '@/components/google-sign-in-button';
+import { AuthProviders } from '@/components/auth-providers';
 import { Button, FormScrollView, Screen, Text, TextField } from '@/components/ui';
 import { cn, focusRing } from '@/lib/cn';
 import { ApiError } from '@/lib/api';
@@ -109,7 +109,7 @@ export default function SignUpScreen() {
             <Button fullWidth loading={loading} onPress={submit}>
               Create account
             </Button>
-            <GoogleSignInButton label="Sign up with Google" />
+            <AuthProviders mode="signUp" />
           </View>
 
           <View className="flex-row items-center justify-center gap-1.5">

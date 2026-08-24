@@ -76,6 +76,14 @@ const EnvSchema = z.object({
   // Generate with `openssl rand -base64 32` → decodes to exactly 32 bytes.
   GMAIL_TOKEN_ENC_KEY: z.string().optional(),
 
+  // --- 'Sign in with Apple' (identity login). Required by App Store Guideline
+  // 4.8 because the app also offers 'Continue with Google'. The value is the
+  // audience we accept in Apple identity tokens: the iOS bundle id
+  // (com.circlethedate.app). A web Services ID can be appended, comma-separated.
+  // Optional: unset hides the button (GET /config) and the route reports
+  // 'not configured', exactly like the Google feature flags above.
+  APPLE_CLIENT_ID: z.string().optional(),
+
   // --- Twilio auto-send SMS greeting (text a birthday message to a friend AS the
   // user, from one shared Twilio account) [Stage 15] - all optional. When the
   // account isn't configured the feature is hidden (GET /config) and the dispatch

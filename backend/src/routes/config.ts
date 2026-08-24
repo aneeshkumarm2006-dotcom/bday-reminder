@@ -1,5 +1,6 @@
 import { Router } from 'express';
 
+import { appleLoginConfigured } from '../lib/apple-oauth';
 import {
   gmailOAuthConfigured,
   googleImportConfigured,
@@ -29,6 +30,9 @@ configRouter.get('/', (_req, res) => {
     // Whether "Sign in with Google" is provisioned (so the login page can hide
     // the button when it isn't).
     googleAuthAvailable: googleLoginConfigured(),
+    // Whether "Sign in with Apple" is provisioned. App Store Guideline 4.8 requires
+    // it alongside Google, so the iOS button keys off this the same way.
+    appleAuthAvailable: appleLoginConfigured(),
     // Whether Google Calendar + Contacts bulk import is provisioned (Stage 16), so
     // the app/website hide the "Import from Google" option when it isn't.
     googleImportAvailable: googleImportConfigured(),

@@ -73,6 +73,13 @@ export interface UserDoc {
    * Google identity to this account; unset for password-only accounts.
    */
   googleId?: string;
+  /**
+   * Apple account id (the `sub` claim) once the user has signed in with Apple. Same role as
+   * {@link UserDoc.googleId}: links an Apple identity to this account, unset otherwise.
+   * Apple only reveals an email on the FIRST authorization, so this - not the
+   * email - is the durable key we match on for returning users.
+   */
+  appleId?: string;
   phone?: string;
   /**
    * The user's own birthday. Asked at signup and editable in Settings; unset on
@@ -156,6 +163,9 @@ const userSchema = new Schema<UserDoc>(
     // Google `sub`; sparse+unique so only Google-linked accounts are indexed and
     // no two accounts can claim the same Google identity.
     googleId: { type: String },
+    // Apple `sub`; sparse+unique (index declared below) so only Apple-linked
+    // accounts are indexed and no two accounts can claim the same Apple identity.
+    appleId: { type: String },
     phone: { type: String, trim: true },
     // `dateParts(true)` on an optional path: Mongoose only runs the sub-path
     // validators when the subdoc exists, so the field is either absent or a
@@ -183,6 +193,9 @@ userSchema.index({ 'calendarSync.token': 1 }, { unique: true, sparse: true });
 // One account per Google identity; sparse so password-only accounts (no googleId)
 // don't collide on `null`.
 userSchema.index({ googleId: 1 }, { unique: true, sparse: true });
+
+// One account per Apple identity; sparse for the same reason as googleId above.
+userSchema.index({ appleId: 1 }, { unique: true, sparse: true });
 
 export const User: Model<UserDoc> =
   (models.User as Model<UserDoc>) || model<UserDoc>('User', userSchema);

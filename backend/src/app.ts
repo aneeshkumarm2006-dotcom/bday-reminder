@@ -7,6 +7,7 @@ import { loadEnv } from './lib/env';
 import { logger } from './lib/logger';
 import { errorHandler, notFoundHandler } from './middleware/error-handler';
 import { rateLimit } from './middleware/rate-limit';
+import { appleAuthRouter } from './routes/apple-auth';
 import { authRouter } from './routes/auth';
 import { calendarFeedRouter, calendarRouter } from './routes/calendar';
 import { calendarEventsRouter } from './routes/calendar-events';
@@ -89,6 +90,8 @@ export function createApp(): Express {
     app.use('/auth/signup', authLimiter());
     // The Google handoff→session exchange is a credential endpoint too.
     app.use('/auth/google/session', authLimiter());
+    // Same for the Apple identity-token exchange.
+    app.use('/auth/apple/session', authLimiter());
   }
 
   // 8mb headroom for base64 photo uploads (FR-10); JSON bodies are otherwise tiny.
@@ -109,6 +112,8 @@ export function createApp(): Express {
   app.use('/auth', authRouter);
   // "Sign in with Google" (identity login); also mounted under /auth.
   app.use('/auth', googleAuthRouter);
+  // "Sign in with Apple" (identity login); also mounted under /auth.
+  app.use('/auth', appleAuthRouter);
   app.use('/config', configRouter);
   // Calendar settings sit under /me/calendar; mount before the broader /me
   // router so the more specific prefix wins. The public feed is separate below.

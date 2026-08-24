@@ -158,6 +158,8 @@ export type AuthResponse = {
 
 /** Google-login session response - same as AuthResponse plus a new-account flag. */
 export type GoogleSessionResponse = AuthResponse & { isNew: boolean };
+/** POST /auth/apple/session returns the same shape as the Google exchange. */
+export type AppleSessionResponse = AuthResponse & { isNew: boolean };
 
 /** Fields the settings screen can change on the current user (Stage 5). */
 export type UpdateMeInput = {
@@ -211,6 +213,25 @@ export const authApi = {
       body: { handoff },
       auth: false,
     }),
+
+  /**
+   * Exchange an Apple identity token for the real JWT pair. There is no handoff
+   * step here: Apple's native sheet hands the app a signed token directly, and
+   * the server verifies it against Apple's public keys. `fullName` and `email`
+   * are only populated on the user's FIRST authorization - Apple withholds them
+   * on every sign-in after that - so they are forwarded when present and the
+   * server falls back to the stored account.
+   */
+  appleSession: (input: {
+    identityToken: string;
+    fullName?: { givenName?: string | null; familyName?: string | null } | null;
+    email?: string | null;
+  }) =>
+    apiFetch<AppleSessionResponse>('/auth/apple/session', {
+      method: 'POST',
+      body: input,
+      auth: false,
+    }),
 };
 
 // --- Gmail send-as integration (Stage 14) -----------------------------------
@@ -259,6 +280,11 @@ export type AppConfig = {
   whatsappAutoSendAvailable?: boolean;
   /** Whether "Sign in with Google" is provisioned on the server (Stage 16). */
   googleAuthAvailable?: boolean;
+  /**
+   * Whether "Sign in with Apple" is provisioned on the server. Required by App
+   * Store Guideline 4.8 wherever "Continue with Google" is offered.
+   */
+  appleAuthAvailable?: boolean;
   /** Whether Google Calendar + Contacts bulk import is provisioned (Stage 16). */
   googleImportAvailable?: boolean;
 };

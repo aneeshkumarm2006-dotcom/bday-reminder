@@ -39,6 +39,8 @@ export default defineConfig({
       TWILIO_ACCOUNT_SID: 'ACtest0000000000000000000000000000',
       TWILIO_AUTH_TOKEN: 'test-auth-token',
       TWILIO_MESSAGING_SERVICE_SID: 'MGtest0000000000000000000000000000',
+      // Sign in with Apple audience, so apple-oauth unit tests see it "configured".
+      APPLE_CLIENT_ID: 'com.circlethedate.app',
       // Pin the in-memory MongoDB binary so every run reuses one cached download.
       MONGOMS_VERSION: '7.0.24',
     },

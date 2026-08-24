@@ -19,6 +19,10 @@ import {
   type UpdateMeInput,
 } from '@/lib/api';
 import {
+  signInWithApple as runAppleSignIn,
+  type AppleSignInStatus,
+} from '@/lib/apple-auth';
+import {
   signInWithGoogle as runGoogleSignIn,
   type GoogleSignInStatus,
 } from '@/lib/google-auth';
@@ -52,6 +56,13 @@ type AuthContextValue = {
    * Non-ok statuses are returned (never thrown) for the screen to message.
    */
   signInWithGoogle: () => Promise<GoogleSignInStatus>;
+  /**
+   * "Sign in with Apple" (identity only). Required by App Store Guideline 4.8
+   * alongside Google. Runs Apple's native sheet and, on 'ok', adopts the
+   * returned tokens + user like `signIn`. Non-ok statuses are returned (never
+   * thrown) for the screen to message.
+   */
+  signInWithApple: () => Promise<AppleSignInStatus>;
   /**
    * Adopt a Google sign-in handoff directly (bypassing the in-app browser
    * session). Used by the `google-login` deep-link route as a fallback for when
@@ -242,6 +253,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return result.status;
   }, []);
 
+  const signInWithApple = useCallback(async (): Promise<AppleSignInStatus> => {
+    const result = await runAppleSignIn();
+    if (result.status === 'ok') {
+      const { accessToken, refreshToken, user: appleUser } = result.session;
+      await saveTokens({ accessToken, refreshToken });
+      setUser(appleUser);
+      // Same rule as Google: only accounts CREATED by the social flow still owe
+      // us a birthday - they never saw the signup form that asks for one.
+      setNeedsBirthdayPrompt(result.session.isNew && !appleUser.birthday);
+      setStatus('authenticated');
+      setServerConfirmed(true);
+    }
+    return result.status;
+  }, []);
+
   const completeGoogleSession = useCallback(async (handoff: string): Promise<boolean> => {
     try {
       const session = await authApi.googleSession(handoff);
@@ -351,6 +377,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signIn,
       signUp,
       signInWithGoogle,
+      signInWithApple,
       completeGoogleSession,
       needsBirthdayPrompt,
       dismissBirthdayPrompt,
@@ -365,6 +392,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signIn,
       signUp,
       signInWithGoogle,
+      signInWithApple,
       completeGoogleSession,
       needsBirthdayPrompt,
       dismissBirthdayPrompt,

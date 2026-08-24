@@ -14,7 +14,8 @@
         "com.apple.security.application-groups": [
           "group.com.circlethedate.app.widget"
         ]
-      }
+      },
+      "usesAppleSignIn": true
     },
     "android": {
       "package": "com.circlethedate.app",
@@ -284,6 +285,7 @@
           }
         }
       ],
+      "expo-apple-authentication",
       "expo-secure-store",
       [
         "expo-image-picker",
@@ -330,15 +332,6 @@
           "experimental": {
             "ios": {
               "appExtensions": [
-                {
-                  "bundleIdentifier": "com.circlethedate.app.widget",
-                  "targetName": "Birthdays",
-                  "entitlements": {
-                    "com.apple.security.application-groups": [
-                      "group.com.circlethedate.app.widget"
-                    ]
-                  }
-                },
                 {
                   "bundleIdentifier": "com.circlethedate.app.widget",
                   "targetName": "Birthdays",

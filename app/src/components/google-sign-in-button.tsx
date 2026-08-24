@@ -1,63 +1,39 @@
-import { useEffect, useState } from 'react';
-import { Platform, View } from 'react-native';
+import { useState } from 'react';
+import { View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
 import { Button, Text, type IconProps } from '@/components/ui';
-import { configApi } from '@/lib/api';
-import { useAuth } from '@/providers/auth-provider';
+import type { GoogleSignInStatus } from '@/lib/google-auth';
 
 /**
- * "Continue with Google" (identity login) for the auth screens - the app twin
- * of the website's GoogleAuthButton. Renders nothing until GET /config confirms
- * the server has Google login provisioned (config.googleAuthAvailable), so the
- * button never appears when it would just error out. Owns the whole flow:
- * divider, busy state while the browser session is open, and the inline
- * error/unavailable messages ('ok' redirects via the auth guard; a plain
- * dismiss says nothing).
+ * "Continue with Google" (identity login) - the app twin of the website's
+ * GoogleAuthButton.
+ *
+ * Presentational on purpose: `<AuthProviders>` decides whether this renders at
+ * all (GET /config `googleAuthAvailable`, native only) and owns the shared "or"
+ * rule, so the divider appears once above every provider rather than once here.
  *
  * Note: signing in requests identity ONLY (name + email). The Gmail "send as
  * you" permission is a separate, later opt-in on the auto-send screens.
- *
- * Native only: the flow returns via the circlethedate:// scheme, which a
- * browser popup can't navigate, so on the Expo web build the button would
- * silently dead-end. The web surface with Google login is the website, whose
- * flow redirects through its own /auth/google page (platform=web).
  */
-
-// Constant per bundle, so the hooks below still run unconditionally.
-const IS_WEB = Platform.OS === 'web';
 
 type Message = { kind: 'error' | 'note'; text: string };
 
-export function GoogleSignInButton({ label = 'Continue with Google' }: { label?: string }) {
-  const { signInWithGoogle } = useAuth();
-  const [available, setAvailable] = useState(false);
+export function GoogleSignInButton({
+  label = 'Continue with Google',
+  onSignIn,
+}: {
+  label?: string;
+  onSignIn: () => Promise<GoogleSignInStatus>;
+}) {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<Message | null>(null);
-
-  useEffect(() => {
-    if (IS_WEB) return;
-    let active = true;
-    configApi
-      .get()
-      .then((c) => {
-        if (active) setAvailable(!!c.googleAuthAvailable);
-      })
-      .catch(() => {
-        /* config unreachable → keep the button hidden */
-      });
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  if (IS_WEB || !available) return null;
 
   const press = async () => {
     setMessage(null);
     setBusy(true);
     try {
-      const status = await signInWithGoogle();
+      const status = await onSignIn();
       if (status === 'error') {
         setMessage({ kind: 'error', text: "Couldn't sign you in with Google. Please try again." });
       } else if (status === 'unavailable') {
@@ -75,14 +51,7 @@ export function GoogleSignInButton({ label = 'Continue with Google' }: { label?:
   };
 
   return (
-    <View className="gap-4">
-      <View className="flex-row items-center gap-3" aria-hidden>
-        <View className="h-[1px] flex-1 bg-border-subtle" />
-        <Text variant="caption" className="text-ink-secondary">
-          or
-        </Text>
-        <View className="h-[1px] flex-1 bg-border-subtle" />
-      </View>
+    <View className="gap-2">
       <Button
         variant="secondary"
         fullWidth
