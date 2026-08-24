@@ -63,3 +63,14 @@ Two more:
 Install the resulting .app, sign in as the review account, then capture with
 `simctl io screenshot`. Set the appearance and status bar first - the status
 bar override resets when the device idles.
+
+## 6.5-inch/
+
+Same five shots at **1284 x 2778**, for the older 6.5" slot (iPhone XS Max,
+11 Pro Max, 12-14 Pro Max) if App Store Connect asks for that size instead.
+
+Derived from the 6.9" originals, not re-captured: scaled to 1284 wide (giving
+2790) and centre-cropped the 12px of excess height, six pixels off each end,
+which falls in margin on every one of these screens. Uploading 6.9" alone is
+still preferable when the slot is offered - Apple scales that down for every
+smaller iPhone by itself.
