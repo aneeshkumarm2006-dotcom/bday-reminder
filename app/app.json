@@ -10,12 +10,17 @@
     "ios": {
       "icon": "./assets/images/icon.png",
       "bundleIdentifier": "com.circlethedate.app",
+      "appleTeamId": "JS59W5FCDU",
       "entitlements": {
         "com.apple.security.application-groups": [
           "group.com.circlethedate.app.widget"
         ]
       },
-      "usesAppleSignIn": true
+      "usesAppleSignIn": true,
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      },
+      "buildNumber": "2"
     },
     "android": {
       "package": "com.circlethedate.app",
