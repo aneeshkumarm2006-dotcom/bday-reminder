@@ -124,8 +124,8 @@ async function main(): Promise<void> {
     // P1: lead0 (due) - lead7 is 7 days stale, skipped. P2: lead0. P3: lead0+lead7. P6: lead0+lead7. = 6.
     check(allA.length === 6, `generated 6 reminder instances across lead times (got ${allA.length})`);
     check(
-      allA.every((r) => r.channels.length === 3 && r.channels.includes('push') && r.channels.includes('email') && r.channels.includes('inApp')),
-      'reminders resolve the user default channels (push+email+inApp, sms off)',
+      allA.every((r) => r.channels.length === 2 && r.channels.includes('push') && r.channels.includes('inApp')),
+      'reminders resolve the user default channels (push+inApp; email and sms are opt-in)',
     );
     check(
       allA.every((r) => r.scheduledFor instanceof Date),
