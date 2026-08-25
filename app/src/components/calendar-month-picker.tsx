@@ -1,5 +1,5 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react-native';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Pressable, View } from 'react-native';
 
 import { Icon, Sheet, Text } from '@/components/ui';
@@ -33,9 +33,14 @@ export function CalendarMonthPicker({
   // The year the grid of months is showing; re-seeded from the displayed year
   // each time the sheet opens so it always starts where the user is.
   const [pickerYear, setPickerYear] = useState(year);
-  useEffect(() => {
+  // Re-seed during render on the closed->open transition rather than from an
+  // effect: setting state in an effect commits a throwaway render first, which
+  // is what react-hooks/set-state-in-effect flags.
+  const [wasVisible, setWasVisible] = useState(visible);
+  if (visible !== wasVisible) {
+    setWasVisible(visible);
     if (visible) setPickerYear(year);
-  }, [visible, year]);
+  }
 
   return (
     <Sheet visible={visible} onClose={onClose} title="Jump to month">

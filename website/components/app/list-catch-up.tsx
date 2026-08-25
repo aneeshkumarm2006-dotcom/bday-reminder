@@ -82,15 +82,20 @@ export function ListCatchUp({
     [data],
   );
 
-  useEffect(() => {
-    if (!data) return;
-    setSelected(
-      (prev) => prev ?? new Set(people.filter((p) => p.inMyCalendar !== false).map((p) => p.id)),
-    );
-  }, [data, people]);
+  // Everyone already in your calendar starts ticked. Derived rather than seeded
+  // into state from an effect: until the user touches a checkbox there is no
+  // choice to store, and `null` still means "not loaded yet".
+  const defaults = useMemo(
+    () =>
+      data
+        ? new Set(people.filter((p) => p.inMyCalendar !== false).map((p) => p.id))
+        : null,
+    [data, people],
+  );
+  const choice = selected ?? defaults;
 
   const total = people.length;
-  const chosen = selected?.size ?? 0;
+  const chosen = choice?.size ?? 0;
 
   // "Some selected" only exists as a DOM property, never an attribute.
   useEffect(() => {
@@ -106,15 +111,15 @@ export function ListCatchUp({
 
   const toggle = (id: string) =>
     setSelected((prev) => {
-      const next = new Set(prev ?? []);
+      const next = new Set(prev ?? defaults ?? []);
       if (next.has(id)) next.delete(id);
       else next.add(id);
       return next;
     });
 
   const save = async () => {
-    if (!selected) return;
-    const diff = calendarSelectionDiff(people, selected);
+    if (!choice) return;
+    const diff = calendarSelectionDiff(people, choice);
     if (!hasCalendarChanges(diff)) return onDone();
     setSaving(true);
     try {
@@ -147,7 +152,7 @@ export function ListCatchUp({
     );
   }
 
-  if (!selected) return <p className="text-sm text-ink-muted">Loading…</p>;
+  if (!choice) return <p className="text-sm text-ink-muted">Loading…</p>;
 
   const cta =
     chosen === 0
@@ -196,7 +201,7 @@ export function ListCatchUp({
                 <li key={person.id}>
                   <label className="flex cursor-pointer items-center gap-3 py-2.5">
                     <Checkbox
-                      checked={selected.has(person.id)}
+                      checked={choice.has(person.id)}
                       onChange={() => toggle(person.id)}
                     />
                     <span className="min-w-0 flex-1">

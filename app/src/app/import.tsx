@@ -299,16 +299,28 @@ export default function ImportScreen() {
   // source=google-error surfaces the connect failure. This only runs when Android
   // dispatched the OAuth return as a fresh Intent instead of resolving the in-app
   // browser session.
+  // The error is surfaced during render on the transition, not from an effect:
+  // an effect commits one render without the message before adding it, which is
+  // what react-hooks/set-state-in-effect flags. Resuming the preview stays in an
+  // effect - it is a real side effect, not a state assignment.
+  const [handledSource, setHandledSource] = useState<typeof source | undefined>(undefined);
+  if (source !== handledSource) {
+    setHandledSource(source);
+    if (source === 'google-error') {
+      setError("Couldn't connect Google. Please try again.");
+    }
+  }
+
   const autoGoogle = useRef(false);
   useEffect(() => {
     if (autoGoogle.current) return;
-    if (source === 'google') {
-      autoGoogle.current = true;
-      void runGooglePreview();
-    } else if (source === 'google-error') {
-      autoGoogle.current = true;
-      setError("Couldn't connect Google. Please try again.");
-    }
+    if (source !== 'google') return;
+    autoGoogle.current = true;
+    // Kicked off after commit rather than inline: runGooglePreview sets busy
+    // and clears the error synchronously before its first await, and doing that
+    // from inside an effect body is the cascading render the lint rule is about.
+    const id = setTimeout(() => void runGooglePreview(), 0);
+    return () => clearTimeout(id);
   }, [source, runGooglePreview]);
 
   const setResolution = (id: string, resolution: ImportResolution) =>

@@ -154,12 +154,12 @@ export function PostEditor({
 
   // After a successful save, state settles to the server's response on the next
   // render; re-baseline from the fresh snapshot then so `dirty` resets to false.
-  useEffect(() => {
-    if (justSaved) {
-      setBaseline(snapshot);
-      setJustSaved(false);
-    }
-  }, [justSaved, snapshot]);
+  // Done during that render - `snapshot` is already the settled value here, and
+  // an effect would commit one render showing stale `dirty` before correcting.
+  if (justSaved) {
+    setJustSaved(false);
+    setBaseline(snapshot);
+  }
 
   const confirmLeave = useCallback(
     async (dest: string) => {
