@@ -83,9 +83,15 @@ export function Button({
       {loading ? (
         <ActivityIndicator size="small" color={spinnerColor} />
       ) : (
-        <View className="flex-row items-center gap-2">
+        // `shrink` on both the group and the label is load-bearing: React
+        // Native defaults flexShrink to 0 (the web defaults to 1), so without
+        // it a long label - "Continue with Google", "Sign in with Apple" -
+        // cannot compress, overflows the Pressable and is clipped at its edge.
+        // Shrinking lets it wrap instead; min-h-[44px] already lets the button
+        // grow, so the text is never hidden.
+        <View className="shrink flex-row items-center gap-2">
           {leftIcon ? <Icon icon={leftIcon} size={20} color={iconColor} /> : null}
-          <Text variant="button" className={LABEL_COLOR[variant]}>
+          <Text variant="button" className={cn('shrink', LABEL_COLOR[variant])}>
             {children}
           </Text>
         </View>

@@ -31,7 +31,9 @@ export function Chip({ label, selected = false, disabled = false, onPress }: Chi
         selected ? 'border-biro bg-biro-tint' : 'border-transparent bg-surface-sunken',
         disabled && 'opacity-40',
       )}>
-      <Text variant="label" className={selected ? 'text-biro-pressed' : 'text-ink-secondary'}>
+      <Text
+        variant="label"
+        className={cn('shrink', selected ? 'text-biro-pressed' : 'text-ink-secondary')}>
         {label}
       </Text>
     </Pressable>

@@ -368,7 +368,7 @@ export default function SettingsScreen() {
           onPress={() => router.push('/calendar-sync')}
           accessibilityLabel="Calendar sync"
           className="flex-row items-center justify-between">
-          <View className="flex-row items-center gap-3">
+          <View className="shrink flex-row items-center gap-3">
             <Icon icon={CalendarPlus} size={20} />
             <Text variant="body">Calendar sync</Text>
           </View>
@@ -382,7 +382,7 @@ export default function SettingsScreen() {
           <>
             <SectionLabel>Auto-send email</SectionLabel>
             <Card>
-              <View className="flex-row items-center gap-3">
+              <View className="shrink flex-row items-center gap-3">
                 <Icon icon={Mail} size={20} />
                 <View className="flex-1">
                   <Text variant="body">Gmail account</Text>
@@ -413,7 +413,7 @@ export default function SettingsScreen() {
           onPress={() => router.push('/import')}
           accessibilityLabel="Import people"
           className="flex-row items-center justify-between">
-          <View className="flex-row items-center gap-3">
+          <View className="shrink flex-row items-center gap-3">
             <Icon icon={Upload} size={20} />
             <Text variant="body">Import people</Text>
           </View>
@@ -423,7 +423,7 @@ export default function SettingsScreen() {
         {googleImportAvailable ? (
           <>
             <Card className="mt-3">
-              <View className="flex-row items-center gap-3">
+              <View className="shrink flex-row items-center gap-3">
                 <Icon icon={CloudDownload} size={20} />
                 <View className="flex-1">
                   <Text variant="body">Google import</Text>
@@ -459,7 +459,7 @@ export default function SettingsScreen() {
           onPress={() => router.push('/widget-preview')}
           accessibilityLabel="Home screen widget"
           className="flex-row items-center justify-between">
-          <View className="flex-row items-center gap-3">
+          <View className="shrink flex-row items-center gap-3">
             <Icon icon={LayoutGrid} size={20} />
             <Text variant="body">Home screen widget</Text>
           </View>
@@ -480,7 +480,7 @@ export default function SettingsScreen() {
               onPress={() => router.push('/ring-preview')}
               accessibilityLabel="Ring preview"
               className="flex-row items-center justify-between">
-              <View className="flex-row items-center gap-3">
+              <View className="shrink flex-row items-center gap-3">
                 <Icon icon={Sparkles} size={20} />
                 <Text variant="body">Ring preview</Text>
               </View>
