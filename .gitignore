@@ -44,3 +44,6 @@ npm-debug.log*
 # OS
 .DS_Store
 Thumbs.db
+
+# Play build artifacts — large binaries, fetched from EAS when needed
+store/android/*.aab

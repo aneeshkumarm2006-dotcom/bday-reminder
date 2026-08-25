@@ -24,7 +24,7 @@ export function LegalPage({
   children?: React.ReactNode;
 }) {
   const proseClass =
-    "mt-8 flex flex-col gap-6 leading-relaxed text-ink-secondary [&_a:not(.not-prose_*)]:text-biro [&_a:not(.not-prose_*)]:underline [&_a:not(.not-prose_*)]:underline-offset-2 [&_h2]:mt-2 [&_h2]:font-display [&_h2]:text-xl [&_h2]:font-semibold [&_h2]:text-ink [&_li]:ml-1 [&_strong]:font-medium [&_strong]:text-ink [&_ul]:flex [&_ul]:list-disc [&_ul]:flex-col [&_ul]:gap-2 [&_ul]:pl-5";
+    "mt-8 flex flex-col gap-6 leading-relaxed text-ink-secondary [&_a:not(.not-prose_*)]:text-biro [&_a:not(.not-prose_*)]:underline [&_a:not(.not-prose_*)]:underline-offset-2 [&_h2]:mt-2 [&_h2]:font-display [&_h2]:text-xl [&_h2]:font-semibold [&_h2]:text-ink [&_h3]:mt-1 [&_h3]:font-display [&_h3]:text-[17px] [&_h3]:font-semibold [&_h3]:text-ink [&_li]:ml-1 [&_strong]:font-medium [&_strong]:text-ink [&_ul]:flex [&_ul]:list-disc [&_ul]:flex-col [&_ul]:gap-2 [&_ul]:pl-5";
 
   return (
     <article className="mx-auto w-full max-w-2xl px-5 py-16">
