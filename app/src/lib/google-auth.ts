@@ -23,7 +23,37 @@ export type GoogleSignInResult =
   | { status: 'dismissed' | 'unavailable' | 'error' };
 
 export async function signInWithGoogle(): Promise<GoogleSignInResult> {
-  const result = await WebBrowser.openAuthSessionAsync(START_URL, RETURN_URL);
+  // Android frequently delivers the backend's 302 to `circlethedate://` as a
+  // fresh Intent rather than resolving the auth session, so
+  // `openAuthSessionAsync` can stay pending forever - and the button that
+  // awaits it spins forever with it. Watch Linking in parallel: if the return
+  // URL arrives that way, `app/google-login.tsx` owns finishing the sign-in
+  // (the handoff is single-use, so we must NOT also spend it here). Stop
+  // waiting and report 'dismissed', which renders no message - the route is
+  // already navigating.
+  const viaIntent = Symbol('viaIntent');
+  let resolveIntent: (v: typeof viaIntent) => void = () => {};
+  const intentDelivery = new Promise<typeof viaIntent>((resolve) => {
+    resolveIntent = resolve;
+  });
+  const subscription = Linking.addEventListener('url', ({ url }) => {
+    if (url.startsWith(RETURN_URL)) resolveIntent(viaIntent);
+  });
+
+  let result: Awaited<ReturnType<typeof WebBrowser.openAuthSessionAsync>> | typeof viaIntent;
+  try {
+    result = await Promise.race([
+      WebBrowser.openAuthSessionAsync(START_URL, RETURN_URL),
+      intentDelivery,
+    ]);
+  } finally {
+    subscription.remove();
+  }
+
+  if (result === viaIntent) {
+    WebBrowser.dismissAuthSession();
+    return { status: 'dismissed' };
+  }
   if (result.type !== 'success' || !result.url) {
     // 'cancel' / 'dismiss' = the user backed out; anything else is a failure.
     return { status: result.type === 'cancel' || result.type === 'dismiss' ? 'dismissed' : 'error' };

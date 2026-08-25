@@ -26,29 +26,38 @@ export default function GoogleLoginReturn() {
   const { status: authStatus, completeGoogleSession } = useAuth();
   const ran = useRef(false);
 
+  const status = typeof params.status === 'string' ? params.status : '';
+  const handoff = typeof params.handoff === 'string' ? params.handoff : '';
+
   useEffect(() => {
     if (ran.current) return;
-    ran.current = true;
 
     // The in-app browser session already finished the sign-in - just proceed
     // (avoids re-spending the now-consumed handoff).
     if (authStatus === 'authenticated') {
+      ran.current = true;
       router.replace('/(tabs)');
       return;
     }
 
-    const handoff = typeof params.handoff === 'string' ? params.handoff : '';
-    if (params.status === 'ok' && handoff) {
+    if (status === 'ok' && handoff) {
+      ran.current = true;
       void completeGoogleSession(handoff).then((ok) => {
         router.replace(ok ? '/(tabs)' : '/(auth)/login');
       });
-    } else {
+      return;
+    }
+
+    // A cold-start deep link can mount this route a render before expo-router
+    // has parsed the query string, so an empty `status` is "not yet", NOT a
+    // failure - bailing to /login here silently killed the sign-in. Only give
+    // up once the params really did arrive and say something other than ok.
+    if (status) {
+      ran.current = true;
       // 'unavailable' / 'error' / malformed - back to login to try again.
       router.replace('/(auth)/login');
     }
-    // Run once on mount; params/auth are snapshotted at the initial navigation.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [status, handoff, authStatus, completeGoogleSession, router]);
 
   return (
     <Screen edges={['top', 'bottom']}>
