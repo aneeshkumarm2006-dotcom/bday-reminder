@@ -37,6 +37,8 @@ function item(over: Partial<UpcomingItem>): UpcomingItem {
     occurrenceDate: '2026-06-25T00:00:00.000Z',
     daysRemaining: 3,
     ageTurning: null,
+    yearsMarking: null,
+    isMilestone: false,
     group: 'This week',
     ...over,
   };

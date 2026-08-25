@@ -28,6 +28,15 @@ type UpcomingItem = {
   occurrenceDate: string;
   daysRemaining: number;
   ageTurning: number | null;
+  /**
+   * How many times this date has come round on the upcoming occurrence - a
+   * wedding's 25th, a birthday's 40th. Null when no year is stored. Separate
+   * from `ageTurning`, which stays birthday-only (FR-13/14): a couple's 25th is
+   * a fact about the date, not somebody's age.
+   */
+  yearsMarking: number | null;
+  /** True when `yearsMarking` lands on a multiple of five - see `isMilestoneYear`. */
+  isMilestone: boolean;
   group: ProximityGroup;
 };
 
@@ -49,11 +58,8 @@ upcomingRouter.get(
     for (const event of events) {
       const person = peopleById.get(event.person.toString());
       if (!person) continue;
-      const { occurrence, daysRemaining, ageTurning, group } = resolveOccurrence(
-        event.date,
-        person.feb29Rule,
-        today,
-      );
+      const { occurrence, daysRemaining, ageTurning, yearsMarking, isMilestone, group } =
+        resolveOccurrence(event.date, person.feb29Rule, today);
       items.push({
         personId: person._id.toString(),
         eventId: event._id.toString(),
@@ -69,6 +75,8 @@ upcomingRouter.get(
         // Age is a birthday concept only - never shown for anniversaries/custom
         // events even when they carry a year (FR-13/14, §11).
         ageTurning: event.type === 'birthday' ? ageTurning : null,
+        yearsMarking,
+        isMilestone,
         group,
       });
     }

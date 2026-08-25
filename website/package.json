@@ -12,6 +12,7 @@
     "test:watch": "vitest",
     "e2e": "playwright test",
     "seed:content": "tsx scripts/seed-content.ts",
+    "import:posts": "tsx scripts/import-posts.ts",
     "fonts:build": "python scripts/build-fonts.py"
   },
   "dependencies": {

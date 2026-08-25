@@ -4,7 +4,7 @@ import { View } from 'react-native';
 import { DateRing, type RingState } from '@/components/date-ring';
 import { Button, Card, Pill, Text } from '@/components/ui';
 import type { ReminderItem } from '@/lib/api';
-import { monthAbbr } from '@/lib/dates';
+import { monthAbbr, ordinalYear } from '@/lib/dates';
 
 /**
  * Reminder / in-app feed item (DESIGN.md §8.3). Left ring + the reminder copy as
@@ -16,6 +16,10 @@ import { monthAbbr } from '@/lib/dates';
  *
  * The occurrence is a UTC-midnight instant from the server, read in UTC so a
  * timezone can't shift the printed calendar date by a day (matches PersonCard).
+ *
+ * A milestone occurrence carries its ordinal as an `info` pill. `item.message`
+ * already reads "Emma's 25th anniversary"; the pill is what makes the row stand
+ * out from the ones around it without reading them all.
  */
 
 function ringStateFor(item: ReminderItem): RingState {
@@ -70,6 +74,8 @@ export function ReminderCard({
           <Pill label="Done" tone="ok" check />
         ) : snoozed ? (
           <Pill label="Snoozed" tone="snooze" />
+        ) : item.isMilestone && item.yearsMarking != null ? (
+          <Pill label={ordinalYear(item.yearsMarking)} tone="info" />
         ) : null}
       </View>
 

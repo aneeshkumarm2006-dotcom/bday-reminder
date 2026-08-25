@@ -102,6 +102,29 @@ export function ageTurning(occurrence: Date, birthYear?: number | null): number 
   return occurrence.getFullYear() - birthYear;
 }
 
+/**
+ * Round-number years - a 10th, a 25th, a 50th - carry more weight and a lot
+ * more planning than the ones between them, so the feed calls them out. Mirrors
+ * `backend/src/lib/dates.ts`; the server sends `isMilestone` on every feed item,
+ * and this is here for the places that compute a year locally (the calendar
+ * grid pages to arbitrary years, so it has no server-side count to read).
+ */
+export const MILESTONE_STEP = 5;
+
+export function isMilestoneYear(years: number | null | undefined): boolean {
+  return typeof years === 'number' && years >= MILESTONE_STEP && years % MILESTONE_STEP === 0;
+}
+
+/** English ordinal for a year count: 25 -> "25th", 21 -> "21st", 13 -> "13th". */
+export function ordinalYear(years: number): string {
+  const lastTwo = years % 100;
+  const suffix =
+    lastTwo >= 11 && lastTwo <= 13
+      ? 'th'
+      : ({ 1: 'st', 2: 'nd', 3: 'rd' }[years % 10] ?? 'th');
+  return `${years}${suffix}`;
+}
+
 /** Ring state for an occurrence relative to today (DESIGN.md §7.3). */
 export function ringStateForOccurrence(occurrence: Date): 'upcoming' | 'today' | 'past' {
   const d = daysUntil(occurrence);

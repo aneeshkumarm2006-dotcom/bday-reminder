@@ -381,6 +381,14 @@ export type UpcomingItem = {
   occurrenceDate: string;
   daysRemaining: number;
   ageTurning: number | null;
+  /**
+   * How many times this date has come round on the upcoming occurrence - a
+   * wedding's 25th, a birthday's 40th. Null when no year is stored. Distinct
+   * from `ageTurning`, which stays birthday-only (FR-13/14).
+   */
+  yearsMarking: number | null;
+  /** True when `yearsMarking` is a multiple of five - a milestone worth calling out. */
+  isMilestone: boolean;
   group: UpcomingGroup;
 };
 
@@ -650,6 +658,14 @@ export type ReminderItem = {
   sentAt: string | null;
   daysRemaining: number;
   ageTurning: number | null;
+  /**
+   * How many times this date has come round on the upcoming occurrence - a
+   * wedding's 25th, a birthday's 40th. Null when no year is stored. Distinct
+   * from `ageTurning`, which stays birthday-only (FR-13/14).
+   */
+  yearsMarking: number | null;
+  /** True when `yearsMarking` is a multiple of five - a milestone worth calling out. */
+  isMilestone: boolean;
   /** The server-rendered §11 reminder line - single source of truth for copy. */
   message: string;
   /** Day-of + a phone number on file → show "Send greeting" (FR-28/30). */

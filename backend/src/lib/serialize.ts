@@ -5,7 +5,7 @@ import type { PersonDoc } from '../models/Person';
 import type { ReminderDoc, ReminderStatus } from '../models/Reminder';
 import type { SharedListDoc } from '../models/SharedList';
 import type { UserDoc } from '../models/User';
-import { ageTurning, daysUntil } from './dates';
+import { ageTurning, daysUntil, isMilestoneYear } from './dates';
 import { loadEnv } from './env';
 import { reminderMessage } from './reminder-content';
 
@@ -201,7 +201,12 @@ export function serializeReminder(
   status: ReminderStatus,
 ) {
   const days = daysUntil(reminder.occurrenceDate, today);
-  const age = event.type === 'birthday' ? ageTurning(reminder.occurrenceDate, event.date.year) : null;
+  // How many times the date has come round. Age is birthday-only (FR-13/14), so
+  // `age` still nulls out for anniversaries - but the count itself drives the
+  // milestone call-out, which is not an age claim.
+  const years = ageTurning(reminder.occurrenceDate, event.date.year);
+  const age = event.type === 'birthday' ? years : null;
+  const isMilestone = isMilestoneYear(years);
   return {
     id: reminder._id.toString(),
     status,
@@ -213,12 +218,15 @@ export function serializeReminder(
     sentAt: reminder.sentAt ? reminder.sentAt.toISOString() : null,
     daysRemaining: days,
     ageTurning: age,
+    yearsMarking: years,
+    isMilestone,
     message: reminderMessage({
       name: person.fullName,
       eventType: event.type,
       customName: event.customName ?? null,
       daysRemaining: days,
       ageTurning: age,
+      yearsMarking: years,
     }),
     // Day-of quick-greeting only when a phone number exists (FR-28/30).
     canGreet: days === 0 && !!person.phone,

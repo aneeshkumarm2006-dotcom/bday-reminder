@@ -2,8 +2,9 @@ import { Bell, PawPrint } from "lucide-react";
 import Link from "next/link";
 
 import { Ring } from "@/components/ring";
+import { Badge } from "@/components/ui/badge";
 import type { UpcomingItem } from "@/lib/api";
-import { countdownLabel } from "@/lib/dates";
+import { countdownLabel, ordinalYear } from "@/lib/dates";
 import { occurrenceParts } from "@/lib/occurrence";
 
 /**
@@ -11,6 +12,11 @@ import { occurrenceParts } from "@/lib/occurrence";
  * PersonCard. Layout: `[ Ring md ] [ name + relationship · age ] [ countdown ]`.
  * The ring (the date) leads, never a photo. Pets get a paw-print; age is omitted
  * when no birth year is known (FR-14). The whole card links to the profile.
+ *
+ * A milestone — a year count landing on a multiple of five — gets a pill beside
+ * the name, because a silver wedding looking like every other row in the list is
+ * exactly the thing worth fixing. The server decides what counts (`isMilestone`)
+ * so the feed, the reminder copy and the push title never disagree.
  */
 export function PersonCard({ item }: { item: UpcomingItem }) {
   const { day, month } = occurrenceParts(item.occurrenceDate);
@@ -44,6 +50,11 @@ export function PersonCard({ item }: { item: UpcomingItem }) {
             <PawPrint size={16} className="shrink-0 text-ink-muted" aria-label="Pet" />
           )}
           <span className="truncate font-display font-semibold text-ink">{item.fullName}</span>
+          {item.isMilestone && item.yearsMarking != null && (
+            <Badge tone="biro" className="shrink-0 tabular-nums">
+              {ordinalYear(item.yearsMarking)}
+            </Badge>
+          )}
         </div>
         {subtitle && <p className="mt-0.5 truncate text-sm text-ink-muted tabular-nums">{subtitle}</p>}
       </div>

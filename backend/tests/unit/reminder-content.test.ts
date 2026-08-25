@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   greetingTemplate,
+  ordinalYear,
   reminderHeadline,
   reminderMessage,
 } from '../../src/lib/reminder-content';
@@ -111,6 +112,113 @@ describe('reminder-content: reminderHeadline', () => {
     expect(
       reminderHeadline({ name: 'Maya', eventType: 'custom', customName: '  ' }),
     ).toBe('Maya: Event');
+  });
+});
+
+describe('reminder-content: milestone years', () => {
+  it('ordinalYear handles the ordinary suffixes', () => {
+    expect(ordinalYear(1)).toBe('1st');
+    expect(ordinalYear(2)).toBe('2nd');
+    expect(ordinalYear(3)).toBe('3rd');
+    expect(ordinalYear(25)).toBe('25th');
+    expect(ordinalYear(50)).toBe('50th');
+  });
+
+  it('ordinalYear gets the teens right, where the last digit lies', () => {
+    expect(ordinalYear(11)).toBe('11th');
+    expect(ordinalYear(12)).toBe('12th');
+    expect(ordinalYear(13)).toBe('13th');
+    expect(ordinalYear(111)).toBe('111th');
+    expect(ordinalYear(121)).toBe('121st');
+  });
+
+  it('names a milestone anniversary with its ordinal', () => {
+    expect(
+      reminderMessage({
+        name: 'Emma',
+        eventType: 'anniversary',
+        daysRemaining: 7,
+        ageTurning: null,
+        yearsMarking: 25,
+      }),
+    ).toBe("Emma's 25th anniversary is in 7 days.");
+  });
+
+  it('names it day-of too', () => {
+    expect(
+      reminderMessage({
+        name: 'Emma',
+        eventType: 'anniversary',
+        daysRemaining: 0,
+        ageTurning: null,
+        yearsMarking: 50,
+      }),
+    ).toBe("It's Emma's 50th anniversary today.");
+  });
+
+  it('leaves a non-milestone anniversary as the plain line', () => {
+    // The count is known — it is simply not a year worth calling out, and §11
+    // keeps a running year count off anniversaries generally.
+    expect(
+      reminderMessage({
+        name: 'Emma',
+        eventType: 'anniversary',
+        daysRemaining: 7,
+        ageTurning: null,
+        yearsMarking: 24,
+      }),
+    ).toBe("Emma's anniversary is in 7 days.");
+  });
+
+  it('leaves a yearless anniversary alone', () => {
+    expect(
+      reminderMessage({
+        name: 'Emma',
+        eventType: 'anniversary',
+        daysRemaining: 7,
+        ageTurning: null,
+        yearsMarking: null,
+      }),
+    ).toBe("Emma's anniversary is in 7 days.");
+  });
+
+  it('names a milestone custom event by its own name', () => {
+    expect(
+      reminderMessage({
+        name: 'Maya',
+        eventType: 'custom',
+        customName: 'Sobriety day',
+        daysRemaining: 1,
+        ageTurning: null,
+        yearsMarking: 10,
+      }),
+    ).toBe("Maya's 10th Sobriety day is in 1 day.");
+  });
+
+  it('does not touch a birthday line, which already leads with the age', () => {
+    expect(
+      reminderMessage({
+        name: 'Michael',
+        eventType: 'birthday',
+        daysRemaining: 3,
+        ageTurning: 40,
+        yearsMarking: 40,
+      }),
+    ).toBe('Michael turns 40 in 3 days.');
+  });
+
+  it('carries the milestone into the push title / email subject', () => {
+    expect(
+      reminderHeadline({ name: 'Emma', eventType: 'anniversary', yearsMarking: 25 }),
+    ).toBe("Emma's 25th anniversary");
+    expect(
+      reminderHeadline({
+        name: 'Maya',
+        eventType: 'custom',
+        customName: 'Graduation',
+        yearsMarking: 10,
+      }),
+    ).toBe('Maya: 10th Graduation');
   });
 });
 

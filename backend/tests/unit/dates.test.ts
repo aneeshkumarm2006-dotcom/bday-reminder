@@ -4,6 +4,7 @@ import {
   ageTurning,
   daysUntil,
   isLeapYear,
+  isMilestoneYear,
   maxDayInMonth,
   monthAbbr,
   nextOccurrence,
@@ -122,6 +123,47 @@ describe('dates: resolveOccurrence (feed shape)', () => {
     const r = resolveOccurrence({ month: 12, day: 1 }, 'feb28', today);
     expect(r.ageTurning).toBeNull();
     expect(r.group).toBe('Later');
+  });
+});
+
+describe('dates: isMilestoneYear', () => {
+  it('flags multiples of five from the 5th up', () => {
+    for (const years of [5, 10, 15, 25, 40, 50, 100]) {
+      expect(isMilestoneYear(years), String(years)).toBe(true);
+    }
+  });
+
+  it('leaves the years in between alone', () => {
+    for (const years of [1, 3, 6, 9, 11, 24, 26, 49]) {
+      expect(isMilestoneYear(years), String(years)).toBe(false);
+    }
+  });
+
+  it('is false for a missing year, so a dateless event is never a milestone', () => {
+    expect(isMilestoneYear(null)).toBe(false);
+    expect(isMilestoneYear(undefined)).toBe(false);
+  });
+
+  it('is false at zero — the day the date was set is not its 0th anniversary', () => {
+    expect(isMilestoneYear(0)).toBe(false);
+  });
+
+  it('rides along on resolveOccurrence, so every caller applies one rule', () => {
+    const today = utc(2026, 6, 22);
+    // A wedding on 1999-08-14 comes round for the 27th in 2026 — not a milestone.
+    const ordinary = resolveOccurrence({ month: 8, day: 14, year: 1999 }, 'feb28', today);
+    expect(ordinary.yearsMarking).toBe(27);
+    expect(ordinary.isMilestone).toBe(false);
+
+    // A 2001 wedding hits its 25th in 2026.
+    const silver = resolveOccurrence({ month: 8, day: 14, year: 2001 }, 'feb28', today);
+    expect(silver.yearsMarking).toBe(25);
+    expect(silver.isMilestone).toBe(true);
+
+    // No stored year means no count and no milestone, never a guess (FR-14).
+    const yearless = resolveOccurrence({ month: 8, day: 14 }, 'feb28', today);
+    expect(yearless.yearsMarking).toBeNull();
+    expect(yearless.isMilestone).toBe(false);
   });
 });
 

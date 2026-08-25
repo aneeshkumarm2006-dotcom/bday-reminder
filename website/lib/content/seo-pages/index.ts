@@ -1,3 +1,4 @@
+import { anniversaryReminderAppPage } from "./anniversary-reminder-app";
 import { birthdayAlarmPage } from "./birthday-alarm";
 import { birthdayCalendarPage } from "./birthday-calendar";
 import { birthdayCountdownAppPage } from "./birthday-countdown-app";
@@ -30,6 +31,7 @@ export const SEO_LANDING_PAGES: readonly SeoLandingPageDef[] = [
   birthdayTrackerPrintablePage,
   birthdayAlarmPage,
   familyBirthdayCalendarPage,
+  anniversaryReminderAppPage,
   freePage,
 ] as const;
 

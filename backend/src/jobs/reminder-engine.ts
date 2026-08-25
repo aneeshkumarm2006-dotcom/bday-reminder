@@ -266,7 +266,8 @@ async function deliverReminder(reminder: ReminderDoc, now: Date = new Date()): P
 
   const today = todayInTimeZone(user.timezone);
   const days = daysUntil(reminder.occurrenceDate, today);
-  const age = event.type === 'birthday' ? ageTurning(reminder.occurrenceDate, event.date.year) : null;
+  const years = ageTurning(reminder.occurrenceDate, event.date.year);
+  const age = event.type === 'birthday' ? years : null;
 
   const copyInput = {
     name: person.fullName,
@@ -274,6 +275,7 @@ async function deliverReminder(reminder: ReminderDoc, now: Date = new Date()): P
     customName: event.customName ?? null,
     daysRemaining: days,
     ageTurning: age,
+    yearsMarking: years,
   };
 
   const payload: ReminderPayload = {

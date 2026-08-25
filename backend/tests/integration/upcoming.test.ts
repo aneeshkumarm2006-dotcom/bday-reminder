@@ -128,6 +128,68 @@ describe('upcoming feed (FR-9/13/14)', () => {
     expect(item.type).toBe('pet');
   });
 
+  it('flags a milestone anniversary without ever claiming it as an age', async () => {
+    const u = await signUp(api, { timezone: 'UTC' });
+    const today = utcToday();
+    const { body: created } = await addPerson(api, u.auth, {
+      fullName: 'Emma Carter',
+      dob: { month: today.month, day: today.day, year: 1990 },
+    });
+    // A wedding 25 years ago today, on the same person.
+    const weddingYear = new Date().getUTCFullYear() - 25;
+    await api
+      .post('/events')
+      .set('Authorization', u.auth)
+      .send({
+        person: created.person.id,
+        type: 'anniversary',
+        date: { ...today, year: weddingYear },
+      });
+
+    const res = await api.get('/upcoming').set('Authorization', u.auth);
+    expect(res.status).toBe(200);
+
+    const anniversary = res.body.items.find((i: { eventType: string }) => i.eventType === 'anniversary');
+    expect(anniversary).toBeTruthy();
+    expect(anniversary.yearsMarking).toBe(25);
+    expect(anniversary.isMilestone).toBe(true);
+    // The count is a fact about the date, not an age — age stays birthday-only.
+    expect(anniversary.ageTurning).toBeNull();
+
+    // The birthday on the same person keeps its age and gets its own count.
+    const birthday = res.body.items.find((i: { eventType: string }) => i.eventType === 'birthday');
+    const age = new Date().getUTCFullYear() - 1990;
+    expect(birthday.ageTurning).toBe(age);
+    expect(birthday.yearsMarking).toBe(age);
+  });
+
+  it('leaves an ordinary anniversary unflagged', async () => {
+    const u = await signUp(api, { timezone: 'UTC' });
+    const today = utcToday();
+    const { body: created } = await addPerson(api, u.auth, {
+      fullName: 'Daniel',
+      dob: { month: today.month, day: today.day },
+    });
+    await api
+      .post('/events')
+      .set('Authorization', u.auth)
+      .send({
+        person: created.person.id,
+        type: 'anniversary',
+        date: { ...today, year: new Date().getUTCFullYear() - 24 },
+      });
+
+    const res = await api.get('/upcoming').set('Authorization', u.auth);
+    const anniversary = res.body.items.find((i: { eventType: string }) => i.eventType === 'anniversary');
+    expect(anniversary.yearsMarking).toBe(24);
+    expect(anniversary.isMilestone).toBe(false);
+
+    // And a yearless date is never a milestone, because there's nothing to count.
+    const birthday = res.body.items.find((i: { eventType: string }) => i.eventType === 'birthday');
+    expect(birthday.yearsMarking).toBeNull();
+    expect(birthday.isMilestone).toBe(false);
+  });
+
   it('sorts items ascending by next occurrence (days remaining)', async () => {
     const u = await signUp(api, { timezone: 'UTC' });
     await addPerson(api, u.auth, { fullName: 'P1', dob: { month: 1, day: 15 } });

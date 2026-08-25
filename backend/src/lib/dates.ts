@@ -111,6 +111,24 @@ export function ageTurning(occurrence: Date, birthYear?: number | null): number 
   return occurrence.getUTCFullYear() - birthYear;
 }
 
+/**
+ * Round-number years - a 10th, a 25th, a 50th - carry more weight and a lot
+ * more planning than the ones between them, so the feed calls them out rather
+ * than letting a silver wedding sit in the list looking like any other Tuesday.
+ *
+ * Five, not ten: "ends in a zero or a five" is what people actually treat as a
+ * milestone, and a 5th anniversary or a 15th birthday is a real occasion.
+ *
+ * This is NOT age. Age stays birthday-only (FR-13/14) - what's counted here is
+ * how many times the date itself has come round, which is a fact about the
+ * event and is exactly as true for a wedding date as for a birthday.
+ */
+export const MILESTONE_STEP = 5;
+
+export function isMilestoneYear(years: number | null | undefined): boolean {
+  return typeof years === 'number' && years >= MILESTONE_STEP && years % MILESTONE_STEP === 0;
+}
+
 export type ProximityGroup = 'This week' | 'This month' | 'Later';
 
 /** Proximity group for the Upcoming feed (DESIGN.md §8.2). */
@@ -128,10 +146,14 @@ export function proximityGroup(days: number): ProximityGroup {
 export function resolveOccurrence(date: DateParts, rule: Feb29Rule, today: Date) {
   const occurrence = nextOccurrence(date.month, date.day, rule, today);
   const days = daysUntil(occurrence, today);
+  const years = ageTurning(occurrence, date.year);
   return {
     occurrence,
     daysRemaining: days,
-    ageTurning: ageTurning(occurrence, date.year),
+    ageTurning: years,
+    /** How many times this date has come round; null when no year is stored. */
+    yearsMarking: years,
+    isMilestone: isMilestoneYear(years),
     group: proximityGroup(days),
   };
 }

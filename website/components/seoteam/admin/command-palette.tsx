@@ -58,6 +58,7 @@ const STATIC_COMMANDS: Command[] = [
   { id: "seo-page-birthday-tracker-printable", label: "Printable birthday tracker", hint: "/birthday-tracker-printable", href: "/seoteam/seo-pages/birthday-tracker-printable", group: "SEO pages" },
   { id: "seo-page-birthday-alarm", label: "Birthday alarm app", hint: "/birthday-alarm", href: "/seoteam/seo-pages/birthday-alarm", group: "SEO pages" },
   { id: "seo-page-family-birthday-calendar", label: "Family birthday calendar", hint: "/family-birthday-calendar", href: "/seoteam/seo-pages/family-birthday-calendar", group: "SEO pages" },
+  { id: "seo-page-anniversary-reminder-app", label: "Anniversary reminder app", hint: "/anniversary-reminder-app", href: "/seoteam/seo-pages/anniversary-reminder-app", group: "SEO pages" },
   { id: "seo-page-free", label: "Free birthday reminder app", hint: "/free", href: "/seoteam/seo-pages/free", group: "SEO pages" },
 ];
 

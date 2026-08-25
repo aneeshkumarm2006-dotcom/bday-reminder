@@ -64,6 +64,18 @@ describe('CalendarAgenda', () => {
     expect(screen.getByText('Leap Person')).toBeTruthy();
   });
 
+  it('pills a milestone against the month being displayed, not the next occurrence', () => {
+    // A 2001 wedding is a 25th in 2026 — and only in 2026.
+    const wedding = ev({ eventType: 'anniversary', month: 6, day: 22, year: 2001 });
+    setup({ events: [wedding] });
+    expect(screen.getByText('25th')).toBeTruthy();
+  });
+
+  it('leaves an ordinary year unpilled', () => {
+    setup({ events: [ev({ eventType: 'anniversary', month: 6, day: 22, year: 2002 })] });
+    expect(screen.queryByText('24th')).toBeNull();
+  });
+
   it('opens the person on row tap', () => {
     const { onSelectPerson } = setup({ events: [ev({ personId: 'p9' })] });
     fireEvent.press(screen.getByLabelText('Sarah Bennett, Birthday, Jun 22'));

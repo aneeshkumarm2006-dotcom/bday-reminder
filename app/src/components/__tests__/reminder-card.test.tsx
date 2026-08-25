@@ -22,6 +22,8 @@ function reminder(overrides: Partial<ReminderItem> = {}): ReminderItem {
     sentAt: '2026-06-22T09:00:00.000Z',
     daysRemaining: 0,
     ageTurning: 36,
+    yearsMarking: 36,
+    isMilestone: false,
     message: "It's Sarah Bennett's birthday today - turns 36.",
     canGreet: true,
     person: { id: 'p1', fullName: 'Sarah Bennett', type: 'human', relationshipTag: 'Friend', photoUrl: null, phone: '+1555' },
@@ -89,6 +91,39 @@ describe('ReminderCard', () => {
       <ReminderCard item={reminder({ status: 'snoozed' })} onGreet={noop} onCopy={noop} onDone={noop} onSnooze={noop} />,
     );
     expect(screen.getByText('Snoozed')).toBeTruthy();
+  });
+
+  it('pills a milestone occurrence with its ordinal', () => {
+    renderWithTheme(
+      <ReminderCard
+        item={reminder({
+          ageTurning: null,
+          yearsMarking: 25,
+          isMilestone: true,
+          message: "It's Sarah Bennett's 25th anniversary today.",
+          event: { id: 'e1', type: 'anniversary', customName: null },
+        })}
+        onGreet={noop}
+        onCopy={noop}
+        onDone={noop}
+        onSnooze={noop}
+      />,
+    );
+    expect(screen.getByText('25th')).toBeTruthy();
+  });
+
+  it('lets a status pill win over the milestone pill, so a row never shows two', () => {
+    renderWithTheme(
+      <ReminderCard
+        item={reminder({ status: 'done', yearsMarking: 25, isMilestone: true })}
+        onGreet={noop}
+        onCopy={noop}
+        onDone={noop}
+        onSnooze={noop}
+      />,
+    );
+    expect(screen.getByText('Done')).toBeTruthy();
+    expect(screen.queryByText('25th')).toBeNull();
   });
 
   it('fires the action callbacks on press', () => {

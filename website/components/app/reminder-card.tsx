@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Ring, type RingState } from "@/components/ring";
 import type { ReminderItem, SnoozePreset } from "@/lib/api";
+import { ordinalYear } from "@/lib/dates";
 import { occurrenceParts } from "@/lib/occurrence";
 import { cn } from "@/lib/utils";
 
@@ -16,6 +17,9 @@ import { cn } from "@/lib/utils";
  * "Send greeting" shows only day-of when a phone exists (FR-28/30) — on web it
  * opens WhatsApp/SMS instead of the native Messages app, with a Copy fallback.
  * Done items stay in the feed, de-emphasized with the ring in its done state.
+ * A milestone occurrence also carries its ordinal as a pill — the server's line
+ * already says "Emma's 25th anniversary", and the pill is what makes it stand
+ * out from the rows around it at a glance.
  */
 
 const SNOOZE_PRESETS: { preset: SnoozePreset; label: string }[] = [
@@ -72,6 +76,10 @@ export function ReminderCard({
           <Badge tone="ok">Done</Badge>
         ) : snoozed ? (
           <Badge tone="snooze">Snoozed</Badge>
+        ) : item.isMilestone && item.yearsMarking != null ? (
+          <Badge tone="biro" className="shrink-0 tabular-nums">
+            {ordinalYear(item.yearsMarking)}
+          </Badge>
         ) : null}
       </div>
 

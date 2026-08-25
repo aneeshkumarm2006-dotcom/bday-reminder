@@ -2,10 +2,10 @@ import { PawPrint } from 'lucide-react-native';
 import { View } from 'react-native';
 
 import { eventDayInMonth } from '@/components/calendar-grid';
-import { Card, Icon, Text } from '@/components/ui';
+import { Card, Icon, Pill, Text } from '@/components/ui';
 import type { CalendarEvent } from '@/lib/api';
 import { cn } from '@/lib/cn';
-import { monthAbbr } from '@/lib/dates';
+import { isMilestoneYear, monthAbbr, ordinalYear } from '@/lib/dates';
 import { eventTypeMeta } from '@/lib/event-style';
 import { useTokens } from '@/theme/theme-provider';
 
@@ -14,6 +14,11 @@ import { useTokens } from '@/theme/theme-provider';
  * order, one row each, easier to skim than tapping day by day. Tapping a row
  * opens that person. Same data and Feb-29 placement as the grid (via
  * eventDayInMonth), just laid out as a list.
+ *
+ * Milestones are computed here rather than read off the row: the grid pages to
+ * any year, so "how many times has this come round" is a question about the
+ * month being *displayed*, not about the next occurrence the feed knows. Same
+ * rule as the server's (`isMilestoneYear`).
  */
 
 const MONTH_NAMES = [
@@ -58,6 +63,8 @@ export function CalendarAgenda({
         const meta = eventTypeMeta(ev);
         const isToday = isCurrentMonth && today.day === day;
         const sub = [meta.label, ev.relationshipTag ?? undefined].filter(Boolean).join(' · ');
+        const yearsMarking = ev.year != null ? year - ev.year : null;
+        const milestone = isMilestoneYear(yearsMarking) ? ordinalYear(yearsMarking!) : null;
         return (
           <Card
             key={ev.eventId}
@@ -90,9 +97,10 @@ export function CalendarAgenda({
                   {ev.type === 'pet' ? (
                     <Icon icon={PawPrint} size={14} color={t.inkMuted} label="Pet" />
                   ) : null}
-                  <Text variant="cardName" numberOfLines={1} className="flex-1">
+                  <Text variant="cardName" numberOfLines={1} className="flex-shrink">
                     {ev.fullName}
                   </Text>
+                  {milestone ? <Pill label={milestone} tone="info" /> : null}
                 </View>
                 {sub ? (
                   <Text variant="caption" numberOfLines={1} className="mt-0.5">

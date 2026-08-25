@@ -3,9 +3,11 @@ import {
   countdownLabel,
   daysUntil,
   isLeapYear,
+  isMilestoneYear,
   isToday,
   monthAbbr,
   nextOccurrence,
+  ordinalYear,
   proximityGroup,
   relativeDate,
   ringStateForOccurrence,
@@ -118,5 +120,31 @@ describe('app dates: relativeDate (gift notes §8.6)', () => {
     expect(relativeDate(new Date(now.getTime() - 5 * 60_000).toISOString(), now)).toBe('5 minutes ago');
     expect(relativeDate(new Date(now.getTime() - 2 * 3_600_000).toISOString(), now)).toBe('2 hours ago');
     expect(relativeDate(new Date(now.getTime() - 3 * 86_400_000).toISOString(), now)).toBe('3 days ago');
+  });
+});
+
+describe('app dates: milestone years', () => {
+  it('flags multiples of five from the 5th up, and nothing between them', () => {
+    for (const years of [5, 10, 25, 50, 100]) {
+      expect(isMilestoneYear(years)).toBe(true);
+    }
+    for (const years of [0, 1, 4, 6, 24, 26, 49]) {
+      expect(isMilestoneYear(years)).toBe(false);
+    }
+  });
+
+  it('is false without a year, so a dateless event is never a milestone', () => {
+    expect(isMilestoneYear(null)).toBe(false);
+    expect(isMilestoneYear(undefined)).toBe(false);
+  });
+
+  it('ordinalYear gets the suffixes right, teens included', () => {
+    expect(ordinalYear(1)).toBe('1st');
+    expect(ordinalYear(2)).toBe('2nd');
+    expect(ordinalYear(3)).toBe('3rd');
+    expect(ordinalYear(11)).toBe('11th');
+    expect(ordinalYear(13)).toBe('13th');
+    expect(ordinalYear(25)).toBe('25th');
+    expect(ordinalYear(121)).toBe('121st');
   });
 });

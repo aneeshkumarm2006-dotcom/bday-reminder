@@ -8,6 +8,8 @@
  * in-app feed all read identically.
  */
 
+import { isMilestoneYear } from './dates';
+
 export type ReminderEventType = 'birthday' | 'anniversary' | 'custom';
 
 export interface ReminderCopyInput {
@@ -18,6 +20,11 @@ export interface ReminderCopyInput {
   daysRemaining: number;
   /** Age the person is turning (birthdays only); null when the year is unknown. */
   ageTurning: number | null;
+  /**
+   * How many times the date has come round (a wedding's 25th). Null when no
+   * year is stored. Used only to name a *milestone* - see `eventNoun`.
+   */
+  yearsMarking?: number | null;
 }
 
 /** "in 1 day" / "in 3 days" for a positive day count. */
@@ -25,11 +32,33 @@ function inDays(days: number): string {
   return days === 1 ? 'in 1 day' : `in ${days} days`;
 }
 
-/** Lower-cased noun for the event, used mid-sentence ("Michael's anniversary"). */
-function eventNoun(input: Pick<ReminderCopyInput, 'eventType' | 'customName'>): string {
+/** English ordinal for a positive year count: 25 -> "25th", 21 -> "21st". */
+export function ordinalYear(years: number): string {
+  const lastTwo = years % 100;
+  const suffix =
+    lastTwo >= 11 && lastTwo <= 13
+      ? 'th'
+      : ({ 1: 'st', 2: 'nd', 3: 'rd' }[years % 10] ?? 'th');
+  return `${years}${suffix}`;
+}
+
+/**
+ * Lower-cased noun for the event, used mid-sentence ("Michael's anniversary").
+ *
+ * A milestone anniversary or custom event is named with its ordinal - "Emma's
+ * 25th anniversary" - because a silver wedding reading exactly like every other
+ * anniversary is the thing the call-out exists to fix. Deliberately milestones
+ * only: naming *every* year would put a count on anniversaries generally, which
+ * §11 keeps to birthdays. Birthdays are untouched here because their line
+ * already leads with the age ("Michael turns 40 in 3 days").
+ */
+function eventNoun(
+  input: Pick<ReminderCopyInput, 'eventType' | 'customName' | 'yearsMarking'>,
+): string {
   if (input.eventType === 'birthday') return 'birthday';
-  if (input.eventType === 'anniversary') return 'anniversary';
-  return input.customName?.trim() || 'event';
+  const base = input.eventType === 'anniversary' ? 'anniversary' : input.customName?.trim() || 'event';
+  const years = input.yearsMarking;
+  return isMilestoneYear(years) ? `${ordinalYear(years as number)} ${base}` : base;
 }
 
 /**
@@ -64,8 +93,13 @@ export function reminderMessage(input: ReminderCopyInput): string {
 }
 
 /** Short headline for a push title / email subject ("Michael's birthday"). */
-export function reminderHeadline(input: Pick<ReminderCopyInput, 'name' | 'eventType' | 'customName'>): string {
-  if (input.eventType === 'custom') return `${input.name}: ${input.customName?.trim() || 'Event'}`;
+export function reminderHeadline(
+  input: Pick<ReminderCopyInput, 'name' | 'eventType' | 'customName' | 'yearsMarking'>,
+): string {
+  if (input.eventType === 'custom') {
+    const name = input.customName?.trim() || 'Event';
+    return `${input.name}: ${isMilestoneYear(input.yearsMarking) ? `${ordinalYear(input.yearsMarking as number)} ${name}` : name}`;
+  }
   return `${input.name}'s ${eventNoun(input)}`;
 }
 

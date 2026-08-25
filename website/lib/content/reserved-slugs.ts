@@ -22,6 +22,7 @@ export const RESERVED_SLUGS: readonly string[] = [
   "birthday-tracker-printable",
   "birthday-alarm",
   "family-birthday-calendar",
+  "anniversary-reminder-app",
   "free",
   // Authenticated app routes
   "dashboard",

@@ -69,6 +69,10 @@ export async function buildUserCalendar(user: UserDoc, now: Date = new Date()): 
     const { occurrence } = resolveOccurrence(event.date, person.feb29Rule, today);
     icsEvents.push({
       uid: `${event._id.toString()}@circle-the-date`,
+      // Deliberately no `yearsMarking`: one VEVENT with FREQ=YEARLY covers every
+      // future year, so a summary naming the milestone would still read "25th
+      // anniversary" in 2051. The milestone call-out belongs on the feed, which
+      // is recomputed per occurrence.
       summary: reminderHeadline({
         name: person.fullName,
         eventType: event.type,

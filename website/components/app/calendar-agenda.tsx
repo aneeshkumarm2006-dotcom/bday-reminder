@@ -4,8 +4,9 @@ import { PawPrint } from "lucide-react";
 import Link from "next/link";
 
 import { eventDayInMonth } from "@/components/app/calendar-grid";
+import { Badge } from "@/components/ui/badge";
 import type { CalendarEvent } from "@/lib/api";
-import { monthAbbr } from "@/lib/dates";
+import { isMilestoneYear, monthAbbr, ordinalYear } from "@/lib/dates";
 import { eventTypeMeta } from "@/lib/event-style";
 import { cn } from "@/lib/utils";
 
@@ -14,6 +15,11 @@ import { cn } from "@/lib/utils";
  * order, one row each, easier to skim than clicking day by day. Clicking a row
  * opens that person. Same data and Feb-29 placement as the grid (via
  * eventDayInMonth), just laid out as a list. Web port of the app's agenda.
+ *
+ * Milestones are computed here rather than read off the row: the grid pages to
+ * any year, so "how many times has this come round" is a question about the
+ * month being *displayed*, not about the next occurrence the feed knows. Same
+ * rule as the server's (`isMilestoneYear`), asserted on both sides.
  */
 
 const MONTH_NAMES = [
@@ -56,6 +62,8 @@ export function CalendarAgenda({
         const Icon = meta.Icon;
         const isToday = isCurrentMonth && today.day === day;
         const sub = [meta.label, ev.relationshipTag ?? undefined].filter(Boolean).join(" · ");
+        const yearsMarking = ev.year != null ? year - ev.year : null;
+        const milestone = isMilestoneYear(yearsMarking) ? ordinalYear(yearsMarking!) : null;
         return (
           <Link
             key={ev.eventId}
@@ -83,6 +91,11 @@ export function CalendarAgenda({
                   <PawPrint size={14} className="shrink-0 text-ink-muted" aria-label="Pet" />
                 )}
                 <p className="truncate font-display font-semibold text-ink">{ev.fullName}</p>
+                {milestone && (
+                  <Badge tone="biro" className="shrink-0 tabular-nums">
+                    {milestone}
+                  </Badge>
+                )}
               </div>
               {sub && <p className="mt-0.5 truncate text-sm text-ink-muted">{sub}</p>}
             </div>

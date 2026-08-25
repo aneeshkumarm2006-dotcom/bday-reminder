@@ -23,6 +23,8 @@ function item(overrides: Partial<UpcomingItem> = {}): UpcomingItem {
     occurrenceDate: '2026-06-25T00:00:00.000Z',
     daysRemaining: 3,
     ageTurning: 36,
+    yearsMarking: 36,
+    isMilestone: false,
     group: 'This week',
     ...overrides,
   };
@@ -53,6 +55,36 @@ describe('PersonCard', () => {
       <PersonCard item={item({ eventType: 'anniversary', ageTurning: null })} />,
     );
     expect(screen.getByText(/Anniversary/)).toBeTruthy();
+  });
+
+  it('pills a milestone anniversary with its ordinal', () => {
+    renderWithTheme(
+      <PersonCard
+        item={item({
+          eventType: 'anniversary',
+          ageTurning: null,
+          yearsMarking: 25,
+          isMilestone: true,
+        })}
+      />,
+    );
+    expect(screen.getByText('25th')).toBeTruthy();
+    // Still not an age — the count is a fact about the date (FR-13/14).
+    expect(screen.queryByText(/turns/)).toBeNull();
+  });
+
+  it('leaves an ordinary year unpilled', () => {
+    renderWithTheme(
+      <PersonCard
+        item={item({
+          eventType: 'anniversary',
+          ageTurning: null,
+          yearsMarking: 24,
+          isMilestone: false,
+        })}
+      />,
+    );
+    expect(screen.queryByText('24th')).toBeNull();
   });
 
   it('shows the paw indicator for a pet', () => {
