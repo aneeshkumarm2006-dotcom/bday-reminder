@@ -5,6 +5,7 @@ import { Bell, Check, ChevronRight, MessageCircle, PawPrint, Send } from "lucide
 import { useEffect, useRef, useState } from "react";
 
 import { InteractiveRing } from "@/components/interactive-ring";
+import { demoCount, useProductDemo } from "@/components/product-demo-context";
 import type { RingState } from "@/components/ring";
 import { dayCaption, useToday } from "@/lib/use-today";
 import { cn } from "@/lib/utils";
@@ -13,6 +14,11 @@ import { cn } from "@/lib/utils";
  * On-brand "screenshots" of the app, rendered from the same design system
  * (DESIGN.md §8.1/§8.3/§8.13) rather than raster images - so they stay crisp,
  * themeable (light/dark), and always match the real UI.
+ *
+ * The sample names, relationships and greeting come from Site settings (see
+ * `ProductDemoProvider`) rather than being hardcoded here — they are the most
+ * prominent copy on the homepage and on all eight keyword pages, so they have
+ * to be editable like everything else the visitor reads.
  *
  * These aren't dead images: they *respond*. Tapping a feed row marks it done
  * (the ring fills and a check pops), the reminder card opens a real send-greeting
@@ -138,6 +144,12 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 /** The Upcoming feed - grouped + sorted, each row tappable (§8.2). */
 export function AppPreview({ className }: { className?: string }) {
   const today = useToday();
+  const demo = useProductDemo();
+  // "This week" is the first seven days; everything further out falls under the
+  // month heading, and a group with nothing in it doesn't draw its label.
+  const thisWeek = demo.rows.filter((row) => row.offset <= 7);
+  const later = demo.rows.filter((row) => row.offset > 7);
+
   return (
     <div
       className={cn(
@@ -149,34 +161,40 @@ export function AppPreview({ className }: { className?: string }) {
     >
       <div className="mb-3 flex items-center justify-between px-1">
         <span className="font-display text-xl font-semibold tracking-[-0.01em] text-ink">
-          Upcoming
+          {demo.feedTitle}
         </span>
       </div>
       <div className="flex flex-col gap-2">
-        <SectionLabel>This week</SectionLabel>
-        <MockPersonCard
-          {...dayCaption(today)}
-          state="today"
-          today
-          name="Michael Brooks"
-          sub="Brother · turns 29"
-          count="Today"
-        />
-        <MockPersonCard {...dayCaption(today, 3)} name="Mochi" pet sub="Pet" count="in 3 days" />
-        <SectionLabel>This month</SectionLabel>
-        <MockPersonCard
-          {...dayCaption(today, 16)}
-          name="Aunt Mae"
-          sub="Family · turns 61"
-          count="in 16 days"
-        />
+        {thisWeek.length > 0 && <SectionLabel>{demo.thisWeekLabel}</SectionLabel>}
+        {thisWeek.map((row) => (
+          <MockPersonCard
+            key={row.id}
+            {...dayCaption(today, row.offset)}
+            state={row.offset === 0 ? "today" : "upcoming"}
+            today={row.offset === 0}
+            name={row.name}
+            sub={row.sub}
+            pet={row.pet}
+            count={demoCount(demo, row.offset)}
+          />
+        ))}
+        {later.length > 0 && <SectionLabel>{demo.thisMonthLabel}</SectionLabel>}
+        {later.map((row) => (
+          <MockPersonCard
+            key={row.id}
+            {...dayCaption(today, row.offset)}
+            name={row.name}
+            sub={row.sub}
+            pet={row.pet}
+            count={demoCount(demo, row.offset)}
+          />
+        ))}
       </div>
     </div>
   );
 }
 
 type ReminderPhase = "idle" | "composing" | "sent";
-const GREETING = "Happy birthday, Michael! 🎉";
 
 /**
  * A reminder with a working day-of "Send greeting" flow (§8.3, FR-28). Tapping
@@ -187,6 +205,7 @@ const GREETING = "Happy birthday, Michael! 🎉";
 export function ReminderPreview({ className }: { className?: string }) {
   const reduced = useReducedMotion();
   const today = useToday();
+  const { reminder } = useProductDemo();
   const [phase, setPhase] = useState<ReminderPhase>("idle");
   const [done, setDone] = useState(false);
 
@@ -215,9 +234,9 @@ export function ReminderPreview({ className }: { className?: string }) {
               done ? "text-ink-muted" : "text-ink",
             )}
           >
-            It&apos;s Michael&apos;s birthday today, he turns 29.
+            {reminder.headline}
           </p>
-          <p className="mt-0.5 text-xs text-ink-muted">Brother</p>
+          <p className="mt-0.5 text-xs text-ink-muted">{reminder.relation}</p>
         </div>
       </div>
 
@@ -231,7 +250,7 @@ export function ReminderPreview({ className }: { className?: string }) {
                 className="inline-flex h-9 items-center gap-1.5 rounded-md bg-biro px-3.5 text-sm font-medium text-paper transition-[background-color,transform] hover:bg-biro-hover active:scale-[0.97]"
               >
                 <MessageCircle size={16} aria-hidden="true" />
-                Send greeting
+                {reminder.sendLabel}
               </button>
               <button
                 type="button"
@@ -242,10 +261,10 @@ export function ReminderPreview({ className }: { className?: string }) {
                 {done ? (
                   <>
                     <Check size={15} strokeWidth={3} className="text-ok-fg" aria-hidden="true" />
-                    Done · undo
+                    {reminder.undoLabel}
                   </>
                 ) : (
-                  "Mark as done"
+                  reminder.doneLabel
                 )}
               </button>
             </motion.div>
@@ -256,7 +275,7 @@ export function ReminderPreview({ className }: { className?: string }) {
               <div className="rounded-xl border border-border-subtle bg-surface-sunken p-2.5">
                 <div className="flex items-end gap-2">
                   <div className="flex-1 rounded-lg border border-border-subtle bg-surface px-3 py-2 text-sm text-ink">
-                    {GREETING}
+                    {reminder.greeting}
                     <motion.span
                       aria-hidden="true"
                       className="ml-0.5 inline-block w-px align-middle text-biro"
@@ -281,7 +300,7 @@ export function ReminderPreview({ className }: { className?: string }) {
                 onClick={() => setPhase("idle")}
                 className="mt-2 text-xs font-medium text-ink-muted transition-colors hover:text-ink"
               >
-                Cancel
+                {reminder.cancelLabel}
               </button>
             </motion.div>
           ) : null}
@@ -295,7 +314,7 @@ export function ReminderPreview({ className }: { className?: string }) {
                   transition={reduced ? { duration: 0 } : { type: "spring", stiffness: 460, damping: 26 }}
                   className="max-w-[80%] rounded-2xl rounded-br-sm bg-biro px-3.5 py-2 text-sm text-paper shadow-[0_6px_16px_-8px_rgba(44,75,216,0.6)]"
                 >
-                  {GREETING}
+                  {reminder.greeting}
                 </motion.div>
               </div>
               <motion.div
@@ -305,14 +324,14 @@ export function ReminderPreview({ className }: { className?: string }) {
                 className="mt-1.5 flex items-center justify-end gap-1 text-[11px] text-ink-muted"
               >
                 <Check size={12} strokeWidth={3} className="text-ok-fg" aria-hidden="true" />
-                Delivered
+                {reminder.deliveredLabel}
               </motion.div>
               <button
                 type="button"
                 onClick={() => setPhase("idle")}
                 className="mt-3 text-xs font-medium text-biro transition-colors hover:text-biro-hover"
               >
-                Send another
+                {reminder.againLabel}
               </button>
             </motion.div>
           ) : null}
@@ -326,6 +345,7 @@ export function ReminderPreview({ className }: { className?: string }) {
 export function WidgetPreview({ className }: { className?: string }) {
   const reduced = useReducedMotion();
   const today = useToday();
+  const demo = useProductDemo();
   const [opening, setOpening] = useState<string | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -339,11 +359,14 @@ export function WidgetPreview({ className }: { className?: string }) {
     timer.current = setTimeout(() => setOpening(null), 1100);
   };
 
-  const rows = [
-    { ...dayCaption(today), name: "Michael Brooks", count: "Today", today: true, pet: false },
-    { ...dayCaption(today, 3), name: "Mochi", count: "in 3 days", today: false, pet: true },
-    { ...dayCaption(today, 16), name: "Aunt Mae", count: "in 16 days", today: false, pet: false },
-  ];
+  // The widget is the "next 3", the same promise the real one makes.
+  const rows = demo.rows.slice(0, 3).map((row) => ({
+    ...dayCaption(today, row.offset),
+    name: row.name,
+    count: demoCount(demo, row.offset),
+    today: row.offset === 0,
+    pet: row.pet,
+  }));
 
   return (
     <div
@@ -355,7 +378,7 @@ export function WidgetPreview({ className }: { className?: string }) {
       aria-label="Interactive home-screen widget - tap a person to open their profile"
     >
       <span className="px-1 text-xs font-medium uppercase tracking-wide text-ink-muted">
-        Upcoming
+        {demo.widgetTitle}
       </span>
       <div className="mt-2 flex flex-col">
         {rows.map((row) => {

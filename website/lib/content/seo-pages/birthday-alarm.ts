@@ -1,4 +1,4 @@
-import type { SeoLandingPageDef } from "./types";
+import type { SeoLandingPageSource } from "./types";
 
 /**
  * Targets the "birthday alarm app" / "birthday scheduler" cluster.
@@ -10,7 +10,7 @@ import type { SeoLandingPageDef } from "./types";
  * year on its own. Repetition and automation carry the page; the countdown,
  * calendar, and tracker angles belong to the sibling pages.
  */
-export const birthdayAlarmPage: SeoLandingPageDef = {
+export const birthdayAlarmPage: SeoLandingPageSource = {
   slug: "birthday-alarm",
   label: "Birthday alarm app",
   blurb: "Set the alarm once and it fires again every year, on the channel you pick.",
@@ -189,4 +189,34 @@ export const birthdayAlarmPage: SeoLandingPageDef = {
     ctaHref: "/signup",
     footnote: "Mobile apps coming soon.",
   },
+  /**
+   * The default order, plus a plain-language band between the feature cards and
+   * the how-it-works steps. Everything above it argues the wedge (set it once,
+   * it repeats); this band answers the flatter question underneath the search —
+   * what a birthday alarm is actually for — in the searcher's own words.
+   */
+  layout: [
+    { id: "slot-hero", kind: "section", section: "hero", visible: true },
+    { id: "slot-contrast", kind: "section", section: "contrast", visible: true },
+    { id: "slot-features", kind: "section", section: "features", visible: true },
+    {
+      id: "group-alarm-overview",
+      kind: "blocks",
+      visible: true,
+      heading: "Never miss an important birthday",
+      sub: "",
+      background: "none",
+      blocks: [
+        {
+          id: "block-alarm-overview",
+          type: "richText",
+          html: "<p>A birthday alarm helps you remember birthdays, anniversaries, and other special occasions without setting new reminders every year. Import dates from your contacts, choose when to be notified, and get a timely reminder to send a greeting, plan a celebration, or choose a gift. Recurring alerts keep every important date organized year after year.</p>",
+        },
+      ],
+    },
+    { id: "slot-howItWorks", kind: "section", section: "howItWorks", visible: true },
+    { id: "slot-faq", kind: "section", section: "faq", visible: true },
+    { id: "slot-related", kind: "section", section: "related", visible: true },
+    { id: "slot-cta", kind: "section", section: "cta", visible: true },
+  ],
 };

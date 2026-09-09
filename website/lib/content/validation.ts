@@ -87,12 +87,46 @@ const nullableDate = z
 
 const idString = z.string().trim().min(1).max(80);
 
+/** How wide a block sits in the page column, and the band it paints. */
+const blockWidth = z.enum(["narrow", "wide", "full"]).default("wide");
+const blockBackground = z.enum(["none", "sunken", "tint"]).default("none");
+
 const cta = z
   .object({
     label: z.string().trim().max(80).default(""),
     href: linkHref.default("/"),
   })
   .default({ label: "", href: "/" });
+
+/**
+ * A CSS colour the admin may set for the accent token.
+ *
+ * Interpolated into a `style` attribute on the public site, so it is matched
+ * against a closed shape — hex, rgb/rgba, hsl/hsla, oklch, or a bare CSS
+ * keyword — rather than trusted as free text. Empty means "keep the built-in".
+ */
+const cssColor = z
+  .string()
+  .trim()
+  .max(64)
+  .default("")
+  .refine(
+    (v) =>
+      v === "" ||
+      /^#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(v) ||
+      /^(?:rgb|rgba|hsl|hsla|oklch|oklab|lab|lch|color)\(\s*[0-9a-z.,%\s/+-]*\)$/i.test(v) ||
+      /^[a-z]{3,20}$/i.test(v),
+    { message: "Enter a colour like #2c4bd8, rgb(44 75 216) or oklch(52% 0.2 265)." },
+  );
+
+const storeBadge = z
+  .object({
+    enabled: z.boolean().default(false),
+    url: linkHref.default(""),
+    label: z.string().trim().max(60).default(""),
+    eyebrow: z.string().trim().max(60).default(""),
+  })
+  .prefault({});
 
 /** Normalize an incoming path to the stored form: leading slash, no trailing slash. */
 export function normalizePath(input: string): string {
@@ -238,6 +272,73 @@ export const siteSettingsSchema = z.object({
       contactEmail: z.string().trim().max(200).default(""),
     })
     .prefault({}),
+  brand: z
+    .object({
+      logoUrl: imageUrl.default(""),
+      logoDarkUrl: imageUrl.default(""),
+      logoAlt: z.string().trim().max(200).default(""),
+      logoHeight: z.number().int().min(16).max(120).default(28),
+      showRing: z.boolean().default(true),
+      showWordmark: z.boolean().default(true),
+      wordmark: z.string().trim().max(120).default(""),
+      faviconUrl: imageUrl.default(""),
+    })
+    .prefault({}),
+  appearance: z
+    .object({
+      // A CSS colour, checked rather than free text: this value is interpolated
+      // into a `style` attribute on the marketing shell, so it has to be a
+      // colour and nothing else.
+      accent: cssColor,
+      accentDark: cssColor,
+      radius: z.number().int().min(0).max(32).default(0),
+      defaultTheme: z.enum(["system", "light", "dark"]).default("system"),
+      showThemeToggle: z.boolean().default(true),
+      animations: z.boolean().default(true),
+    })
+    .prefault({}),
+  appStores: z
+    .object({
+      appStore: storeBadge,
+      googlePlay: storeBadge,
+    })
+    .prefault({}),
+  productDemo: z
+    .object({
+      feedTitle: z.string().trim().max(60).default(""),
+      thisWeekLabel: z.string().trim().max(60).default(""),
+      thisMonthLabel: z.string().trim().max(60).default(""),
+      todayLabel: z.string().trim().max(40).default(""),
+      inDaysLabel: z.string().trim().max(60).default(""),
+      rows: z
+        .array(
+          z.object({
+            id: idString,
+            name: z.string().trim().max(80).default(""),
+            sub: z.string().trim().max(120).default(""),
+            // A year out is as far as the demo's ring caption stays sensible.
+            offset: z.number().int().min(0).max(365).default(0),
+            pet: z.boolean().default(false),
+          }),
+        )
+        .max(6)
+        .default([]),
+      reminder: z
+        .object({
+          headline: z.string().trim().max(200).default(""),
+          relation: z.string().trim().max(80).default(""),
+          greeting: z.string().trim().max(200).default(""),
+          sendLabel: z.string().trim().max(60).default(""),
+          doneLabel: z.string().trim().max(60).default(""),
+          undoLabel: z.string().trim().max(60).default(""),
+          cancelLabel: z.string().trim().max(60).default(""),
+          deliveredLabel: z.string().trim().max(60).default(""),
+          againLabel: z.string().trim().max(60).default(""),
+        })
+        .prefault({}),
+      widgetTitle: z.string().trim().max(60).default(""),
+    })
+    .prefault({}),
   seo: z
     .object({
       titleTemplate: z
@@ -252,6 +353,8 @@ export const siteSettingsSchema = z.object({
       defaultDescription: z.string().trim().max(500).default(""),
       keywords: z.array(z.string().trim().max(120)).max(50).default([]),
       ogImage: imageUrl.default(""),
+      ogHeadline: z.string().trim().max(80).default(""),
+      ogSubline: z.string().trim().max(140).default(""),
       twitterHandle: z.string().trim().max(60).default(""),
       verification: z
         .object({
@@ -310,6 +413,276 @@ export const siteSettingsSchema = z.object({
   llmsTxtEnabled: z.boolean().default(false),
   structuredData: structuredDataSchema.prefault({}),
 });
+
+const faqItem = z.object({
+  id: idString,
+  q: z.string().trim().max(300).default(""),
+  a: z.string().trim().max(2000).default(""),
+});
+
+/* ------------------------------- page builder ----------------------------- */
+
+const blockSchemas = [
+  z.object({
+    id: idString,
+    type: z.literal("hero"),
+    eyebrow: z.string().trim().max(120).default(""),
+    heading: z.string().trim().max(200).default(""),
+    body: z.string().trim().max(900).default(""),
+    primaryCta: cta,
+    secondaryCta: cta,
+  }),
+  z.object({
+    id: idString,
+    type: z.literal("richText"),
+    html: z.string().max(MAX_HTML).default(""),
+  }),
+  z.object({
+    id: idString,
+    type: z.literal("featureGrid"),
+    heading: z.string().trim().max(200).default(""),
+    sub: z.string().trim().max(600).default(""),
+    items: z
+      .array(
+        z.object({
+          id: idString,
+          icon: iconName,
+          title: z.string().trim().max(200).default(""),
+          body: z.string().trim().max(600).default(""),
+        }),
+      )
+      .max(24)
+      .default([]),
+  }),
+  z.object({
+    id: idString,
+    type: z.literal("faq"),
+    heading: z.string().trim().max(200).default(""),
+    sub: z.string().trim().max(600).default(""),
+    items: z.array(faqItem).max(50).default([]),
+  }),
+  z.object({
+    id: idString,
+    type: z.literal("cta"),
+    heading: z.string().trim().max(200).default(""),
+    body: z.string().trim().max(600).default(""),
+    cta,
+    footnote: z.string().trim().max(200).default(""),
+  }),
+  z.object({
+    id: idString,
+    type: z.literal("imageText"),
+    heading: z.string().trim().max(200).default(""),
+    body: z.string().trim().max(900).default(""),
+    imageUrl: imageUrl.default(""),
+    imageAlt: z.string().trim().max(200).default(""),
+    imageSide: z.enum(["left", "right"]).default("left"),
+    cta,
+  }),
+  z.object({
+    id: idString,
+    type: z.literal("stats"),
+    heading: z.string().trim().max(200).default(""),
+    items: z
+      .array(
+        z.object({
+          id: idString,
+          value: z.string().trim().max(40).default(""),
+          label: z.string().trim().max(120).default(""),
+        }),
+      )
+      .max(12)
+      .default([]),
+  }),
+  z.object({
+    id: idString,
+    type: z.literal("testimonials"),
+    heading: z.string().trim().max(200).default(""),
+    items: z
+      .array(
+        z.object({
+          id: idString,
+          quote: z.string().trim().max(900).default(""),
+          author: z.string().trim().max(120).default(""),
+          role: z.string().trim().max(120).default(""),
+        }),
+      )
+      .max(12)
+      .default([]),
+  }),
+  z.object({
+    id: idString,
+    type: z.literal("comparisonTable"),
+    heading: z.string().trim().max(200).default(""),
+    columns: z.array(z.string().trim().max(80)).max(6).default([]),
+    rows: z
+      .array(
+        z.object({
+          id: idString,
+          cells: z.array(z.string().trim().max(200)).max(6).default([]),
+        }),
+      )
+      .max(30)
+      .default([]),
+  }),
+  z.object({
+    id: idString,
+    type: z.literal("divider"),
+    label: z.string().trim().max(120).default(""),
+  }),
+
+  /* ------- media, embed and layout blocks (the "put anything here" set) ------ */
+
+  z.object({
+    id: idString,
+    type: z.literal("image"),
+    imageUrl: imageUrl.default(""),
+    imageAlt: z.string().trim().max(200).default(""),
+    caption: z.string().trim().max(300).default(""),
+    width: blockWidth,
+    rounded: z.boolean().default(true),
+    href: linkHref.default(""),
+  }),
+  z.object({
+    id: idString,
+    type: z.literal("gallery"),
+    heading: z.string().trim().max(200).default(""),
+    sub: z.string().trim().max(600).default(""),
+    columns: z
+      .union([z.literal(2), z.literal(3), z.literal(4)])
+      .default(3),
+    items: z
+      .array(
+        z.object({
+          id: idString,
+          imageUrl: imageUrl.default(""),
+          imageAlt: z.string().trim().max(200).default(""),
+          caption: z.string().trim().max(300).default(""),
+          href: linkHref.default(""),
+        }),
+      )
+      .max(24)
+      .default([]),
+  }),
+  z.object({
+    id: idString,
+    type: z.literal("html"),
+    // Sanitized on write by `sanitizeBlocks` with the wider embed policy
+    // (`lib/content/sanitize-embed.ts`) — scripts and unknown iframe hosts are
+    // stripped there, not here, because that has to run on every write path.
+    html: z.string().max(MAX_HTML).default(""),
+    width: blockWidth,
+    background: blockBackground,
+  }),
+  z.object({
+    id: idString,
+    type: z.literal("video"),
+    heading: z.string().trim().max(200).default(""),
+    url: linkHref.default(""),
+    caption: z.string().trim().max(300).default(""),
+    width: blockWidth,
+    posterUrl: imageUrl.default(""),
+  }),
+  z.object({
+    id: idString,
+    type: z.literal("buttons"),
+    heading: z.string().trim().max(200).default(""),
+    align: z.enum(["left", "center"]).default("center"),
+    items: z
+      .array(
+        z.object({
+          id: idString,
+          label: z.string().trim().max(80).default(""),
+          href: linkHref.default("/"),
+          variant: z.enum(["primary", "secondary", "ghost"]).default("primary"),
+          external: z.boolean().default(false),
+        }),
+      )
+      .max(6)
+      .default([]),
+  }),
+  z.object({
+    id: idString,
+    type: z.literal("spacer"),
+    size: z.enum(["sm", "md", "lg", "xl"]).default("md"),
+    rule: z.boolean().default(false),
+  }),
+  z.object({
+    id: idString,
+    type: z.literal("logos"),
+    heading: z.string().trim().max(200).default(""),
+    grayscale: z.boolean().default(true),
+    items: z
+      .array(
+        z.object({
+          id: idString,
+          imageUrl: imageUrl.default(""),
+          imageAlt: z.string().trim().max(200).default(""),
+          href: linkHref.default(""),
+        }),
+      )
+      .max(20)
+      .default([]),
+  }),
+  z.object({
+    id: idString,
+    type: z.literal("steps"),
+    heading: z.string().trim().max(200).default(""),
+    sub: z.string().trim().max(600).default(""),
+    numbered: z.boolean().default(true),
+    items: z
+      .array(
+        z.object({
+          id: idString,
+          icon: iconName,
+          title: z.string().trim().max(200).default(""),
+          body: z.string().trim().max(900).default(""),
+        }),
+      )
+      .max(12)
+      .default([]),
+  }),
+  z.object({
+    id: idString,
+    type: z.literal("pricing"),
+    heading: z.string().trim().max(200).default(""),
+    sub: z.string().trim().max(600).default(""),
+    tiers: z
+      .array(
+        z.object({
+          id: idString,
+          name: z.string().trim().max(80).default(""),
+          price: z.string().trim().max(40).default(""),
+          period: z.string().trim().max(40).default(""),
+          body: z.string().trim().max(600).default(""),
+          features: z.array(z.string().trim().max(240)).max(20).default([]),
+          cta,
+          highlight: z.boolean().default(false),
+        }),
+      )
+      .max(6)
+      .default([]),
+  }),
+  z.object({
+    id: idString,
+    type: z.literal("quote"),
+    quote: z.string().trim().max(1200).default(""),
+    author: z.string().trim().max(120).default(""),
+    role: z.string().trim().max(120).default(""),
+    imageUrl: imageUrl.default(""),
+  }),
+  z.object({
+    id: idString,
+    type: z.literal("banner"),
+    tone: z.enum(["info", "success", "warning", "danger"]).default("info"),
+    icon: iconName,
+    heading: z.string().trim().max(200).default(""),
+    body: z.string().trim().max(900).default(""),
+    cta,
+  }),
+] as const;
+
+export const pageBlockSchema = z.discriminatedUnion("type", [...blockSchemas]);
 
 /* --------------------------------- landing -------------------------------- */
 
@@ -402,12 +775,6 @@ const latestPostsSection = z.object({
   ctaLabel: z.string().trim().max(80).default(""),
 });
 
-const faqItem = z.object({
-  id: idString,
-  q: z.string().trim().max(300).default(""),
-  a: z.string().trim().max(2000).default(""),
-});
-
 const faqSection = z.object({
   id: idString,
   type: z.literal("faq"),
@@ -431,6 +798,24 @@ const getTheAppSection = z.object({
   footnote: z.string().trim().max(200).default(""),
 });
 
+/**
+ * The homepage's escape hatch: an ordered group of page-builder blocks that
+ * renders between two designed sections. Everything the page builder can make —
+ * an image, a gallery, custom HTML, a video, a pricing table — can therefore sit
+ * on the landing page too, without a code change and without loosening what the
+ * built-in sections are allowed to be.
+ */
+const blocksSection = z.object({
+  id: idString,
+  type: z.literal("blocks"),
+  visible: z.boolean().default(true),
+  anchor: z.string().trim().max(60).default(""),
+  heading: z.string().trim().max(200).default(""),
+  sub: z.string().trim().max(600).default(""),
+  background: blockBackground,
+  blocks: z.array(pageBlockSchema).max(40).default([]),
+});
+
 export const landingSectionSchema = z.discriminatedUnion("type", [
   heroSection,
   valuePropSection,
@@ -439,6 +824,7 @@ export const landingSectionSchema = z.discriminatedUnion("type", [
   latestPostsSection,
   faqSection,
   getTheAppSection,
+  blocksSection,
 ]);
 
 export const landingVariantSchema = z.object({
@@ -484,6 +870,41 @@ const seoFeatureCard = z.object({
   points: z.array(z.string().trim().max(240)).max(12).default([]),
 });
 
+/**
+ * A keyword page's render order.
+ *
+ * Two kinds of row: a built-in band (identified by key, so the design stays in
+ * code) and a group of page-builder blocks. Together they let the SEO team
+ * reorder a page, hide a band, or drop an image or an HTML block anywhere in it
+ * — the things the cluster could not do while its order was hardcoded.
+ */
+const seoLayoutItem = z.discriminatedUnion("kind", [
+  z.object({
+    id: idString,
+    kind: z.literal("section"),
+    section: z.enum([
+      "hero",
+      "download",
+      "contrast",
+      "features",
+      "howItWorks",
+      "faq",
+      "related",
+      "cta",
+    ]),
+    visible: z.boolean().default(true),
+  }),
+  z.object({
+    id: idString,
+    kind: z.literal("blocks"),
+    visible: z.boolean().default(true),
+    heading: z.string().trim().max(200).default(""),
+    sub: z.string().trim().max(600).default(""),
+    background: blockBackground,
+    blocks: z.array(pageBlockSchema).max(40).default([]),
+  }),
+]);
+
 export const seoPageContentSchema = z.object({
   label: z.string().trim().max(80).default(""),
   blurb: z.string().trim().max(240).default(""),
@@ -496,6 +917,7 @@ export const seoPageContentSchema = z.object({
       heading: z.string().trim().max(200).default(""),
       subheading: z.string().trim().max(600).default(""),
       primaryCta: cta,
+      secondaryCta: cta,
       footnote: z.string().trim().max(200).default(""),
       // At least one product shot, at most two — the hero layout has room for
       // exactly that, and an empty array would render a blank band.
@@ -568,6 +990,13 @@ export const seoPageContentSchema = z.object({
       items: z.array(faqItem).max(50).default([]),
     })
     .prefault({}),
+  related: z
+    .object({
+      heading: z.string().trim().max(200).default(""),
+      sub: z.string().trim().max(600).default(""),
+      ctaLabel: z.string().trim().max(60).default(""),
+    })
+    .prefault({}),
   cta: z
     .object({
       heading: z.string().trim().max(200).default(""),
@@ -577,6 +1006,10 @@ export const seoPageContentSchema = z.object({
       footnote: z.string().trim().max(200).default(""),
     })
     .prefault({}),
+  // Empty is meaningful here in a way it isn't elsewhere: `mergeById` treats an
+  // empty array as "nothing stored" and falls back to the built-in order, which
+  // is exactly the behaviour a reset needs.
+  layout: z.array(seoLayoutItem).max(30).default([]),
 });
 
 export const saveSeoPageSchema = z.object({
@@ -890,119 +1323,6 @@ export const navigationSchema = z.object({
     .prefault({}),
 });
 
-/* ------------------------------- page builder ----------------------------- */
-
-const blockSchemas = [
-  z.object({
-    id: idString,
-    type: z.literal("hero"),
-    eyebrow: z.string().trim().max(120).default(""),
-    heading: z.string().trim().max(200).default(""),
-    body: z.string().trim().max(900).default(""),
-    primaryCta: cta,
-    secondaryCta: cta,
-  }),
-  z.object({
-    id: idString,
-    type: z.literal("richText"),
-    html: z.string().max(MAX_HTML).default(""),
-  }),
-  z.object({
-    id: idString,
-    type: z.literal("featureGrid"),
-    heading: z.string().trim().max(200).default(""),
-    sub: z.string().trim().max(600).default(""),
-    items: z
-      .array(
-        z.object({
-          id: idString,
-          icon: iconName,
-          title: z.string().trim().max(200).default(""),
-          body: z.string().trim().max(600).default(""),
-        }),
-      )
-      .max(24)
-      .default([]),
-  }),
-  z.object({
-    id: idString,
-    type: z.literal("faq"),
-    heading: z.string().trim().max(200).default(""),
-    sub: z.string().trim().max(600).default(""),
-    items: z.array(faqItem).max(50).default([]),
-  }),
-  z.object({
-    id: idString,
-    type: z.literal("cta"),
-    heading: z.string().trim().max(200).default(""),
-    body: z.string().trim().max(600).default(""),
-    cta,
-    footnote: z.string().trim().max(200).default(""),
-  }),
-  z.object({
-    id: idString,
-    type: z.literal("imageText"),
-    heading: z.string().trim().max(200).default(""),
-    body: z.string().trim().max(900).default(""),
-    imageUrl: imageUrl.default(""),
-    imageAlt: z.string().trim().max(200).default(""),
-    imageSide: z.enum(["left", "right"]).default("left"),
-    cta,
-  }),
-  z.object({
-    id: idString,
-    type: z.literal("stats"),
-    heading: z.string().trim().max(200).default(""),
-    items: z
-      .array(
-        z.object({
-          id: idString,
-          value: z.string().trim().max(40).default(""),
-          label: z.string().trim().max(120).default(""),
-        }),
-      )
-      .max(12)
-      .default([]),
-  }),
-  z.object({
-    id: idString,
-    type: z.literal("testimonials"),
-    heading: z.string().trim().max(200).default(""),
-    items: z
-      .array(
-        z.object({
-          id: idString,
-          quote: z.string().trim().max(900).default(""),
-          author: z.string().trim().max(120).default(""),
-          role: z.string().trim().max(120).default(""),
-        }),
-      )
-      .max(12)
-      .default([]),
-  }),
-  z.object({
-    id: idString,
-    type: z.literal("comparisonTable"),
-    heading: z.string().trim().max(200).default(""),
-    columns: z.array(z.string().trim().max(80)).max(6).default([]),
-    rows: z
-      .array(
-        z.object({
-          id: idString,
-          cells: z.array(z.string().trim().max(200)).max(6).default([]),
-        }),
-      )
-      .max(30)
-      .default([]),
-  }),
-  z.object({
-    id: idString,
-    type: z.literal("divider"),
-    label: z.string().trim().max(120).default(""),
-  }),
-] as const;
-
-export const pageBlockSchema = z.discriminatedUnion("type", [...blockSchemas]);
 
 const pageSlug = z
   .string()
@@ -1061,6 +1381,62 @@ export const legalDocSchema = z.object({
   html: z.string().max(MAX_HTML).default(""),
 });
 
+/* ------------------------------ built-in pages ---------------------------- */
+
+/**
+ * The routes whose body is generated rather than authored — the blog index, a
+ * post's furniture, the 404, and the contact page's extras.
+ *
+ * Each one keeps its typed copy fields *and* a block list, so an editor can both
+ * reword the page and drop arbitrary content onto it. Same partial-override
+ * contract as everything else: a blank field falls back to `defaults.ts`.
+ */
+export const builtInPagesSchema = z.object({
+  blogIndex: z
+    .object({
+      heading: z.string().trim().max(200).default(""),
+      intro: z.string().trim().max(1000).default(""),
+      emptyText: z.string().trim().max(300).default(""),
+      errorText: z.string().trim().max(300).default(""),
+      guidesHeading: z.string().trim().max(200).default(""),
+      guidesSub: z.string().trim().max(300).default(""),
+      showGuides: z.boolean().default(true),
+      blocksBefore: z.array(pageBlockSchema).max(20).default([]),
+      blocksAfter: z.array(pageBlockSchema).max(20).default([]),
+    })
+    .prefault({}),
+  blogPost: z
+    .object({
+      allPostsLabel: z.string().trim().max(120).default(""),
+      relatedHeading: z.string().trim().max(200).default(""),
+      showRelated: z.boolean().default(true),
+      breadcrumbHome: z.string().trim().max(60).default(""),
+      breadcrumbBlog: z.string().trim().max(60).default(""),
+      readingTimeLabel: z.string().trim().max(40).default(""),
+      blocksAfter: z.array(pageBlockSchema).max(20).default([]),
+    })
+    .prefault({}),
+  notFound: z
+    .object({
+      eyebrow: z.string().trim().max(60).default(""),
+      heading: z.string().trim().max(200).default(""),
+      body: z.string().trim().max(600).default(""),
+      primaryCta: cta,
+      secondaryCta: cta,
+      blocksAfter: z.array(pageBlockSchema).max(20).default([]),
+    })
+    .prefault({}),
+  contact: z
+    .object({
+      cardEnabled: z.boolean().default(true),
+      cardHeading: z.string().trim().max(120).default(""),
+      cardBody: z.string().trim().max(300).default(""),
+      cardIcon: iconName,
+      blocksAfter: z.array(pageBlockSchema).max(20).default([]),
+    })
+    .prefault({}),
+});
+
 /* ------------------------------ export / import --------------------------- */
 
 export const importBundleSchema = z.object({
@@ -1077,6 +1453,7 @@ export const importBundleSchema = z.object({
     .optional(),
   redirects: z.array(redirectSchema).max(1000).optional(),
   legal: z.array(legalDocSchema).max(10).optional(),
+  builtIn: builtInPagesSchema.optional(),
 });
 
 export type SiteSettingsBody = z.infer<typeof siteSettingsSchema>;
@@ -1089,4 +1466,5 @@ export type CreateSitePageBody = z.infer<typeof createSitePageSchema>;
 export type UpdateSitePageBody = z.infer<typeof updateSitePageSchema>;
 export type RedirectBody = z.infer<typeof redirectSchema>;
 export type LegalDocBody = z.infer<typeof legalDocSchema>;
+export type BuiltInPagesBody = z.infer<typeof builtInPagesSchema>;
 export type ImportBundle = z.infer<typeof importBundleSchema>;

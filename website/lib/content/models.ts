@@ -24,6 +24,10 @@ export interface SiteSettingsDoc {
   _id: Types.ObjectId;
   key: string;
   identity: Record<string, unknown>;
+  brand: Record<string, unknown>;
+  appearance: Record<string, unknown>;
+  appStores: Record<string, unknown>;
+  productDemo: Record<string, unknown>;
   seo: Record<string, unknown>;
   analytics: Record<string, unknown>;
   socials: unknown[];
@@ -39,6 +43,13 @@ const siteSettingsSchema = new Schema<SiteSettingsDoc>(
   {
     key: { type: String, required: true, unique: true, default: SINGLETON },
     identity: { type: Schema.Types.Mixed, default: () => ({}) },
+    // Every group here has to be declared, not just typed: Mongoose is strict by
+    // default and silently drops an undeclared path on `$set`, so a settings
+    // group missing from this schema saves with a 200 and changes nothing.
+    brand: { type: Schema.Types.Mixed, default: () => ({}) },
+    appearance: { type: Schema.Types.Mixed, default: () => ({}) },
+    appStores: { type: Schema.Types.Mixed, default: () => ({}) },
+    productDemo: { type: Schema.Types.Mixed, default: () => ({}) },
     seo: { type: Schema.Types.Mixed, default: () => ({}) },
     analytics: { type: Schema.Types.Mixed, default: () => ({}) },
     socials: { type: [Schema.Types.Mixed], default: () => [] },
@@ -197,6 +208,43 @@ sitePageSchema.index({ status: 1, publishedAt: -1 });
 export const SitePageModel: Model<SitePageDoc> =
   (models.SitePage as Model<SitePageDoc>) ||
   model<SitePageDoc>("SitePage", sitePageSchema);
+
+/* ------------------------------ BuiltInPages ------------------------------ */
+
+/**
+ * Copy and blocks for the routes whose body is generated in code — the blog
+ * index, a post page's furniture, the 404, and the contact page's extras.
+ *
+ * A singleton like the other site-wide documents, and `Mixed` for the same
+ * reason: each key holds a small object plus block arrays whose shape varies by
+ * block type, with Zod as the gatekeeper on write and `deepMerge` over the
+ * typed defaults on read.
+ */
+export interface BuiltInPagesDoc {
+  _id: Types.ObjectId;
+  key: string;
+  blogIndex: Record<string, unknown>;
+  blogPost: Record<string, unknown>;
+  notFound: Record<string, unknown>;
+  contact: Record<string, unknown>;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+const builtInPagesSchema = new Schema<BuiltInPagesDoc>(
+  {
+    key: { type: String, required: true, unique: true, default: SINGLETON },
+    blogIndex: { type: Schema.Types.Mixed, default: () => ({}) },
+    blogPost: { type: Schema.Types.Mixed, default: () => ({}) },
+    notFound: { type: Schema.Types.Mixed, default: () => ({}) },
+    contact: { type: Schema.Types.Mixed, default: () => ({}) },
+  },
+  { timestamps: true, minimize: false },
+);
+
+export const BuiltInPagesModel: Model<BuiltInPagesDoc> =
+  (models.BuiltInPages as Model<BuiltInPagesDoc>) ||
+  model<BuiltInPagesDoc>("BuiltInPages", builtInPagesSchema);
 
 /* ----------------------------- NavigationConfig --------------------------- */
 

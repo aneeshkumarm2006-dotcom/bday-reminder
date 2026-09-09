@@ -1,4 +1,4 @@
-import type { SeoLandingPageDef } from "./types";
+import type { SeoLandingPageSource } from "./types";
 
 /**
  * Targets "birthday tracker printable" — the one query in the cluster where the
@@ -14,7 +14,7 @@ import type { SeoLandingPageDef } from "./types";
  * line at the foot. If the PDF is ever regenerated with more rows, the copy
  * here and the FAQ's "36" have to move with it.
  */
-export const birthdayTrackerPrintablePage: SeoLandingPageDef = {
+export const birthdayTrackerPrintablePage: SeoLandingPageSource = {
   slug: "birthday-tracker-printable",
   label: "Printable birthday tracker",
   blurb: "A free one-page PDF: twelve months, filled in by hand, pinned where you'll see it.",

@@ -37,6 +37,7 @@ const STATIC_COMMANDS: Command[] = [
   { id: "seo-pages", label: "SEO pages", hint: "Keyword landing pages", href: "/seoteam/seo-pages", group: "Go to" },
   { id: "pages", label: "Pages", hint: "Custom pages", href: "/seoteam/pages", group: "Go to" },
   { id: "new-page", label: "New page", hint: "Build a page from blocks", href: "/seoteam/pages/new", group: "Create" },
+  { id: "built-in", label: "Built-in pages", hint: "Blog index, 404, contact extras", href: "/seoteam/built-in", group: "Go to" },
   { id: "legal", label: "Legal & contact", hint: "Privacy, terms, contact", href: "/seoteam/legal", group: "Go to" },
   { id: "site", label: "Site settings", hint: "Identity, SEO, analytics", href: "/seoteam/site", group: "Go to" },
   { id: "meta", label: "Page SEO", hint: "Titles and descriptions", href: "/seoteam/meta", group: "Go to" },

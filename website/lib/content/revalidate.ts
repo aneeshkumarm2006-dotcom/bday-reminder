@@ -80,6 +80,15 @@ export function revalidateFor(entity: EntityType, target: RevalidateTarget = {})
       safeRevalidate("/sitemap.xml");
       break;
     }
+    case "built-in": {
+      // One document backs four routes, and there is no cheap way to know which
+      // key changed — so all four go. `/blog` and `/blog/[slug]` are
+      // force-dynamic and the 404 boundary isn't cached, but `/contact` is ISR,
+      // and being wrong there means being wrong for an hour.
+      safeRevalidate("/blog");
+      safeRevalidate("/contact");
+      break;
+    }
   }
 }
 

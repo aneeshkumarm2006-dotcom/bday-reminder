@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import * as React from "react";
 
 import { BlockForm } from "@/components/seoteam/admin/block-forms";
+import { BlockPaletteDialog } from "@/components/seoteam/admin/block-list-editor";
 import { StringListEditor, TextAreaRow, TextRow } from "@/components/seoteam/admin/fields";
 import { AdminSection, FieldGrid } from "@/components/seoteam/admin/layout";
 import { ListEditor, newId } from "@/components/seoteam/admin/list-editor";
@@ -29,8 +30,7 @@ import {
   savePageMeta,
   updateSitePage,
 } from "@/lib/content/admin-api";
-import { BLOCK_DEFINITIONS, blockTitle } from "@/lib/content/blocks";
-import { iconFor } from "@/lib/content/icons";
+import { blockTitle } from "@/lib/content/blocks";
 import { analyzePageSeo } from "@/lib/content/page-seo";
 import { derivePageVisibility, type PageVisibility } from "@/lib/content/schedule";
 import type { PageBlock, PageMeta, SitePage } from "@/lib/content/types";
@@ -542,46 +542,18 @@ export function PageBuilder({ page, meta: initialMeta }: PageBuilderProps) {
         )}
       </SaveBar>
 
-      {/* ------------------------------ block palette ----------------------- */}
-      <Dialog
+      {/* The palette is shared with the landing editor, the keyword pages'
+          layout, and the built-in pages, so all four offer the same blocks. */}
+      <BlockPaletteDialog
         open={paletteOpen}
         onClose={() => setPaletteOpen(false)}
-        title="Add a block"
-        description="Every block reuses the site's own section styling."
-        className="sm:max-w-2xl"
-      >
-        <ul className="grid gap-2 sm:grid-cols-2">
-          {BLOCK_DEFINITIONS.map((definition) => {
-            const Icon = iconFor(definition.icon);
-            return (
-              <li key={definition.type}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const block = definition.create(newId(definition.type));
-                    setBlocks((prev) => [...prev, block]);
-                    setSelectedBlockId(block.id);
-                    setPaletteOpen(false);
-                  }}
-                  className="flex w-full gap-3 rounded-lg border border-border-subtle p-3 text-left transition-colors hover:border-biro hover:bg-surface-sunken"
-                >
-                  <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-biro-tint text-biro">
-                    <Icon size={18} aria-hidden="true" />
-                  </span>
-                  <span className="min-w-0">
-                    <span className="block text-sm font-medium text-ink">
-                      {definition.label}
-                    </span>
-                    <span className="block text-xs text-ink-muted">
-                      {definition.description}
-                    </span>
-                  </span>
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      </Dialog>
+        onPick={(definition) => {
+          const block = definition.create(newId(definition.type));
+          setBlocks((prev) => [...prev, block]);
+          setSelectedBlockId(block.id);
+          setPaletteOpen(false);
+        }}
+      />
 
       <TypedConfirmDialog
         open={confirmDelete}

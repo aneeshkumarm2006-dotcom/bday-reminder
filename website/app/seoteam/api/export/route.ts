@@ -4,6 +4,7 @@ import {
   getAllPageMeta,
   getAllSeoPageContent,
   getAllSitePages,
+  getBuiltInPages,
   getLandingContent,
   getLegalDoc,
   getNavigation,
@@ -38,6 +39,7 @@ export async function GET() {
       privacy,
       terms,
       contact,
+      builtIn,
     ] = await Promise.all([
       getSiteSettings(),
       getLandingContent("published"),
@@ -49,6 +51,7 @@ export async function GET() {
       getLegalDoc("privacy"),
       getLegalDoc("terms"),
       getLegalDoc("contact"),
+      getBuiltInPages(),
     ]);
 
     const bundle = {
@@ -79,6 +82,7 @@ export async function GET() {
         note: r.note,
       })),
       legal: [privacy, terms, contact],
+      builtIn,
     };
 
     const stamp = new Date().toISOString().slice(0, 10);

@@ -1,10 +1,15 @@
 import { ImageResponse } from "next/og";
 
+import { getSiteSettings } from "@/lib/content/get";
 import { siteConfig } from "@/lib/site";
 
 /**
  * Generated Open Graph / Twitter card (Stage 11 SEO). On-brand: the filled
- * "today" ring on a date, the wordmark, and the tagline on warm paper.
+ * "today" ring on a date, the wordmark, and the headline on warm paper.
+ *
+ * The words come from Site settings, so the card social platforms show can be
+ * rewritten without a deploy. Setting an OG image file there replaces this
+ * card outright — this is the fallback, and the one nobody has to design.
  */
 export const alt = `${siteConfig.name} - ${siteConfig.tagline}`;
 export const size = { width: 1200, height: 630 };
@@ -20,7 +25,8 @@ const MONTH_ABBR = [
   "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
 ];
 
-export default function OpengraphImage() {
+export default async function OpengraphImage() {
+  const { identity, seo } = await getSiteSettings();
   const now = new Date();
   const day = String(now.getDate());
   const month = MONTH_ABBR[now.getMonth()];
@@ -70,16 +76,16 @@ export default function OpengraphImage() {
             </div>
           </div>
           <div style={{ display: "flex", fontSize: 44, fontWeight: 600, color: "#232020" }}>
-            {siteConfig.name}
+            {identity.name}
           </div>
         </div>
 
         <div style={{ display: "flex", flexDirection: "column" }}>
           <div style={{ fontSize: 88, fontWeight: 700, color: "#232020", letterSpacing: "-2px" }}>
-            Remember, and act.
+            {seo.ogHeadline}
           </div>
           <div style={{ fontSize: 34, color: "#5C574F", marginTop: 20 }}>
-            Never miss a birthday: free on web, iOS &amp; Android.
+            {seo.ogSubline}
           </div>
         </div>
       </div>

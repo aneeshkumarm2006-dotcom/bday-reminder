@@ -35,6 +35,14 @@ test.describe(() => {
     const heading = `Remember, and act. ${Date.now()}`;
 
     await page.goto("/seoteam/landing");
+    // Publish once first. On a database that has never had a landing published,
+    // `getLandingContent("published")` deliberately falls through to the draft
+    // (better a draft than a blank homepage) — so "saving a draft leaves the
+    // homepage alone" is only the contract once something *is* published, and
+    // without this the assertion below fails on a scratch database.
+    await page.getByRole("button", { name: "Publish" }).click();
+    await expect(page.getByText(/the homepage is live/i)).toBeVisible();
+
     await page.getByRole("button", { name: "Hero" }).click();
     await page.getByRole("textbox", { name: "Heading", exact: true }).first().fill(heading);
 
@@ -172,6 +180,58 @@ test.describe(() => {
     await expect(
       page.getByRole("navigation", { name: "Primary" }).getByRole("link", { name: label }),
     ).toBeVisible();
+  });
+
+  test("a custom block section reaches the homepage", async ({ page }) => {
+    const heading = `Extra band ${Date.now()}`;
+
+    await page.goto("/seoteam/landing");
+    await page.getByRole("button", { name: "Add section" }).click();
+    await page.getByRole("button", { name: "Custom blocks", exact: true }).click();
+    await page.getByRole("textbox", { name: "Heading", exact: true }).first().fill(heading);
+
+    // Any block from the shared palette — an image here, because putting one
+    // "wherever we want" is the thing this section exists to make possible.
+    await page.getByRole("button", { name: "Add block" }).click();
+    await page.getByRole("button", { name: /^Image\b/ }).first().click();
+
+    await page.getByRole("button", { name: "Publish" }).click();
+    await expect(page.getByText(/the homepage is live/i)).toBeVisible();
+
+    await page.goto("/");
+    await expect(page.getByRole("heading", { name: heading })).toBeVisible();
+  });
+
+  test("built-in page copy reaches the 404", async ({ page }) => {
+    const heading = `Nothing here ${Date.now()}`;
+
+    await page.goto("/seoteam/built-in");
+    await page.getByRole("button", { name: "404 page" }).click();
+    await page.getByRole("textbox", { name: "Heading", exact: true }).first().fill(heading);
+    await page.getByRole("button", { name: "Save changes" }).click();
+    await expect(page.getByText("Built-in pages saved.")).toBeVisible();
+
+    await page.goto("/a-url-that-does-not-exist");
+    await expect(page.getByRole("heading", { name: heading })).toBeVisible();
+  });
+
+  test("the accent colour in Site settings repaints the public site", async ({ page }) => {
+    await page.goto("/seoteam/site");
+    // `exact` because the native colour picker beside it is labelled
+    // "Accent colour picker".
+    await page
+      .getByRole("textbox", { name: "Accent colour", exact: true })
+      .fill("#aa3366");
+    await page.getByRole("button", { name: "Save changes" }).click();
+    await expect(page.getByText("Site settings saved.")).toBeVisible();
+
+    await page.goto("/");
+    // The token is what every component reads, so asserting on it covers the
+    // whole page rather than one element's computed colour.
+    const accent = await page.evaluate(() =>
+      getComputedStyle(document.querySelector(".site-appearance")!).getPropertyValue("--biro"),
+    );
+    expect(accent.trim()).toBe("#aa3366");
   });
 
   test("the export bundle round-trips through import", async ({ request }) => {

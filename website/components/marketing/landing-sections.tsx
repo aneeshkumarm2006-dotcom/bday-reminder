@@ -2,6 +2,7 @@ import { Plus, Smartphone } from "lucide-react";
 import Link from "next/link";
 
 import { AppPreview, ReminderPreview, WidgetPreview } from "@/components/app-preview";
+import { PageBlocks } from "@/components/marketing/page-blocks";
 import { ContentIcon } from "@/components/content-icon";
 import { PostCard } from "@/components/blog/post-card";
 import { Reveal } from "@/components/reveal";
@@ -9,7 +10,9 @@ import { HeroTodayRing, StepRing } from "@/components/today-rings";
 import { buttonVariants } from "@/components/ui/button";
 import { isDbConfigured } from "@/lib/blog/db";
 import { getPublishedPosts } from "@/lib/blog/posts";
+import { getSiteSettings } from "@/lib/content/get";
 import type {
+  BlocksSection as BlocksSectionContent,
   FaqSection as FaqSectionContent,
   FeaturePreview,
   FeaturesSection as FeaturesSectionContent,
@@ -18,6 +21,7 @@ import type {
   HowItWorksSection as HowItWorksSectionContent,
   LandingSection,
   LatestPostsSection as LatestPostsSectionContent,
+  StoreBadgeConfig,
   ValuePropSection as ValuePropSectionContent,
 } from "@/lib/content/types";
 
@@ -60,6 +64,8 @@ function LandingSectionRenderer({ section }: { section: LandingSection }) {
       return <Faq content={section} />;
     case "getTheApp":
       return <GetTheApp content={section} />;
+    case "blocks":
+      return <BlocksBand content={section} />;
     default:
       return null;
   }
@@ -441,6 +447,44 @@ export function Faq({ content }: { content: FaqSectionContent }) {
   );
 }
 
+/* ------------------------------- blocks band ------------------------------ */
+
+/**
+ * The homepage's own page-builder slot.
+ *
+ * Everything else in this file is a designed section whose shape is fixed; this
+ * one renders whatever blocks the admin dropped into it, in order. It is what
+ * makes "add an image here" or "put a table between these two sections" a
+ * content change rather than a code change — and because the blocks reuse the
+ * same visual language, adding one still can't take the page off-brand.
+ */
+export function BlocksBand({ content }: { content: BlocksSectionContent }) {
+  if (content.blocks.length === 0) return null;
+
+  const band =
+    content.background === "sunken"
+      ? "border-y border-border-subtle bg-surface-sunken/60"
+      : content.background === "tint"
+        ? "border-y border-border-subtle bg-biro-tint/50"
+        : "";
+
+  return (
+    <section id={content.anchor || undefined} className={`scroll-mt-20 ${band}`}>
+      {(content.heading || content.sub) && (
+        <Reveal className="mx-auto mt-16 max-w-2xl px-5 text-center">
+          {content.heading && (
+            <h2 className="font-display text-3xl font-semibold tracking-[-0.01em] text-ink">
+              {content.heading}
+            </h2>
+          )}
+          {content.sub && <p className="mt-4 text-ink-secondary">{content.sub}</p>}
+        </Reveal>
+      )}
+      <PageBlocks blocks={content.blocks} />
+    </section>
+  );
+}
+
 /* -------------------------------- get the app ----------------------------- */
 
 export function GetTheApp({ content }: { content: GetTheAppSectionContent }) {
@@ -471,12 +515,7 @@ export function GetTheApp({ content }: { content: GetTheAppSectionContent }) {
             </div>
           )}
 
-          {content.storeBadges && (
-            <div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
-              <StoreBadge platform="App Store" />
-              <StoreBadge platform="Google Play" />
-            </div>
-          )}
+          {content.storeBadges && <StoreBadges />}
           {content.footnote && (
             <p className="mt-4 text-xs text-ink-muted">{content.footnote}</p>
           )}
@@ -486,18 +525,65 @@ export function GetTheApp({ content }: { content: GetTheAppSectionContent }) {
   );
 }
 
-/** Store badge placeholders — listings go live with the app. */
-function StoreBadge({ platform }: { platform: string }) {
+/**
+ * The two store badges, driven by Site settings → App stores.
+ *
+ * Each one is a placeholder chip until a URL is set for it, then the same slot
+ * becomes a real link — so shipping the iOS app is a content change, not a
+ * deploy. It reads settings itself rather than taking a prop because the same
+ * badges render from the homepage and from all eight keyword pages, and
+ * `getSiteSettings` is request-cached either way.
+ */
+export async function StoreBadges() {
+  const { appStores } = await getSiteSettings();
   return (
-    <span
-      className="inline-flex h-12 cursor-default items-center gap-2.5 rounded-md border border-border-strong bg-surface px-4 text-ink-muted"
-      aria-label={`${platform} - coming soon`}
-    >
+    <div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
+      <StoreBadge platform="App Store" config={appStores.appStore} />
+      <StoreBadge platform="Google Play" config={appStores.googlePlay} />
+    </div>
+  );
+}
+
+function StoreBadge({
+  platform,
+  config,
+}: {
+  platform: string;
+  config: StoreBadgeConfig;
+}) {
+  const name = config.label.trim() || platform;
+  const live = config.enabled && config.url.trim() !== "";
+  const eyebrow = live ? config.eyebrow.trim() || "Download on the" : "Coming soon to";
+
+  const inner = (
+    <>
       <Smartphone size={20} aria-hidden="true" />
       <span className="flex flex-col items-start leading-none">
-        <span className="text-[10px]">Coming soon to</span>
-        <span className="text-sm font-medium text-ink-secondary">{platform}</span>
+        <span className="text-[10px]">{eyebrow}</span>
+        <span className="text-sm font-medium text-ink-secondary">{name}</span>
       </span>
-    </span>
+    </>
+  );
+
+  if (!live) {
+    return (
+      <span
+        className="inline-flex h-12 cursor-default items-center gap-2.5 rounded-md border border-border-strong bg-surface px-4 text-ink-muted"
+        aria-label={`${name} - coming soon`}
+      >
+        {inner}
+      </span>
+    );
+  }
+
+  return (
+    <a
+      href={config.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="inline-flex h-12 items-center gap-2.5 rounded-md border border-border-strong bg-surface px-4 text-ink-secondary transition-[transform,border-color] duration-300 hover:-translate-y-0.5 hover:border-biro/40"
+    >
+      {inner}
+    </a>
   );
 }

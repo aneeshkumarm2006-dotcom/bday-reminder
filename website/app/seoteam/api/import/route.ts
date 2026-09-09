@@ -5,6 +5,7 @@ import { logAction } from "@/lib/content/audit";
 import { getEditorName } from "@/lib/content/editor-server";
 import {
   getAllPageMeta,
+  getBuiltInPages,
   getLandingContent,
   getLegalDoc,
   getNavigation,
@@ -12,6 +13,7 @@ import {
   getSiteSettings,
 } from "@/lib/content/get";
 import {
+  BuiltInPagesModel,
   LandingContentModel,
   LegalDocModel,
   NavigationConfigModel,
@@ -156,6 +158,17 @@ export async function POST(req: NextRequest) {
         restored += 1;
       }
       if (restored > 0) applied.push(`${restored} keyword landing page(s) (as drafts)`);
+    }
+
+    if (bundle.builtIn) {
+      await saveRevision("built-in", SINGLETON, await getBuiltInPages(), editor);
+      await BuiltInPagesModel.findOneAndUpdate(
+        { key: SINGLETON },
+        { $set: { ...bundle.builtIn, key: SINGLETON } },
+        { upsert: true, setDefaultsOnInsert: true },
+      );
+      revalidateFor("built-in");
+      applied.push("built-in pages");
     }
 
     if (bundle.redirects && bundle.redirects.length > 0) {

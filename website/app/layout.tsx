@@ -49,8 +49,12 @@ const inter = localFont({
  */
 export async function generateMetadata(): Promise<Metadata> {
   const settings = await getSiteSettings();
-  const { identity, seo } = settings;
+  const { brand, identity, seo } = settings;
   const indexable = seo.indexingEnabled;
+  // With no uploaded favicon, Next's own file conventions win (`app/icon.tsx`
+  // draws the ring around today's date). An uploaded one has to be declared
+  // explicitly, or the generated icon would keep taking precedence.
+  const favicon = brand.faviconUrl.trim();
 
   return {
     metadataBase: new URL(siteConfig.url),
@@ -87,6 +91,7 @@ export async function generateMetadata(): Promise<Metadata> {
       follow: indexable,
       ...(indexable ? {} : { googleBot: { index: false, follow: false } }),
     },
+    ...(favicon ? { icons: { icon: favicon, shortcut: favicon, apple: favicon } } : {}),
     verification: {
       ...(seo.verification.google ? { google: seo.verification.google } : {}),
       ...(seo.verification.bing ? { other: { "msvalidate.01": seo.verification.bing } } : {}),
@@ -112,7 +117,7 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const { analytics } = await getSiteSettings();
+  const { analytics, appearance } = await getSiteSettings();
 
   return (
     <html
@@ -124,7 +129,7 @@ export default async function RootLayout({
         suppressHydrationWarning
         className="flex min-h-full flex-col bg-paper font-body text-ink antialiased"
       >
-        <ThemeProvider>
+        <ThemeProvider defaultTheme={appearance.defaultTheme}>
           <AppProviders>{children}</AppProviders>
         </ThemeProvider>
 

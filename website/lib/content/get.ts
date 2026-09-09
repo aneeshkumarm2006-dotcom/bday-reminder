@@ -3,6 +3,7 @@ import { cache } from "react";
 import { connectDb, isDbConfigured } from "@/lib/blog/db";
 
 import {
+  DEFAULT_BUILT_IN_PAGES,
   DEFAULT_LANDING,
   DEFAULT_LEGAL,
   DEFAULT_NAV,
@@ -13,6 +14,7 @@ import {
 } from "./defaults";
 import { deepMerge, mergeById } from "./merge";
 import {
+  BuiltInPagesModel,
   LandingContentModel,
   LegalDocModel,
   NavigationConfigModel,
@@ -26,6 +28,7 @@ import {
 import { SEO_LANDING_PAGES, getSeoLandingPage } from "./seo-pages";
 import type { SeoLandingPageDef } from "./seo-pages/types";
 import type {
+  BuiltInPages,
   ContentVariant,
   LandingSection,
   LandingVariant,
@@ -274,6 +277,23 @@ export const getLegalDoc = cache(async (key: LegalDocKey): Promise<LegalDoc> =>
     return deepMerge(DEFAULT_LEGAL[key], doc as unknown as Record<string, unknown>);
   }),
 );
+
+/* ------------------------------ built-in pages ---------------------------- */
+
+/**
+ * Copy for the routes that generate their own body. Uncached variant first, for
+ * the same reason `readSiteSettings` has one: a route handler that has already
+ * read the memoized value this request would otherwise save a stale snapshot.
+ */
+export async function readBuiltInPages(): Promise<BuiltInPages> {
+  return safeRead(DEFAULT_BUILT_IN_PAGES, async () => {
+    const doc = await BuiltInPagesModel.findOne({ key: SINGLETON }).lean();
+    if (!doc) return DEFAULT_BUILT_IN_PAGES;
+    return deepMerge(DEFAULT_BUILT_IN_PAGES, doc as unknown as Record<string, unknown>);
+  });
+}
+
+export const getBuiltInPages = cache(readBuiltInPages);
 
 /* ------------------------------- site pages ------------------------------- */
 

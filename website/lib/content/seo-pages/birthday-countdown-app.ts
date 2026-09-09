@@ -1,4 +1,4 @@
-import type { SeoLandingPageDef } from "./types";
+import type { SeoLandingPageSource } from "./types";
 
 /**
  * Targets the "birthday countdown app" cluster — people searching for a number
@@ -10,7 +10,7 @@ import type { SeoLandingPageDef } from "./types";
  * the homepage so it can own the keyword without diluting "birthday reminder
  * app".
  */
-export const birthdayCountdownAppPage: SeoLandingPageDef = {
+export const birthdayCountdownAppPage: SeoLandingPageSource = {
   slug: "birthday-countdown-app",
   label: "Birthday countdown app",
   blurb: "See the days left to every birthday, then act before the countdown reaches zero.",
@@ -179,4 +179,36 @@ export const birthdayCountdownAppPage: SeoLandingPageDef = {
     ctaHref: "/signup",
     footnote: "Mobile apps coming soon.",
   },
+  /**
+   * The default order, with one addition: a plain-language band between the
+   * feature cards and the how-it-works steps. The copy above it is written to a
+   * wedge ("a countdown that does something"), which suits a reader already
+   * sold on the idea — this band is for the one still checking the page is what
+   * they searched for, so it describes the birthday countdown in the words
+   * they'd use themselves.
+   */
+  layout: [
+    { id: "slot-hero", kind: "section", section: "hero", visible: true },
+    { id: "slot-contrast", kind: "section", section: "contrast", visible: true },
+    { id: "slot-features", kind: "section", section: "features", visible: true },
+    {
+      id: "group-countdown-overview",
+      kind: "blocks",
+      visible: true,
+      heading: "A simple and customizable birthday countdown",
+      sub: "",
+      background: "none",
+      blocks: [
+        {
+          id: "block-countdown-overview",
+          type: "richText",
+          html: "<p>Birthday Reminders makes it easy to keep track of the birthdays that matter most. See upcoming birthdays in one place and quickly check how many days are left until each celebration.</p><p>Set personalized reminders based on when you want to be notified, and track birthdays for multiple friends, family members, coworkers, or pets. Whether a birthday is tomorrow or several weeks away, the birthday countdown app helps you stay organized, plan ahead, and never forget an important date.</p>",
+        },
+      ],
+    },
+    { id: "slot-howItWorks", kind: "section", section: "howItWorks", visible: true },
+    { id: "slot-faq", kind: "section", section: "faq", visible: true },
+    { id: "slot-related", kind: "section", section: "related", visible: true },
+    { id: "slot-cta", kind: "section", section: "cta", visible: true },
+  ],
 };

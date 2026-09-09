@@ -15,7 +15,15 @@ import type { RelatedPost } from "@/lib/blog/posts";
  * Anchor text is the post title, never "read more" — the link has to say where it
  * goes on its own.
  */
-export function RelatedPosts({ posts }: { posts: RelatedPost[] }) {
+export function RelatedPosts({
+  posts,
+  heading = "Keep reading",
+  allPostsLabel = "Every post on the blog",
+}: {
+  posts: RelatedPost[];
+  heading?: string;
+  allPostsLabel?: string;
+}) {
   if (posts.length === 0) return null;
 
   return (
@@ -28,7 +36,7 @@ export function RelatedPosts({ posts }: { posts: RelatedPost[] }) {
           id="keep-reading"
           className="font-display text-xl font-semibold text-ink"
         >
-          Keep reading
+          {heading}
         </h2>
 
         <ul className="mt-5 space-y-5">
@@ -59,7 +67,7 @@ export function RelatedPosts({ posts }: { posts: RelatedPost[] }) {
 
         <p className="mt-8 text-sm text-ink-muted">
           <Link href="/blog" className="text-ink underline hover:text-biro">
-            Every post on the Birthday Reminders blog
+            {allPostsLabel}
           </Link>
         </p>
       </div>

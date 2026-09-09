@@ -12,6 +12,7 @@ import { siteConfig, navLinks } from "@/lib/site";
 
 import { SEO_LANDING_PAGES } from "./seo-pages";
 import type {
+  BuiltInPages,
   LandingSection,
   LandingVariant,
   LegalDoc,
@@ -36,6 +37,61 @@ export const DEFAULT_SETTINGS: SiteSettings = {
     description: siteConfig.description,
     contactEmail: siteConfig.contactEmail,
   },
+  // No logo file by default: the wordmark is the drawn ring plus the site name,
+  // which is what shipped. Uploading one replaces it without a code change.
+  brand: {
+    logoUrl: "",
+    logoDarkUrl: "",
+    logoAlt: "",
+    logoHeight: 28,
+    showRing: true,
+    showWordmark: true,
+    wordmark: "",
+    faviconUrl: "",
+  },
+  // Empty colours and a zero radius mean "use the tokens in globals.css" — the
+  // marketing shell only emits a custom property for a value that is actually set.
+  appearance: {
+    accent: "",
+    accentDark: "",
+    radius: 0,
+    defaultTheme: "system",
+    showThemeToggle: true,
+    animations: true,
+  },
+  // Disabled until the listings exist; the badges render as today's
+  // "Coming soon to…" chips while `enabled` is false.
+  appStores: {
+    appStore: { enabled: false, url: "", label: "App Store", eyebrow: "Download on the" },
+    googlePlay: { enabled: false, url: "", label: "Google Play", eyebrow: "Get it on" },
+  },
+  // The sample data in the rendered product shots. Lifted verbatim from what
+  // `components/app-preview.tsx` used to hardcode, so the demo is unchanged
+  // until someone edits it.
+  productDemo: {
+    feedTitle: "Upcoming",
+    thisWeekLabel: "This week",
+    thisMonthLabel: "This month",
+    todayLabel: "Today",
+    inDaysLabel: "in {n} days",
+    rows: [
+      { id: "demo-1", name: "Michael Brooks", sub: "Brother · turns 29", offset: 0, pet: false },
+      { id: "demo-2", name: "Mochi", sub: "Pet", offset: 3, pet: true },
+      { id: "demo-3", name: "Aunt Mae", sub: "Family · turns 61", offset: 16, pet: false },
+    ],
+    reminder: {
+      headline: "It's Michael's birthday today, he turns 29.",
+      relation: "Brother",
+      greeting: "Happy birthday, Michael! 🎉",
+      sendLabel: "Send greeting",
+      doneLabel: "Mark as done",
+      undoLabel: "Done · undo",
+      cancelLabel: "Cancel",
+      deliveredLabel: "Delivered",
+      againLabel: "Send another",
+    },
+    widgetTitle: "Upcoming",
+  },
   seo: {
     titleTemplate: `%s · ${siteConfig.name}`,
     defaultTitle: `${siteConfig.name} - ${siteConfig.tagline}`,
@@ -52,6 +108,10 @@ export const DEFAULT_SETTINGS: SiteSettings = {
       "never miss a birthday",
     ],
     ogImage: "",
+    // The two lines on the card `app/opengraph-image.tsx` draws, which is what
+    // social platforms get whenever no image file is set.
+    ogHeadline: siteConfig.tagline,
+    ogSubline: "Never miss a birthday: free on web, iOS & Android.",
     twitterHandle: "",
     verification: {
       google: DEFAULT_GOOGLE_VERIFICATION,
@@ -438,7 +498,34 @@ export const SECTION_TEMPLATES: Record<SectionType, LandingSection> = {
     storeBadges: false,
     footnote: "",
   },
+  blocks: {
+    id: "blocks",
+    type: "blocks",
+    visible: true,
+    anchor: "",
+    heading: "",
+    sub: "",
+    background: "none",
+    blocks: [],
+  },
 };
+
+/**
+ * Which section types the admin may add to the homepage.
+ *
+ * Everything except `hero`: a page gets one `<h1>`, and a second hero would
+ * mint a second one. Duplicates of the rest are fine and sometimes wanted —
+ * two FAQ blocks on one page, say — so the list is otherwise open.
+ */
+export const ADDABLE_SECTION_TYPES: SectionType[] = [
+  "blocks",
+  "valueProp",
+  "features",
+  "howItWorks",
+  "latestPosts",
+  "faq",
+  "getTheApp",
+];
 
 /* ------------------------------- navigation ------------------------------- */
 
@@ -588,6 +675,79 @@ export const DEFAULT_PAGE_META: Record<string, PageMeta> = {
       ];
     }),
   ),
+};
+
+/* ------------------------------ built-in pages ---------------------------- */
+
+/**
+ * The copy that used to be hardcoded inside the routes that generate their own
+ * body — the blog index, a post page's furniture, the 404, and the extras on
+ * the contact page.
+ *
+ * Same contract as everything else here: these constants are what renders with
+ * no database, and a stored document overrides them field by field. Each page
+ * also carries block lists, so the admin can drop an image, an HTML block, or a
+ * call to action onto a page it can't otherwise author.
+ */
+export const DEFAULT_BUILT_IN_PAGES: BuiltInPages = {
+  blogIndex: {
+    heading: "Blog",
+    intro:
+      "Party ideas, what to write in the card, which flowers mean what, and the odd printable. Some of it involves Birthday Reminders. Most of it doesn't.",
+    emptyText: "No posts yet. Check back soon.",
+    errorText: "The blog isn't available right now. Check back soon.",
+    guidesHeading: "If you came here looking for something specific",
+    guidesSub: "{count} guides, one topic each.",
+    showGuides: true,
+    blocksBefore: [],
+    blocksAfter: [],
+  },
+  blogPost: {
+    allPostsLabel: `Every post on the ${siteConfig.name} blog`,
+    relatedHeading: "Keep reading",
+    showRelated: true,
+    breadcrumbHome: "Home",
+    breadcrumbBlog: "Blog",
+    readingTimeLabel: "min read",
+    blocksAfter: [],
+  },
+  notFound: {
+    eyebrow: "404",
+    heading: "We couldn't find that page",
+    body: "The link may be out of date, or the page may have moved. Here are a few places to pick up from.",
+    primaryCta: { label: "Back to home", href: "/" },
+    secondaryCta: { label: "Read the blog", href: "/blog" },
+    blocksAfter: [],
+  },
+  contact: {
+    cardEnabled: true,
+    cardHeading: "Email us",
+    cardBody: "We usually reply within a couple of days.",
+    cardIcon: "Mail",
+    // The guidance that used to be a hardcoded `<ContactGuidance>` component.
+    // It ships as a block rather than as part of the `contact` legal document
+    // so it keeps its position *under* the email card, exactly where it was.
+    blocksAfter: [
+      {
+        id: "contact-guidance",
+        type: "html",
+        width: "narrow",
+        background: "none",
+        html: [
+          "<h2>What to write to us about</h2>",
+          "<p>Bugs, mostly. If a reminder never arrived, or turned up at the wrong hour, tell us the name it was for and roughly when you expected it. That&rsquo;s usually enough to find the run it belongs to and see what it did.</p>",
+          "<p>Imports are the other common one. If a spreadsheet went in with ninety names and came out with sixty, send us the file and we&rsquo;ll tell you which rows the parser couldn&rsquo;t read.</p>",
+          "<p>Feature requests are fine too. And if you think you&rsquo;ve found a security problem, say so in the subject line; that one gets read first.</p>",
+          "<h2>Things you don&rsquo;t need us for</h2>",
+          "<p>You can delete your account yourself, under Settings, then Danger zone, on the web or in the app. It erases your people, events, reminders and shared list memberships on the spot. You don&rsquo;t have to ask, and we can&rsquo;t put it back.</p>",
+          "<p>The same goes for how reminders reach you: the channel, the lead time and the hour they fire are all in Settings, and any of it can be overridden for one person from their profile. To get out of a shared list, open it and leave. The reminders stop for you straight away, and nothing you added to your own list goes with it.</p>",
+          '<p>If the question is what we store, that&rsquo;s written out in the <a href="/privacy">privacy policy</a>, down to what the notification providers see when a reminder goes out.</p>',
+          "<h2>How long we take</h2>",
+          "<p>There&rsquo;s no support desk behind this address. It&rsquo;s read by the people who build the app, and weekends are slower. If a week goes by with nothing back, send it again rather than assume we decided not to answer; mail does occasionally land in the wrong folder.</p>",
+        ].join("\n"),
+      },
+    ],
+  },
 };
 
 /* ---------------------------------- legal --------------------------------- */

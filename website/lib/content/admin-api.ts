@@ -1,6 +1,7 @@
 import type { SeoLandingPageDef } from "./seo-pages/types";
 import type {
   AuditEntry,
+  BuiltInPages,
   ContentRevision,
   LandingSection,
   LegalDoc,
@@ -84,6 +85,20 @@ export async function saveSeoPage(
 /** Discard the override; the page falls back to the copy that ships in the repo. */
 export async function resetSeoPage(slug: string): Promise<void> {
   await request(`/seoteam/api/seo-pages/${encodeURIComponent(slug)}`, { method: "DELETE" });
+}
+
+/* ------------------------------ built-in pages ---------------------------- */
+
+/**
+ * Saved whole and applied immediately — these four routes have no draft/published
+ * split (see the route handler for why).
+ */
+export async function saveBuiltInPages(body: BuiltInPages): Promise<BuiltInPages> {
+  const { pages } = await request<{ pages: BuiltInPages }>("/seoteam/api/built-in", {
+    method: "PUT",
+    body: JSON.stringify(body),
+  });
+  return pages;
 }
 
 /* -------------------------------- page meta ------------------------------- */

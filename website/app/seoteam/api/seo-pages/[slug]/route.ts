@@ -7,6 +7,7 @@ import { getSeoPageContent } from "@/lib/content/get";
 import { deepMerge } from "@/lib/content/merge";
 import { SeoPageContentModel } from "@/lib/content/models";
 import { revalidateFor } from "@/lib/content/revalidate";
+import { sanitizeSeoLayout } from "@/lib/content/sanitize-blocks";
 import { saveRevision } from "@/lib/content/revisions";
 import {
   badRequest,
@@ -74,8 +75,13 @@ export async function PUT(req: NextRequest, { params }: Params) {
   const builtIn = getSeoLandingPage(slug);
   if (!builtIn) return notFound(UNKNOWN_PAGE);
 
-  const { content, mode } = parsed.data;
-  const publishing = mode === "publish";
+  // The layout can hold rich-text and HTML blocks, so it is sanitized on the way
+  // in exactly like the page builder's.
+  const content = {
+    ...parsed.data.content,
+    layout: sanitizeSeoLayout(parsed.data.content.layout),
+  };
+  const publishing = parsed.data.mode === "publish";
 
   try {
     const editor = await getEditorName();

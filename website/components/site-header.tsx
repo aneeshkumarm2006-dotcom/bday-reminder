@@ -5,7 +5,7 @@ import { MobileNav } from "@/components/mobile-nav";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { buttonVariants } from "@/components/ui/button";
 import { visibleHeaderLinks } from "@/lib/content/get";
-import type { NavigationConfig } from "@/lib/content/types";
+import type { BrandConfig, NavigationConfig } from "@/lib/content/types";
 
 /**
  * Sticky site header (DESIGN.md §5 layout): brand, in-page nav, theme toggle,
@@ -15,14 +15,24 @@ import type { NavigationConfig } from "@/lib/content/types";
  * sign-up href keeps today's static "Coming soon" chip; set one and the same
  * slot becomes a real button, so launching the app is a content change.
  */
-export function SiteHeader({ navigation }: { navigation: NavigationConfig }) {
+export function SiteHeader({
+  navigation,
+  brand,
+  siteName,
+  showThemeToggle = true,
+}: {
+  navigation: NavigationConfig;
+  brand?: BrandConfig;
+  siteName?: string;
+  showThemeToggle?: boolean;
+}) {
   const links = visibleHeaderLinks(navigation);
   const { ctas } = navigation.header;
 
   return (
     <header className="sticky top-0 z-50 border-b border-border-subtle bg-paper/85 backdrop-blur-sm">
       <div className="mx-auto flex h-16 w-full max-w-5xl items-center justify-between px-5">
-        <Brand />
+        <Brand brand={brand} siteName={siteName} />
 
         <nav className="hidden items-center gap-1 md:flex" aria-label="Primary">
           {links.map((link) => (
@@ -40,7 +50,7 @@ export function SiteHeader({ navigation }: { navigation: NavigationConfig }) {
         </nav>
 
         <div className="flex items-center gap-1.5">
-          <ThemeToggle />
+          {showThemeToggle && <ThemeToggle />}
           {ctas.show && (
             <div className="hidden items-center gap-1.5 md:flex">
               {ctas.loginLabel && (

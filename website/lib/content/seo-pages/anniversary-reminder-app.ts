@@ -1,4 +1,4 @@
-import type { SeoLandingPageDef } from "./types";
+import type { SeoLandingPageSource } from "./types";
 
 /**
  * Targets the "anniversary reminder app" cluster — the one query in the set
@@ -22,7 +22,7 @@ import type { SeoLandingPageDef } from "./types";
  *     re-detects it. The honest version — each person is reminded at their own
  *     local hour — is what the rest of the cluster already says.
  */
-export const anniversaryReminderAppPage: SeoLandingPageDef = {
+export const anniversaryReminderAppPage: SeoLandingPageSource = {
   slug: "anniversary-reminder-app",
   label: "Anniversary reminder app",
   blurb:

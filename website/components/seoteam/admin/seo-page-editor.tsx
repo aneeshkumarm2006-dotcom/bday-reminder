@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, ExternalLink } from "lucide-react";
+import { AlertTriangle, ExternalLink, Eye, EyeOff, GripVertical, Plus, Trash2 } from "lucide-react";
 import * as React from "react";
 
 import {
@@ -9,6 +9,7 @@ import {
   TextAreaRow,
   TextRow,
 } from "@/components/seoteam/admin/fields";
+import { BlockListEditor } from "@/components/seoteam/admin/block-list-editor";
 import { IconPicker } from "@/components/seoteam/admin/icon-picker";
 import { AdminSection, FieldGrid } from "@/components/seoteam/admin/layout";
 import { ListEditor, newId } from "@/components/seoteam/admin/list-editor";
@@ -24,6 +25,10 @@ import { Select } from "@/components/ui/select";
 import { useToast } from "@/components/ui/toast";
 import { resetSeoPage, saveSeoPage } from "@/lib/content/admin-api";
 import type {
+  SeoLayoutBlocksItem,
+  SeoLayoutItem,
+  SeoRelated,
+  SeoSectionKey,
   SeoContrast,
   SeoCta,
   SeoDownload,
@@ -34,18 +39,24 @@ import type {
   SeoLandingPageDef,
   SeoVisual,
 } from "@/lib/content/seo-pages/types";
+import type { BlockBackground } from "@/lib/content/types";
 import { cn } from "@/lib/utils";
 
 /**
  * The keyword landing-page editor — same shape as `LandingEditor`, one page at a
  * time: a rail of sections on the left, the selected section's form on the right.
  *
- * The rail is **fixed**. A keyword page is an argument told in order (hook →
- * why the obvious alternative fails → proof → mechanics → objections → ask), and
- * the FAQ block is also the page's FAQPage structured data. Letting the team
- * reorder or hide sections here would let them ship a page that reads worse than
- * no page at all, so only the words are editable — exactly the trade the
- * homepage editor makes with its markup.
+ * A keyword page is an argument told in order (hook → why the obvious
+ * alternative fails → proof → mechanics → objections → ask), so the built-in
+ * bands ship in that order and their *markup* still isn't editable. What the
+ * Layout tab adds is control over the running order, whether a band shows at
+ * all, and where extra content goes: a block group can be slotted anywhere in
+ * the page, holding anything the page builder can make.
+ *
+ * The rail below edits each band's words; the Layout screen edits the page's
+ * shape. Reordering is a real decision with real risk — hiding the FAQ also
+ * removes the page's FAQPage structured data — so the screen says so rather
+ * than pretending the choice is free.
  *
  * Draft and published are separate: Save writes the draft (Preview renders it),
  * Publish copies draft → published and revalidates the live path.
@@ -53,24 +64,40 @@ import { cn } from "@/lib/utils";
 
 type SectionKey =
   | "meta"
+  | "layout"
   | "hero"
   | "download"
   | "contrast"
   | "features"
   | "howItWorks"
   | "faq"
+  | "related"
   | "cta";
 
 const SECTIONS: { key: SectionKey; label: string; hint: string }[] = [
   { key: "meta", label: "Page & SEO", hint: "Name, blurb, title, description" },
+  { key: "layout", label: "Layout", hint: "Order, visibility, and extra blocks" },
   { key: "hero", label: "Hero", hint: "The fold: badge, headline, CTA" },
   { key: "download", label: "Download", hint: "The free file this page gives away" },
   { key: "contrast", label: "Contrast", hint: "Why the obvious alternative fails" },
   { key: "features", label: "Features", hint: "Three rows plus supporting cards" },
   { key: "howItWorks", label: "How it works", hint: "The steps on the ring" },
   { key: "faq", label: "FAQ", hint: "Accordion + FAQPage structured data" },
+  { key: "related", label: "Related pages", hint: "The cross-link strip's copy" },
   { key: "cta", label: "Closing CTA", hint: "The ask at the bottom" },
 ];
+
+/** Names for the built-in bands, as they appear in the layout list. */
+const LAYOUT_SECTION_LABELS: Record<SeoSectionKey, string> = {
+  hero: "Hero",
+  download: "Download",
+  contrast: "Contrast",
+  features: "Features",
+  howItWorks: "How it works",
+  faq: "FAQ",
+  related: "Related pages",
+  cta: "Closing CTA",
+};
 
 const VISUAL_OPTIONS: { value: SeoVisual; label: string }[] = [
   { value: "app", label: "App screen" },
@@ -201,8 +228,8 @@ export function SeoPageEditor({ initial }: { initial: SeoLandingPageDef }) {
           ))}
         </ul>
         <p className="mt-3 text-xs text-ink-muted">
-          The order is fixed — this page&apos;s argument depends on it, and its FAQ
-          doubles as structured data.
+          These edit each band&apos;s words. Use <strong>Layout</strong> to reorder
+          them, hide one, or slot extra blocks into the page.
         </p>
       </aside>
 
@@ -312,11 +339,268 @@ function SectionForm({
       );
     case "faq":
       return <FaqForm faq={page.faq} patch={(faq) => patch({ faq })} />;
+    case "related":
+      return <RelatedForm related={page.related} patch={(related) => patch({ related })} />;
     case "cta":
       return <CtaForm cta={page.cta} patch={(cta) => patch({ cta })} />;
+    case "layout":
+      return (
+        <LayoutForm page={page} layout={page.layout} patch={(layout) => patch({ layout })} />
+      );
     default:
       return null;
   }
+}
+
+/**
+ * The page's running order.
+ *
+ * Two kinds of row: a built-in band, which can be moved or hidden but whose
+ * design stays in code, and a block group, which can hold anything the page
+ * builder makes and can sit anywhere between the bands. That pairing is what
+ * lets a keyword page grow a comparison table, a screenshot, or a custom HTML
+ * section without a deploy — and stops it growing a second hero.
+ */
+function LayoutForm({
+  page,
+  layout,
+  patch,
+}: {
+  page: SeoLandingPageDef;
+  layout: SeoLayoutItem[];
+  patch: (next: SeoLayoutItem[]) => void;
+}) {
+  const [error, setError] = React.useState<string | null>(null);
+  const [dragIndex, setDragIndex] = React.useState<number | null>(null);
+
+  const move = (from: number, to: number) => {
+    if (to < 0 || to >= layout.length || from === to) return;
+    const next = [...layout];
+    const [moved] = next.splice(from, 1);
+    next.splice(to, 0, moved);
+    patch(next);
+  };
+
+  const patchAt = (index: number, changes: Partial<SeoLayoutBlocksItem>) => {
+    patch(
+      layout.map((item, i) =>
+        i === index ? ({ ...item, ...changes } as SeoLayoutItem) : item,
+      ),
+    );
+  };
+
+  // A band that has no data behind it (the download on a page with no file)
+  // would be a row that does nothing, so it isn't offered.
+  const missingSections = (Object.keys(LAYOUT_SECTION_LABELS) as SeoSectionKey[]).filter(
+    (key) =>
+      (key !== "download" || Boolean(page.download)) &&
+      !layout.some((item) => item.kind === "section" && item.section === key),
+  );
+
+  return (
+    <>
+      <p className="rounded-md border border-border-subtle bg-surface-sunken/50 p-3 text-xs text-ink-muted">
+        Drag to reorder. Hiding the FAQ also removes this page&apos;s FAQPage structured
+        data, and hiding the hero leaves the page without an H1 — both are real SEO
+        decisions, not just layout ones.
+      </p>
+
+      <ul className="flex flex-col gap-2">
+        {layout.map((item, index) => (
+          <li
+            key={item.id}
+            onDragOver={(e) => {
+              if (dragIndex === null) return;
+              e.preventDefault();
+            }}
+            onDrop={(e) => {
+              if (dragIndex === null) return;
+              e.preventDefault();
+              move(dragIndex, index);
+              setDragIndex(null);
+            }}
+            className={cn(
+              "rounded-lg border bg-surface transition-colors",
+              dragIndex === index ? "border-biro opacity-50" : "border-border-subtle",
+            )}
+          >
+            <div className="flex items-center gap-1 px-2 py-2">
+              <span
+                draggable
+                onDragStart={() => setDragIndex(index)}
+                onDragEnd={() => setDragIndex(null)}
+                aria-hidden="true"
+                title="Drag to reorder"
+                className="cursor-grab p-1 text-ink-muted active:cursor-grabbing"
+              >
+                <GripVertical size={16} />
+              </span>
+              <span
+                className={cn(
+                  "min-w-0 flex-1 truncate px-1 text-sm",
+                  item.visible ? "text-ink" : "text-ink-muted line-through",
+                )}
+              >
+                {item.kind === "section"
+                  ? LAYOUT_SECTION_LABELS[item.section]
+                  : item.heading || "Custom blocks"}
+              </span>
+              <span className="hidden shrink-0 text-xs text-ink-muted sm:inline">
+                {item.kind === "section"
+                  ? "Built-in"
+                  : `${item.blocks.length} block${item.blocks.length === 1 ? "" : "s"}`}
+              </span>
+              <button
+                type="button"
+                aria-label={item.visible ? "Hide" : "Show"}
+                title={item.visible ? "Hide" : "Show"}
+                onClick={() =>
+                  patch(
+                    layout.map((row, i) =>
+                      i === index ? ({ ...row, visible: !row.visible } as SeoLayoutItem) : row,
+                    ),
+                  )
+                }
+                className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink"
+              >
+                {item.visible ? <Eye size={15} /> : <EyeOff size={15} />}
+              </button>
+              {item.kind === "blocks" && (
+                <button
+                  type="button"
+                  aria-label="Remove block group"
+                  title="Remove block group"
+                  onClick={() => patch(layout.filter((_, i) => i !== index))}
+                  className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-ink-muted transition-colors hover:bg-danger-bg hover:text-danger-fg"
+                >
+                  <Trash2 size={15} />
+                </button>
+              )}
+            </div>
+
+            {item.kind === "blocks" && (
+              <div className="flex flex-col gap-4 border-t border-border-subtle p-4">
+                <FieldGrid>
+                  <TextRow
+                    label="Heading"
+                    value={item.heading}
+                    onChange={(heading) => patchAt(index, { heading })}
+                    helper="Optional, centred above the blocks."
+                  />
+                  <div>
+                    <Label>Background</Label>
+                    <Select
+                      value={item.background}
+                      onChange={(e) =>
+                        patchAt(index, { background: e.target.value as BlockBackground })
+                      }
+                    >
+                      <option value="none">None</option>
+                      <option value="sunken">Sunken — a quiet band</option>
+                      <option value="tint">Tinted — the accent wash</option>
+                    </Select>
+                  </div>
+                </FieldGrid>
+                <TextAreaRow
+                  label="Sub-heading"
+                  value={item.sub}
+                  rows={2}
+                  onChange={(sub) => patchAt(index, { sub })}
+                />
+                <BlockListEditor
+                  blocks={item.blocks}
+                  onChange={(blocks) => patchAt(index, { blocks })}
+                  onError={setError}
+                />
+              </div>
+            )}
+          </li>
+        ))}
+      </ul>
+
+      {error && <p className="text-sm text-danger-fg">{error}</p>}
+
+      <div className="flex flex-wrap gap-2">
+        <Button
+          type="button"
+          variant="secondary"
+          size="sm"
+          onClick={() =>
+            patch([
+              ...layout,
+              {
+                id: newId("group"),
+                kind: "blocks",
+                visible: true,
+                heading: "",
+                sub: "",
+                background: "none",
+                blocks: [],
+              },
+            ])
+          }
+        >
+          <Plus size={15} aria-hidden="true" />
+          Add block group
+        </Button>
+        {missingSections.map((key) => (
+          <Button
+            key={key}
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() =>
+              patch([
+                ...layout,
+                { id: `slot-${key}`, kind: "section", section: key, visible: true },
+              ])
+            }
+          >
+            <Plus size={15} aria-hidden="true" />
+            Restore {LAYOUT_SECTION_LABELS[key]}
+          </Button>
+        ))}
+      </div>
+    </>
+  );
+}
+
+/** The cross-link strip that names the cluster's other pages. */
+function RelatedForm({
+  related,
+  patch,
+}: {
+  related: SeoRelated;
+  patch: (next: SeoRelated) => void;
+}) {
+  return (
+    <>
+      <p className="rounded-md border border-border-subtle bg-surface-sunken/50 p-3 text-xs text-ink-muted">
+        The cards themselves are generated from the other landing pages — edit a
+        page&apos;s short name and blurb on its own Page &amp; SEO screen. Only the
+        heading above them lives here.
+      </p>
+      <TextRow
+        label="Heading"
+        value={related.heading}
+        max={70}
+        onChange={(heading) => patch({ ...related, heading })}
+      />
+      <TextAreaRow
+        label="Sub-heading"
+        value={related.sub}
+        rows={2}
+        onChange={(sub) => patch({ ...related, sub })}
+      />
+      <TextRow
+        label="Card link text"
+        value={related.ctaLabel}
+        max={30}
+        onChange={(ctaLabel) => patch({ ...related, ctaLabel })}
+        helper="The line at the foot of each sibling card."
+      />
+    </>
+  );
 }
 
 function MetaForm({
@@ -426,10 +710,29 @@ function HeroForm({
             onChange={(href) => patch({ ...hero, primaryCta: { ...hero.primaryCta, href } })}
           />
         </FieldGrid>
-        <p className="mt-2 text-xs text-ink-muted">
-          The second hero button is always “See how it works”, jumping to the steps —
-          it isn&apos;t editable.
-        </p>
+      </fieldset>
+      <fieldset className="rounded-md border border-border-subtle p-3">
+        <legend className="px-1 text-xs font-medium uppercase tracking-wide text-ink-muted">
+          Secondary button
+        </legend>
+        <FieldGrid>
+          <TextRow
+            label="Label"
+            value={hero.secondaryCta.label}
+            onChange={(label) =>
+              patch({ ...hero, secondaryCta: { ...hero.secondaryCta, label } })
+            }
+            helper="Leave blank to hide this button."
+          />
+          <TextRow
+            label="Link"
+            value={hero.secondaryCta.href}
+            placeholder="#how"
+            onChange={(href) =>
+              patch({ ...hero, secondaryCta: { ...hero.secondaryCta, href } })
+            }
+          />
+        </FieldGrid>
       </fieldset>
       <TextRow
         label="Footnote"

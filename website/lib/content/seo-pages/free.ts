@@ -1,4 +1,4 @@
-import type { SeoLandingPageDef } from "./types";
+import type { SeoLandingPageSource } from "./types";
 
 /**
  * Targets the "free birthday reminder app" cluster — the one query where the
@@ -12,7 +12,7 @@ import type { SeoLandingPageDef } from "./types";
  * in one line on purpose — this page carries the argument, so the two don't
  * compete for the same query.
  */
-export const freePage: SeoLandingPageDef = {
+export const freePage: SeoLandingPageSource = {
   slug: "free",
   label: "Free birthday reminder app",
   blurb: "Every feature included at no cost — no ads, no premium tier, nothing to upgrade to.",

@@ -10,14 +10,21 @@ import {
   TextRow,
 } from "@/components/seoteam/admin/fields";
 import { ListEditor, newId } from "@/components/seoteam/admin/list-editor";
+import { MediaPickerField } from "@/components/seoteam/admin/media-picker";
 import { SaveBar, useSaveShortcut, useUnsavedGuard } from "@/components/seoteam/admin/save-bar";
 import { TypedConfirmDialog } from "@/components/seoteam/admin/typed-confirm";
 import { Input, Label } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { Switch, ToggleRow } from "@/components/ui/switch";
 import { useToast } from "@/components/ui/toast";
 import { saveSiteSettings } from "@/lib/content/admin-api";
 import { DEFAULT_SETTINGS } from "@/lib/content/defaults";
-import type { SiteSettings } from "@/lib/content/types";
+import type {
+  AppearanceConfig,
+  ProductDemoConfig,
+  SiteSettings,
+  StoreBadgeConfig,
+} from "@/lib/content/types";
 
 /**
  * The sitewide settings editor. Every field here is an *override*: leaving one
@@ -41,6 +48,21 @@ export function SiteSettingsForm({ initial }: { initial: SiteSettings }) {
 
   const patch = <K extends keyof SiteSettings>(key: K, value: SiteSettings[K]) =>
     setDraft((prev) => ({ ...prev, [key]: value }));
+
+  const patchAppearance = (changes: Partial<AppearanceConfig>) =>
+    setDraft((prev) => ({ ...prev, appearance: { ...prev.appearance, ...changes } }));
+
+  const patchDemo = (changes: Partial<ProductDemoConfig>) =>
+    setDraft((prev) => ({ ...prev, productDemo: { ...prev.productDemo, ...changes } }));
+
+  const patchDemoReminder = (changes: Partial<ProductDemoConfig["reminder"]>) =>
+    setDraft((prev) => ({
+      ...prev,
+      productDemo: {
+        ...prev.productDemo,
+        reminder: { ...prev.productDemo.reminder, ...changes },
+      },
+    }));
 
   const save = React.useCallback(async () => {
     setSaving(true);
@@ -101,6 +123,343 @@ export function SiteSettingsForm({ initial }: { initial: SiteSettings }) {
       </AdminSection>
 
       <AdminSection
+        title="Brand"
+        description="The wordmark in the header and footer. With no logo it stays the drawn ring plus the site name."
+      >
+        <MediaPickerField
+          label="Logo"
+          value={draft.brand.logoUrl}
+          onChange={(logoUrl) => patch("brand", { ...draft.brand, logoUrl })}
+          helper="Replaces the ring. SVG or a transparent PNG works best."
+        />
+        <MediaPickerField
+          label="Logo for dark mode"
+          value={draft.brand.logoDarkUrl}
+          onChange={(logoDarkUrl) => patch("brand", { ...draft.brand, logoDarkUrl })}
+          helper="Optional. Swapped in by CSS, so it can't flash the wrong one."
+        />
+        <FieldGrid>
+          <TextRow
+            label="Logo alt text"
+            value={draft.brand.logoAlt}
+            onChange={(logoAlt) => patch("brand", { ...draft.brand, logoAlt })}
+            helper="Falls back to the site name."
+          />
+          <div>
+            <Label htmlFor="logo-height">Logo height (px)</Label>
+            <Input
+              id="logo-height"
+              type="number"
+              min={16}
+              max={120}
+              value={String(draft.brand.logoHeight)}
+              onChange={(e) => {
+                const parsed = Number.parseInt(e.target.value, 10);
+                patch("brand", {
+                  ...draft.brand,
+                  logoHeight: Number.isFinite(parsed) ? parsed : 28,
+                });
+              }}
+            />
+            <p className="mt-1.5 text-xs text-ink-muted">Width follows the image.</p>
+          </div>
+        </FieldGrid>
+        <TextRow
+          label="Wordmark"
+          value={draft.brand.wordmark}
+          onChange={(wordmark) => patch("brand", { ...draft.brand, wordmark })}
+          helper="Overrides the site name in the header and footer only."
+          defaultHint={DEFAULT_SETTINGS.identity.name}
+        />
+        <ToggleRow
+          label="Show the ring"
+          description="The date-ring mark beside the name. Ignored when a logo is set."
+          checked={draft.brand.showRing}
+          onCheckedChange={(showRing) => patch("brand", { ...draft.brand, showRing })}
+        />
+        <ToggleRow
+          label="Show the name"
+          description="Turn off for a logo-only lockup."
+          checked={draft.brand.showWordmark}
+          onCheckedChange={(showWordmark) => patch("brand", { ...draft.brand, showWordmark })}
+        />
+        <MediaPickerField
+          label="Favicon"
+          value={draft.brand.faviconUrl}
+          onChange={(faviconUrl) => patch("brand", { ...draft.brand, faviconUrl })}
+          helper="The browser-tab icon. Blank keeps the drawn ring, which circles today's date."
+        />
+      </AdminSection>
+
+      <AdminSection
+        title="Appearance"
+        description="Colour and shape for the public site. The admin panel and the signed-in app keep the built-in palette."
+      >
+        <FieldGrid>
+          <ColorRow
+            label="Accent colour"
+            value={draft.appearance.accent}
+            onChange={(accent) => patchAppearance({ accent })}
+            helper="Buttons, links and highlights. Blank keeps the built-in blue."
+          />
+          <ColorRow
+            label="Accent in dark mode"
+            value={draft.appearance.accentDark}
+            onChange={(accentDark) => patchAppearance({ accentDark })}
+            helper="Blank reuses the light-mode accent."
+          />
+        </FieldGrid>
+        <FieldGrid>
+          <div>
+            <Label htmlFor="radius">Corner radius (px)</Label>
+            <Input
+              id="radius"
+              type="number"
+              min={0}
+              max={32}
+              value={String(draft.appearance.radius)}
+              onChange={(e) => {
+                const parsed = Number.parseInt(e.target.value, 10);
+                patchAppearance({ radius: Number.isFinite(parsed) ? parsed : 0 });
+              }}
+            />
+            <p className="mt-1.5 text-xs text-ink-muted">
+              0 keeps the built-in scale. The rest of the scale follows this value.
+            </p>
+          </div>
+          <div>
+            <Label htmlFor="default-theme">Theme for new visitors</Label>
+            <Select
+              id="default-theme"
+              value={draft.appearance.defaultTheme}
+              onChange={(e) =>
+                patchAppearance({
+                  defaultTheme: e.target.value as AppearanceConfig["defaultTheme"],
+                })
+              }
+            >
+              <option value="system">Match their device</option>
+              <option value="light">Always light</option>
+              <option value="dark">Always dark</option>
+            </Select>
+            <p className="mt-1.5 text-xs text-ink-muted">
+              A returning visitor&apos;s own choice still wins.
+            </p>
+          </div>
+        </FieldGrid>
+        <ToggleRow
+          label="Show the theme toggle"
+          description="The light/dark switch in the public header."
+          checked={draft.appearance.showThemeToggle}
+          onCheckedChange={(showThemeToggle) => patchAppearance({ showThemeToggle })}
+        />
+        <ToggleRow
+          label="Entrance animations"
+          description="The quiet fade-and-rise as sections come in."
+          checked={draft.appearance.animations}
+          onCheckedChange={(animations) => patchAppearance({ animations })}
+        />
+      </AdminSection>
+
+      <AdminSection
+        title="App stores"
+        description="The two badges under “Get the app”. Each stays a “coming soon” chip until you give it a link."
+      >
+        <StoreBadgeFields
+          legend="App Store"
+          value={draft.appStores.appStore}
+          onChange={(appStore) => patch("appStores", { ...draft.appStores, appStore })}
+        />
+        <StoreBadgeFields
+          legend="Google Play"
+          value={draft.appStores.googlePlay}
+          onChange={(googlePlay) => patch("appStores", { ...draft.appStores, googlePlay })}
+        />
+      </AdminSection>
+
+      <AdminSection
+        title="Product demo"
+        description="The interactive “screenshots” on the homepage and every keyword page. They're drawn from the real design system, so this is their sample data, not an image."
+      >
+        <FieldGrid>
+          <TextRow
+            label="Feed title"
+            value={draft.productDemo.feedTitle}
+            defaultHint={DEFAULT_SETTINGS.productDemo.feedTitle}
+            onChange={(feedTitle) => patchDemo({ feedTitle })}
+          />
+          <TextRow
+            label="Widget title"
+            value={draft.productDemo.widgetTitle}
+            defaultHint={DEFAULT_SETTINGS.productDemo.widgetTitle}
+            onChange={(widgetTitle) => patchDemo({ widgetTitle })}
+          />
+        </FieldGrid>
+        <FieldGrid>
+          <TextRow
+            label="“This week” label"
+            value={draft.productDemo.thisWeekLabel}
+            defaultHint={DEFAULT_SETTINGS.productDemo.thisWeekLabel}
+            onChange={(thisWeekLabel) => patchDemo({ thisWeekLabel })}
+          />
+          <TextRow
+            label="“This month” label"
+            value={draft.productDemo.thisMonthLabel}
+            defaultHint={DEFAULT_SETTINGS.productDemo.thisMonthLabel}
+            onChange={(thisMonthLabel) => patchDemo({ thisMonthLabel })}
+          />
+        </FieldGrid>
+        <FieldGrid>
+          <TextRow
+            label="Count on the day"
+            value={draft.productDemo.todayLabel}
+            defaultHint={DEFAULT_SETTINGS.productDemo.todayLabel}
+            onChange={(todayLabel) => patchDemo({ todayLabel })}
+          />
+          <TextRow
+            label="Count before the day"
+            value={draft.productDemo.inDaysLabel}
+            defaultHint={DEFAULT_SETTINGS.productDemo.inDaysLabel}
+            onChange={(inDaysLabel) => patchDemo({ inDaysLabel })}
+            helper="{n} is the number of days."
+          />
+        </FieldGrid>
+
+        <div>
+          <Label>People in the demo</Label>
+          <p className="mb-2 text-xs text-ink-muted">
+            The dates are relative to whoever is looking, so the demo is never stale.
+            The widget shows the first three.
+          </p>
+          <ListEditor
+            items={draft.productDemo.rows}
+            onChange={(rows) => patchDemo({ rows })}
+            keyFor={(row) => row.id}
+            titleFor={(row) => row.name || "Person"}
+            subtitleFor={(row) => (row.offset === 0 ? "today" : `+${row.offset} days`)}
+            max={6}
+            addLabel="Add a person"
+            emptyLabel="No one yet — the demo falls back to its built-in cast."
+            onCreate={() => ({
+              id: newId("demo"),
+              name: "",
+              sub: "",
+              offset: 1,
+              pet: false,
+            })}
+            renderItem={(row, _i, patchRow) => (
+              <>
+                <FieldGrid>
+                  <TextRow
+                    label="Name"
+                    value={row.name}
+                    onChange={(name) => patchRow({ name })}
+                  />
+                  <TextRow
+                    label="Second line"
+                    value={row.sub}
+                    placeholder="Brother · turns 29"
+                    onChange={(sub) => patchRow({ sub })}
+                  />
+                </FieldGrid>
+                <div>
+                  <Label htmlFor={`demo-offset-${row.id}`}>Days from today</Label>
+                  <Input
+                    id={`demo-offset-${row.id}`}
+                    type="number"
+                    min={0}
+                    max={365}
+                    value={String(row.offset)}
+                    onChange={(e) => {
+                      const parsed = Number.parseInt(e.target.value, 10);
+                      patchRow({ offset: Number.isFinite(parsed) ? Math.max(0, parsed) : 0 });
+                    }}
+                  />
+                  <p className="mt-1.5 text-xs text-ink-muted">
+                    0 is today — that row gets the filled ring. Seven or fewer groups
+                    under “this week”.
+                  </p>
+                </div>
+                <ToggleRow
+                  label="This one's a pet"
+                  checked={row.pet}
+                  onCheckedChange={(pet) => patchRow({ pet })}
+                />
+              </>
+            )}
+          />
+        </div>
+
+        <fieldset className="rounded-md border border-border-subtle p-3">
+          <legend className="px-1 text-xs font-medium uppercase tracking-wide text-ink-muted">
+            Reminder card
+          </legend>
+          <TextRow
+            label="Headline"
+            value={draft.productDemo.reminder.headline}
+            defaultHint={DEFAULT_SETTINGS.productDemo.reminder.headline}
+            onChange={(headline) => patchDemoReminder({ headline })}
+          />
+          <FieldGrid>
+            <TextRow
+              label="Relationship"
+              value={draft.productDemo.reminder.relation}
+              defaultHint={DEFAULT_SETTINGS.productDemo.reminder.relation}
+              onChange={(relation) => patchDemoReminder({ relation })}
+            />
+            <TextRow
+              label="Greeting"
+              value={draft.productDemo.reminder.greeting}
+              defaultHint={DEFAULT_SETTINGS.productDemo.reminder.greeting}
+              onChange={(greeting) => patchDemoReminder({ greeting })}
+            />
+          </FieldGrid>
+          <FieldGrid>
+            <TextRow
+              label="Send button"
+              value={draft.productDemo.reminder.sendLabel}
+              defaultHint={DEFAULT_SETTINGS.productDemo.reminder.sendLabel}
+              onChange={(sendLabel) => patchDemoReminder({ sendLabel })}
+            />
+            <TextRow
+              label="Done button"
+              value={draft.productDemo.reminder.doneLabel}
+              defaultHint={DEFAULT_SETTINGS.productDemo.reminder.doneLabel}
+              onChange={(doneLabel) => patchDemoReminder({ doneLabel })}
+            />
+          </FieldGrid>
+          <FieldGrid>
+            <TextRow
+              label="Undo label"
+              value={draft.productDemo.reminder.undoLabel}
+              defaultHint={DEFAULT_SETTINGS.productDemo.reminder.undoLabel}
+              onChange={(undoLabel) => patchDemoReminder({ undoLabel })}
+            />
+            <TextRow
+              label="Cancel label"
+              value={draft.productDemo.reminder.cancelLabel}
+              defaultHint={DEFAULT_SETTINGS.productDemo.reminder.cancelLabel}
+              onChange={(cancelLabel) => patchDemoReminder({ cancelLabel })}
+            />
+          </FieldGrid>
+          <FieldGrid>
+            <TextRow
+              label="Delivered label"
+              value={draft.productDemo.reminder.deliveredLabel}
+              defaultHint={DEFAULT_SETTINGS.productDemo.reminder.deliveredLabel}
+              onChange={(deliveredLabel) => patchDemoReminder({ deliveredLabel })}
+            />
+            <TextRow
+              label="“Send another” label"
+              value={draft.productDemo.reminder.againLabel}
+              defaultHint={DEFAULT_SETTINGS.productDemo.reminder.againLabel}
+              onChange={(againLabel) => patchDemoReminder({ againLabel })}
+            />
+          </FieldGrid>
+        </fieldset>
+      </AdminSection>
+
+      <AdminSection
         title="SEO defaults"
         description="What every page inherits unless it has its own override in Meta."
       >
@@ -136,20 +495,40 @@ export function SiteSettingsForm({ initial }: { initial: SiteSettings }) {
           onChange={(keywords) => patch("seo", { ...draft.seo, keywords })}
           helper="Applied sitewide. Per-page keywords replace these in the Meta editor."
         />
-        <FieldGrid>
+        <MediaPickerField
+          label="Default social image"
+          value={draft.seo.ogImage}
+          onChange={(ogImage) => patch("seo", { ...draft.seo, ogImage })}
+          helper="Shown when a page is shared. Blank uses the generated card below."
+        />
+        <fieldset className="rounded-md border border-border-subtle p-3">
+          <legend className="px-1 text-xs font-medium uppercase tracking-wide text-ink-muted">
+            Generated card
+          </legend>
+          <p className="mb-3 text-xs text-ink-muted">
+            The card drawn at <code>/opengraph-image</code> — a ring on today&apos;s
+            date, the site name, and these two lines. Only used while no image is set
+            above.
+          </p>
           <TextRow
-            label="Default OG image URL"
-            value={draft.seo.ogImage}
-            helper="Leave blank to keep the generated Open Graph image."
-            onChange={(ogImage) => patch("seo", { ...draft.seo, ogImage })}
+            label="Headline"
+            value={draft.seo.ogHeadline}
+            defaultHint={DEFAULT_SETTINGS.seo.ogHeadline}
+            onChange={(ogHeadline) => patch("seo", { ...draft.seo, ogHeadline })}
           />
           <TextRow
-            label="Twitter handle"
-            value={draft.seo.twitterHandle}
-            placeholder="@birthdayreminders"
-            onChange={(twitterHandle) => patch("seo", { ...draft.seo, twitterHandle })}
+            label="Sub-line"
+            value={draft.seo.ogSubline}
+            defaultHint={DEFAULT_SETTINGS.seo.ogSubline}
+            onChange={(ogSubline) => patch("seo", { ...draft.seo, ogSubline })}
           />
-        </FieldGrid>
+        </fieldset>
+        <TextRow
+          label="Twitter handle"
+          value={draft.seo.twitterHandle}
+          placeholder="@birthdayreminders"
+          onChange={(twitterHandle) => patch("seo", { ...draft.seo, twitterHandle })}
+        />
         <FieldGrid>
           <TextRow
             label="Google verification"
@@ -438,5 +817,96 @@ function DateTimeRow({
         {value ? "Your local time." : "No bound — leave blank to run indefinitely."}
       </p>
     </div>
+  );
+}
+
+/**
+ * A colour field with a swatch and a native picker beside the text input.
+ *
+ * The text box stays authoritative because the stored value can be any CSS
+ * colour — `oklch()`, a keyword, `rgb()` — while `<input type="color">` only
+ * speaks hex. The picker writes hex into the same field; typing something the
+ * picker can't show simply leaves the swatch as-is rather than rewriting what
+ * was typed.
+ */
+function ColorRow({
+  label,
+  value,
+  onChange,
+  helper,
+}: {
+  label: string;
+  value: string;
+  onChange: (next: string) => void;
+  helper?: string;
+}) {
+  const id = React.useId();
+  const hex = /^#[0-9a-f]{6}$/i.test(value.trim()) ? value.trim() : "#2c4bd8";
+
+  return (
+    <div>
+      <Label htmlFor={id}>{label}</Label>
+      <div className="flex gap-2">
+        <Input
+          id={id}
+          value={value}
+          placeholder="#2c4bd8"
+          onChange={(e) => onChange(e.target.value)}
+        />
+        <input
+          type="color"
+          aria-label={`${label} picker`}
+          value={hex}
+          onChange={(e) => onChange(e.target.value)}
+          className="h-11 w-12 shrink-0 cursor-pointer rounded-md border border-border-strong bg-surface p-1"
+        />
+      </div>
+      {helper && <p className="mt-1.5 text-xs text-ink-muted">{helper}</p>}
+    </div>
+  );
+}
+
+/** One store badge: whether it's live, where it goes, and what it says. */
+function StoreBadgeFields({
+  legend,
+  value,
+  onChange,
+}: {
+  legend: string;
+  value: StoreBadgeConfig;
+  onChange: (next: StoreBadgeConfig) => void;
+}) {
+  return (
+    <fieldset className="rounded-md border border-border-subtle p-3">
+      <legend className="px-1 text-xs font-medium uppercase tracking-wide text-ink-muted">
+        {legend}
+      </legend>
+      <ToggleRow
+        label="Listing is live"
+        description="Off shows the “coming soon” chip, whatever the link says."
+        checked={value.enabled}
+        onCheckedChange={(enabled) => onChange({ ...value, enabled })}
+      />
+      <TextRow
+        label="Store link"
+        value={value.url}
+        onChange={(url) => onChange({ ...value, url })}
+        helper="The public listing URL."
+      />
+      <FieldGrid>
+        <TextRow
+          label="Eyebrow"
+          value={value.eyebrow}
+          onChange={(eyebrow) => onChange({ ...value, eyebrow })}
+          helper="The small line above the name."
+        />
+        <TextRow
+          label="Store name"
+          value={value.label}
+          defaultHint={legend}
+          onChange={(label) => onChange({ ...value, label })}
+        />
+      </FieldGrid>
+    </fieldset>
   );
 }

@@ -1,4 +1,4 @@
-import type { SeoLandingPageDef } from "./types";
+import type { SeoLandingPageSource } from "./types";
 
 /**
  * Targets the "family birthday calendar" cluster, where the search results are
@@ -10,7 +10,7 @@ import type { SeoLandingPageDef } from "./types";
  * cannot do, which is why every section leans on it rather than on countdowns
  * (/birthday-countdown-app) or calendar sync (/birthday-calendar).
  */
-export const familyBirthdayCalendarPage: SeoLandingPageDef = {
+export const familyBirthdayCalendarPage: SeoLandingPageSource = {
   slug: "family-birthday-calendar",
   label: "Family birthday calendar",
   blurb:

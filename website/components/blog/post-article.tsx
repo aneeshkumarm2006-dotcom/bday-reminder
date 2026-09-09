@@ -13,20 +13,30 @@ import { normalizeAuthorName } from "@/lib/content/site-json-ld";
  * exact same chrome. Server component. JSON-LD, metadata, and view-tracking stay
  * on the public page only.
  */
-export function PostArticle({ post }: { post: Post }) {
+export function PostArticle({
+  post,
+  breadcrumbHome = "Home",
+  breadcrumbBlog = "Blog",
+  readingTimeLabel = "min read",
+}: {
+  post: Post;
+  breadcrumbHome?: string;
+  breadcrumbBlog?: string;
+  readingTimeLabel?: string;
+}) {
   const date = post.publishedAt ?? post.createdAt;
 
   return (
     <article className="mx-auto w-full max-w-3xl px-5 py-12 sm:py-16">
       <nav className="mb-6 text-sm text-ink-muted" aria-label="Breadcrumb">
         <Link href="/" className="hover:text-ink">
-          Home
+          {breadcrumbHome}
         </Link>
         <span className="px-1.5" aria-hidden="true">
           /
         </span>
         <Link href="/blog" className="hover:text-ink">
-          Blog
+          {breadcrumbBlog}
         </Link>
       </nav>
 
@@ -46,7 +56,9 @@ export function PostArticle({ post }: { post: Post }) {
         )}
         <time dateTime={date}>{formatDate(date)}</time>
         <span aria-hidden="true">·</span>
-        <span>{readingTimeMinutes(post.body)} min read</span>
+        <span>
+          {readingTimeMinutes(post.body)} {readingTimeLabel}
+        </span>
       </div>
 
       {post.coverImage && (

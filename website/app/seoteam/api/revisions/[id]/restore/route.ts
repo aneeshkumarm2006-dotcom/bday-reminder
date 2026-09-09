@@ -4,6 +4,7 @@ import { connectDb } from "@/lib/blog/db";
 import { logAction } from "@/lib/content/audit";
 import { getEditorName } from "@/lib/content/editor-server";
 import {
+  BuiltInPagesModel,
   LandingContentModel,
   LegalDocModel,
   NavigationConfigModel,
@@ -64,14 +65,34 @@ export async function POST(
 
     switch (revision.entityType) {
       case "site": {
-        const { identity, seo, analytics, socials, announcement, robotsExtraDisallows, llmsTxtEnabled, structuredData } =
-          snapshot as Record<string, unknown>;
+        // Named one by one rather than spread, so a stray key in an old
+        // snapshot can't reach Mongo. Every settings group has to be listed —
+        // one left out here is one the restore silently leaves at its current
+        // value while claiming to have restored the settings.
+        const {
+          identity,
+          brand,
+          appearance,
+          appStores,
+          productDemo,
+          seo,
+          analytics,
+          socials,
+          announcement,
+          robotsExtraDisallows,
+          llmsTxtEnabled,
+          structuredData,
+        } = snapshot as Record<string, unknown>;
         await SiteSettingsModel.findOneAndUpdate(
           { key: SINGLETON },
           {
             $set: {
               key: SINGLETON,
               identity,
+              brand,
+              appearance,
+              appStores,
+              productDemo,
               seo,
               analytics,
               socials,
@@ -178,6 +199,25 @@ export async function POST(
         );
         revalidateFor("legal", { legalKey: key });
         summary = `Restored the ${key} page`;
+        break;
+      }
+
+      case "built-in": {
+        await BuiltInPagesModel.findOneAndUpdate(
+          { key: SINGLETON },
+          {
+            $set: {
+              key: SINGLETON,
+              blogIndex: snapshot.blogIndex,
+              blogPost: snapshot.blogPost,
+              notFound: snapshot.notFound,
+              contact: snapshot.contact,
+            },
+          },
+          { upsert: true, setDefaultsOnInsert: true },
+        );
+        revalidateFor("built-in");
+        summary = "Restored the built-in pages";
         break;
       }
 

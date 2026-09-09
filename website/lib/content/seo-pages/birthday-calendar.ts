@@ -1,4 +1,4 @@
-import type { SeoLandingPageDef } from "./types";
+import type { SeoLandingPageSource } from "./types";
 
 /**
  * Targets the "birthday calendar app" cluster — digital / electronic birthday
@@ -13,7 +13,7 @@ import type { SeoLandingPageDef } from "./types";
  * ahead of the brief's own ordering (its implementation notes ask for exactly
  * that swap).
  */
-export const birthdayCalendarPage: SeoLandingPageDef = {
+export const birthdayCalendarPage: SeoLandingPageSource = {
   slug: "birthday-calendar",
   label: "Digital birthday calendar",
   blurb: "Subscribe in Apple, Google, or Outlook and keep every birthday in sync.",

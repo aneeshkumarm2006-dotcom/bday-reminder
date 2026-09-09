@@ -1,5 +1,6 @@
 import { ArrowRight, Check, Download } from "lucide-react";
 import Link from "next/link";
+import { Fragment } from "react";
 
 import {
   Faq,
@@ -14,8 +15,14 @@ import { PageGraph } from "@/components/page-graph";
 import { Reveal } from "@/components/reveal";
 import { HeroTodayRing } from "@/components/today-rings";
 import { buttonVariants } from "@/components/ui/button";
+import { PageBlocks } from "@/components/marketing/page-blocks";
 import { getAllSeoPageContent, getPageMeta } from "@/lib/content/get";
-import type { SeoDownload, SeoLandingPageDef } from "@/lib/content/seo-pages/types";
+import type {
+  SeoDownload,
+  SeoLandingPageDef,
+  SeoLayoutBlocksItem,
+  SeoSectionKey,
+} from "@/lib/content/seo-pages/types";
 
 /**
  * Renderer for the keyword landing pages (`/birthday-calendar`, `/free`, …).
@@ -31,14 +38,93 @@ import type { SeoDownload, SeoLandingPageDef } from "@/lib/content/seo-pages/typ
  */
 export async function SeoLandingPage({ page }: { page: SeoLandingPageDef }) {
   const path = `/${page.slug}`;
-  // The cross-link strip names the other five pages, so it has to read their
+  // The cross-link strip names the other pages, so it has to read their
   // *edited* labels and blurbs — off the hardcoded registry, renaming a page in
-  // the admin would leave its five siblings still calling it by the old name.
+  // the admin would leave its siblings still calling it by the old name.
   // `getAllSeoPageContent` is request-cached, so this is one read per request.
   const siblings = (await getAllSeoPageContent("published")).filter(
     (sibling) => sibling.slug !== page.slug,
   );
   const meta = await getPageMeta(path);
+
+  /**
+   * One built-in band. Everything here is either a homepage section component
+   * reused verbatim or built from the same exported primitives, so a landing
+   * page can never drift from the site's design — only its words and its order
+   * differ.
+   */
+  const section = (key: SeoSectionKey) => {
+    switch (key) {
+      case "hero":
+        return <SeoHero page={page} />;
+      case "download":
+        // Only the page that ships a file has one; the slot renders nothing on
+        // the others rather than showing an empty band.
+        return page.download ? <SeoDownloadBand download={page.download} /> : null;
+      case "contrast":
+        return (
+          <ValueProp
+            content={{
+              id: `${page.slug}-contrast`,
+              type: "valueProp",
+              visible: true,
+              headingParts: page.contrast.headingParts,
+              body: page.contrast.body,
+            }}
+          />
+        );
+      case "features":
+        return <SeoFeatures page={page} />;
+      case "howItWorks":
+        return (
+          <HowItWorks
+            content={{
+              id: `${page.slug}-how`,
+              type: "howItWorks",
+              visible: true,
+              anchor: "how",
+              heading: page.howItWorks.heading,
+              steps: page.howItWorks.steps,
+            }}
+          />
+        );
+      case "faq":
+        return (
+          <Faq
+            content={{
+              id: `${page.slug}-faq`,
+              type: "faq",
+              visible: true,
+              anchor: "faq",
+              heading: page.faq.heading,
+              sub: page.faq.sub,
+              items: page.faq.items,
+            }}
+          />
+        );
+      case "related":
+        return <SeoRelatedPages siblings={siblings} related={page.related} />;
+      case "cta":
+        return (
+          <GetTheApp
+            content={{
+              id: `${page.slug}-cta`,
+              type: "getTheApp",
+              visible: true,
+              anchor: "get-the-app",
+              heading: page.cta.heading,
+              body: page.cta.body,
+              ctaLabel: page.cta.ctaLabel,
+              ctaHref: page.cta.ctaHref,
+              storeBadges: true,
+              footnote: page.cta.footnote,
+            }}
+          />
+        );
+      default:
+        return null;
+    }
+  };
 
   return (
     <>
@@ -55,64 +141,46 @@ export async function SeoLandingPage({ page }: { page: SeoLandingPageDef }) {
         customJsonLd={meta.customJsonLd}
       />
 
-      <SeoHero page={page} />
-
-      {/* Above the argument, not below it: a searcher who came for a file has
-          no reason to read three feature rows before being handed one. */}
-      {page.download && <SeoDownloadBand download={page.download} />}
-
-      <ValueProp
-        content={{
-          id: `${page.slug}-contrast`,
-          type: "valueProp",
-          visible: true,
-          headingParts: page.contrast.headingParts,
-          body: page.contrast.body,
-        }}
-      />
-
-      <SeoFeatures page={page} />
-
-      <HowItWorks
-        content={{
-          id: `${page.slug}-how`,
-          type: "howItWorks",
-          visible: true,
-          anchor: "how",
-          heading: page.howItWorks.heading,
-          steps: page.howItWorks.steps,
-        }}
-      />
-
-      <Faq
-        content={{
-          id: `${page.slug}-faq`,
-          type: "faq",
-          visible: true,
-          anchor: "faq",
-          heading: page.faq.heading,
-          sub: page.faq.sub,
-          items: page.faq.items,
-        }}
-      />
-
-      <SeoRelatedPages siblings={siblings} />
-
-      <GetTheApp
-        content={{
-          id: `${page.slug}-cta`,
-          type: "getTheApp",
-          visible: true,
-          anchor: "get-the-app",
-          heading: page.cta.heading,
-          body: page.cta.body,
-          ctaLabel: page.cta.ctaLabel,
-          ctaHref: page.cta.ctaHref,
-          storeBadges: true,
-          footnote: page.cta.footnote,
-        }}
-      />
+      {/* The page *is* its layout: built-in bands and admin-authored block
+          groups in one ordered list, so an image, a table, or a custom HTML
+          section can sit anywhere on the page without touching this file. */}
+      {page.layout
+        .filter((item) => item.visible)
+        .map((item) =>
+          item.kind === "section" ? (
+            <Fragment key={item.id}>{section(item.section)}</Fragment>
+          ) : (
+            <SeoBlocksBand key={item.id} item={item} />
+          ),
+        )}
     </>
+  );
+}
+
+/** An admin-authored group of page-builder blocks, slotted into the layout. */
+function SeoBlocksBand({ item }: { item: SeoLayoutBlocksItem }) {
+  if (item.blocks.length === 0) return null;
+  const band =
+    item.background === "sunken"
+      ? "border-y border-border-subtle bg-surface-sunken/60"
+      : item.background === "tint"
+        ? "border-y border-border-subtle bg-biro-tint/50"
+        : "";
+
+  return (
+    <section className={band}>
+      {(item.heading || item.sub) && (
+        <Reveal className="mx-auto mt-16 max-w-2xl px-5 text-center">
+          {item.heading && (
+            <h2 className="font-display text-3xl font-semibold tracking-[-0.01em] text-ink">
+              {item.heading}
+            </h2>
+          )}
+          {item.sub && <p className="mt-4 text-ink-secondary">{item.sub}</p>}
+        </Reveal>
+      )}
+      <PageBlocks blocks={item.blocks} />
+    </section>
   );
 }
 
@@ -186,12 +254,14 @@ function SeoHero({ page }: { page: SeoLandingPageDef }) {
                 {hero.primaryCta.label}
               </Link>
             ))}
-          <Link
-            href="#how"
-            className={`${buttonVariants({ variant: "secondary", size: "lg" })} hover:-translate-y-0.5`}
-          >
-            See how it works
-          </Link>
+          {hero.secondaryCta.label && (
+            <Link
+              href={hero.secondaryCta.href}
+              className={`${buttonVariants({ variant: "secondary", size: "lg" })} hover:-translate-y-0.5`}
+            >
+              {hero.secondaryCta.label}
+            </Link>
+          )}
         </div>
         {hero.footnote && <p className="mt-4 text-sm text-ink-muted">{hero.footnote}</p>}
       </div>
@@ -325,7 +395,13 @@ function SeoFeatures({ page }: { page: SeoLandingPageDef }) {
  * hand-maintained: every page links to all five siblings, so link equity flows
  * across the cluster and a new page joins it by existing.
  */
-function SeoRelatedPages({ siblings }: { siblings: SeoLandingPageDef[] }) {
+function SeoRelatedPages({
+  siblings,
+  related,
+}: {
+  siblings: SeoLandingPageDef[];
+  related: SeoLandingPageDef["related"];
+}) {
   if (siblings.length === 0) return null;
 
   return (
@@ -333,11 +409,9 @@ function SeoRelatedPages({ siblings }: { siblings: SeoLandingPageDef[] }) {
       <div className="mx-auto w-full max-w-5xl px-5 py-16">
         <Reveal className="mx-auto max-w-2xl text-center">
           <h2 className="font-display text-2xl font-semibold tracking-[-0.01em] text-ink sm:text-3xl">
-            Explore the rest of Birthday Reminders
+            {related.heading}
           </h2>
-          <p className="mt-3 text-ink-secondary">
-            One app, one free account — here&rsquo;s the same thing from a few other angles.
-          </p>
+          <p className="mt-3 text-ink-secondary">{related.sub}</p>
         </Reveal>
 
         <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -354,7 +428,7 @@ function SeoRelatedPages({ siblings }: { siblings: SeoLandingPageDef[] }) {
                   {page.blurb}
                 </span>
                 <span className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-biro">
-                  Take a look
+                  {related.ctaLabel}
                   <ArrowRight
                     size={15}
                     aria-hidden="true"

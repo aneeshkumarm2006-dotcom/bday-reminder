@@ -1,28 +1,45 @@
 import type * as React from "react";
 
+import { APPEARANCE_SCOPE, AppearanceStyle } from "@/components/appearance-style";
+import { MotionPreference } from "@/components/motion-preference";
+import { ProductDemoProvider } from "@/components/product-demo-context";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { getNavigation, getSiteSettings } from "@/lib/content/get";
 
 /**
  * The public site's header + footer around arbitrary children, with the
- * admin-managed navigation resolved for you.
+ * admin-managed navigation, wordmark, palette and demo data resolved for you.
  *
  * The `(marketing)` layout composes these directly (it also owns the
  * announcement bar and skip link); this wrapper exists for the preview routes
  * under `/seoteam`, which need the real chrome but sit outside that route group.
+ * It has to apply the same appearance scope and providers, or a preview would
+ * show the built-in palette and the built-in demo cast rather than the site's —
+ * which is the one thing a preview must not do.
  */
 export async function SiteChrome({ children }: { children: React.ReactNode }) {
   const [navigation, settings] = await Promise.all([getNavigation(), getSiteSettings()]);
   return (
-    <div className="flex min-h-dvh flex-col">
-      <SiteHeader navigation={navigation} />
-      {children}
-      <SiteFooter
-        navigation={navigation}
-        socials={settings.socials}
-        siteName={settings.identity.name}
-      />
+    <div className={`${APPEARANCE_SCOPE} flex min-h-dvh flex-col`}>
+      <AppearanceStyle appearance={settings.appearance} />
+      <MotionPreference enabled={settings.appearance.animations}>
+        <ProductDemoProvider demo={settings.productDemo}>
+          <SiteHeader
+            navigation={navigation}
+            brand={settings.brand}
+            siteName={settings.identity.name}
+            showThemeToggle={settings.appearance.showThemeToggle}
+          />
+          {children}
+          <SiteFooter
+            navigation={navigation}
+            socials={settings.socials}
+            siteName={settings.identity.name}
+            brand={settings.brand}
+          />
+        </ProductDemoProvider>
+      </MotionPreference>
     </div>
   );
 }

@@ -1,4 +1,10 @@
-import type { CtaLink, FaqItem, HowItWorksStep } from "../types";
+import type {
+  BlockBackground,
+  CtaLink,
+  FaqItem,
+  HowItWorksStep,
+  PageBlock,
+} from "../types";
 
 /**
  * The shape of a keyword-targeted SEO landing page.
@@ -24,10 +30,20 @@ export interface SeoHero {
   heading: string;
   subheading: string;
   primaryCta: CtaLink;
+  /** The second button. Blank label hides it. */
+  secondaryCta: CtaLink;
   /** The line under the buttons, e.g. "Free on web, iOS, and Android…". */
   footnote: string;
   /** One or two product shots below the hero copy, left to right. */
   visuals: SeoVisual[];
+}
+
+/** The cross-link strip that names the other pages in the cluster. */
+export interface SeoRelated {
+  heading: string;
+  sub: string;
+  /** The link text at the foot of each sibling card. */
+  ctaLabel: string;
 }
 
 /**
@@ -126,6 +142,56 @@ export interface SeoCta {
   footnote: string;
 }
 
+/* --------------------------------- layout --------------------------------- */
+
+/** The built-in bands a keyword page is assembled from, in default order. */
+export type SeoSectionKey =
+  | "hero"
+  | "download"
+  | "contrast"
+  | "features"
+  | "howItWorks"
+  | "faq"
+  | "related"
+  | "cta";
+
+export interface SeoLayoutSectionItem {
+  id: string;
+  kind: "section";
+  section: SeoSectionKey;
+  visible: boolean;
+}
+
+/** A group of page-builder blocks slotted between two built-in bands. */
+export interface SeoLayoutBlocksItem {
+  id: string;
+  kind: "blocks";
+  visible: boolean;
+  heading: string;
+  sub: string;
+  background: BlockBackground;
+  blocks: PageBlock[];
+}
+
+export type SeoLayoutItem = SeoLayoutSectionItem | SeoLayoutBlocksItem;
+
+/**
+ * The order the page renders in. Every page ships with the default order below
+ * and the admin can reorder it, hide any band, or drop a block group anywhere —
+ * which is what makes these pages as editable as a page-builder page without
+ * giving up their designed sections.
+ */
+export const DEFAULT_SEO_SECTION_ORDER: readonly SeoSectionKey[] = [
+  "hero",
+  "download",
+  "contrast",
+  "features",
+  "howItWorks",
+  "faq",
+  "related",
+  "cta",
+] as const;
+
 export interface SeoLandingPageDef {
   /** URL segment, no leading slash. Must also be in `RESERVED_SLUGS`. */
   slug: string;
@@ -144,5 +210,18 @@ export interface SeoLandingPageDef {
   features: SeoFeatures;
   howItWorks: SeoHowItWorks;
   faq: SeoFaq;
+  related: SeoRelated;
   cta: SeoCta;
+  /** Filled in by `normalizeSeoPage()` — never hand-written in a page file. */
+  layout: SeoLayoutItem[];
 }
+
+/** A page file as authored: everything but the derived fields. */
+export type SeoLandingPageSource = Omit<
+  SeoLandingPageDef,
+  "layout" | "related" | "hero"
+> & {
+  hero: Omit<SeoHero, "secondaryCta"> & { secondaryCta?: CtaLink };
+  related?: Partial<SeoRelated>;
+  layout?: SeoLayoutItem[];
+};

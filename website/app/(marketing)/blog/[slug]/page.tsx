@@ -5,6 +5,7 @@ import { cache } from "react";
 import { PostArticle } from "@/components/blog/post-article";
 import { PostJsonLd } from "@/components/blog/post-json-ld";
 import { RelatedPosts } from "@/components/blog/related-posts";
+import { PageBlocks } from "@/components/marketing/page-blocks";
 import { recordNotFound, resolveRedirect } from "@/lib/content/redirects";
 import {
   getPublishedPostBySlug,
@@ -15,7 +16,7 @@ import {
 import { buildPostTitle, postDescription } from "@/lib/blog/seo-meta";
 import type { Post } from "@/lib/blog/types";
 import { isHttpUrl } from "@/lib/blog/url";
-import { getSiteSettings } from "@/lib/content/get";
+import { getBuiltInPages, getSiteSettings } from "@/lib/content/get";
 import { normalizeAuthorName } from "@/lib/content/site-json-ld";
 import { siteConfig } from "@/lib/site";
 
@@ -118,12 +119,29 @@ export default async function BlogPostPage({
   // Monitoring metric — best-effort, never blocks/breaks the render.
   await incrementViews(post.slug);
 
-  const related = await loadRelated(post.slug);
+  const [related, { blogPost }] = await Promise.all([
+    loadRelated(post.slug),
+    getBuiltInPages(),
+  ]);
 
   return (
     <>
-      <PostArticle post={post} />
-      <RelatedPosts posts={related} />
+      <PostArticle
+        post={post}
+        breadcrumbHome={blogPost.breadcrumbHome}
+        breadcrumbBlog={blogPost.breadcrumbBlog}
+        readingTimeLabel={blogPost.readingTimeLabel}
+      />
+      {/* Admin-authored blocks under every post — a newsletter callout, a
+          promo, an image strip — without editing each post's body. */}
+      <PageBlocks blocks={blogPost.blocksAfter} />
+      {blogPost.showRelated && (
+        <RelatedPosts
+          posts={related}
+          heading={blogPost.relatedHeading}
+          allPostsLabel={blogPost.allPostsLabel}
+        />
+      )}
       <PostJsonLd post={post} />
     </>
   );

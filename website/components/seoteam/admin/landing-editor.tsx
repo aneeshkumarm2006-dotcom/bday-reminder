@@ -1,6 +1,6 @@
 "use client";
 
-import { Eye, EyeOff, ExternalLink, GripVertical } from "lucide-react";
+import { Copy, Eye, EyeOff, ExternalLink, GripVertical, Plus, Trash2 } from "lucide-react";
 import * as React from "react";
 
 import {
@@ -9,6 +9,7 @@ import {
   TextAreaRow,
   TextRow,
 } from "@/components/seoteam/admin/fields";
+import { BlockListEditor } from "@/components/seoteam/admin/block-list-editor";
 import { IconPicker } from "@/components/seoteam/admin/icon-picker";
 import { AdminSection, FieldGrid } from "@/components/seoteam/admin/layout";
 import { ListEditor, newId } from "@/components/seoteam/admin/list-editor";
@@ -23,7 +24,10 @@ import { Select } from "@/components/ui/select";
 import { ToggleRow } from "@/components/ui/switch";
 import { useToast } from "@/components/ui/toast";
 import { saveLanding } from "@/lib/content/admin-api";
+import { ADDABLE_SECTION_TYPES, SECTION_TEMPLATES } from "@/lib/content/defaults";
 import type {
+  BlockBackground,
+  BlocksSection,
   CtaLink,
   FaqSection,
   FeaturePreview,
@@ -33,6 +37,7 @@ import type {
   HowItWorksSection,
   LandingSection,
   LatestPostsSection,
+  SectionType,
   ValuePropSection,
 } from "@/lib/content/types";
 import { cn } from "@/lib/utils";
@@ -45,6 +50,7 @@ const SECTION_LABELS: Record<LandingSection["type"], string> = {
   latestPosts: "Latest posts",
   faq: "FAQ",
   getTheApp: "Get the app",
+  blocks: "Custom blocks",
 };
 
 /**
@@ -66,6 +72,7 @@ export function LandingEditor({ initial }: { initial: LandingSection[] }) {
   const [busy, setBusy] = React.useState<"draft" | "publish" | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [dragIndex, setDragIndex] = React.useState<number | null>(null);
+  const [addOpen, setAddOpen] = React.useState(false);
 
   const dirty = React.useMemo(
     () => JSON.stringify(sections) !== JSON.stringify(saved),
@@ -88,6 +95,34 @@ export function LandingEditor({ initial }: { initial: LandingSection[] }) {
     const [moved] = next.splice(from, 1);
     next.splice(to, 0, moved);
     setSections(next);
+  };
+
+  /**
+   * Add a section. Ids have to be unique *and* stable: `mergeById` matches a
+   * stored section to its default by id, so a second FAQ needs an id of its own
+   * or the two would merge into one on read.
+   */
+  const addSection = (type: SectionType) => {
+    const created = { ...SECTION_TEMPLATES[type], id: newId(type) } as LandingSection;
+    setSections((prev) => [...prev, created]);
+    setSelectedId(created.id);
+    setAddOpen(false);
+  };
+
+  const duplicateSection = (id: string) => {
+    const index = sections.findIndex((section) => section.id === id);
+    if (index < 0) return;
+    const copy = { ...sections[index], id: newId(sections[index].type) } as LandingSection;
+    const next = [...sections];
+    next.splice(index + 1, 0, copy);
+    setSections(next);
+    setSelectedId(copy.id);
+  };
+
+  const removeSection = (id: string) => {
+    const next = sections.filter((section) => section.id !== id);
+    setSections(next);
+    if (selectedId === id) setSelectedId(next[0]?.id ?? "");
   };
 
   const persist = React.useCallback(
@@ -187,8 +222,38 @@ export function LandingEditor({ initial }: { initial: LandingSection[] }) {
             </li>
           ))}
         </ul>
+        {/* Adding is deliberately not offered for the hero: a page gets one
+            `<h1>`, and a second hero would mint another. */}
+        <div className="relative mt-2">
+          <button
+            type="button"
+            onClick={() => setAddOpen((open) => !open)}
+            aria-expanded={addOpen}
+            className="inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-md border border-dashed border-border-strong text-sm font-medium text-ink-secondary transition-colors hover:border-biro hover:text-ink"
+          >
+            <Plus size={15} aria-hidden="true" />
+            Add section
+          </button>
+          {addOpen && (
+            <ul className="absolute z-20 mt-1 w-full overflow-hidden rounded-md border border-border-strong bg-surface py-1 shadow-lg">
+              {ADDABLE_SECTION_TYPES.map((type) => (
+                <li key={type}>
+                  <button
+                    type="button"
+                    onClick={() => addSection(type)}
+                    className="block w-full px-3 py-2 text-left text-sm text-ink transition-colors hover:bg-surface-sunken"
+                  >
+                    {SECTION_LABELS[type]}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
         <p className="mt-3 text-xs text-ink-muted">
           Drag to reorder. Hidden sections stay saved — they just don&apos;t render.
+          &ldquo;Custom blocks&rdquo; holds anything the page builder can make.
         </p>
       </aside>
 
@@ -203,6 +268,27 @@ export function LandingEditor({ initial }: { initial: LandingSection[] }) {
                 : "Currently hidden from the homepage."
             }
           >
+            <div className="flex flex-wrap justify-end gap-2">
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => duplicateSection(selected.id)}
+              >
+                <Copy size={15} aria-hidden="true" />
+                Duplicate
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                size="sm"
+                disabled={sections.length <= 1}
+                onClick={() => removeSection(selected.id)}
+              >
+                <Trash2 size={15} aria-hidden="true" />
+                Remove
+              </Button>
+            </div>
             <SectionForm section={selected} patch={patchSelected} />
           </AdminSection>
         ) : (
@@ -290,9 +376,72 @@ function SectionForm({
           patch={patch as (c: Partial<GetTheAppSection>) => void}
         />
       );
+    case "blocks":
+      return (
+        <BlocksForm section={section} patch={patch as (c: Partial<BlocksSection>) => void} />
+      );
     default:
       return null;
   }
+}
+
+/**
+ * The homepage's page-builder slot.
+ *
+ * Everything else in this editor is a fixed-shape section; this one is an
+ * ordered list of blocks, which is what makes "put an image between these two
+ * sections" or "add a comparison table here" a content change. The blocks, the
+ * palette and the forms are the same ones the page builder uses.
+ */
+function BlocksForm({
+  section,
+  patch,
+}: {
+  section: BlocksSection;
+  patch: (changes: Partial<BlocksSection>) => void;
+}) {
+  const [error, setError] = React.useState<string | null>(null);
+  return (
+    <>
+      <TextRow
+        label="Heading"
+        value={section.heading}
+        onChange={(heading) => patch({ heading })}
+        helper="Optional. Sits above the blocks, centred like the other sections."
+      />
+      <TextAreaRow
+        label="Sub-heading"
+        value={section.sub}
+        rows={2}
+        onChange={(sub) => patch({ sub })}
+      />
+      <FieldGrid>
+        <TextRow
+          label="Anchor"
+          value={section.anchor}
+          onChange={(anchor) => patch({ anchor })}
+          helper="Optional #id, so a nav link can jump here."
+        />
+        <div>
+          <Label>Background</Label>
+          <Select
+            value={section.background}
+            onChange={(e) => patch({ background: e.target.value as BlockBackground })}
+          >
+            <option value="none">None</option>
+            <option value="sunken">Sunken — a quiet band</option>
+            <option value="tint">Tinted — the accent wash</option>
+          </Select>
+        </div>
+      </FieldGrid>
+      {error && <p className="text-sm text-danger-fg">{error}</p>}
+      <BlockListEditor
+        blocks={section.blocks}
+        onChange={(blocks) => patch({ blocks })}
+        onError={setError}
+      />
+    </>
+  );
 }
 
 /** Label + href pair for a call-to-action button. */

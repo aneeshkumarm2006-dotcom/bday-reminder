@@ -21,7 +21,8 @@ export type SectionType =
   | "howItWorks"
   | "latestPosts"
   | "faq"
-  | "getTheApp";
+  | "getTheApp"
+  | "blocks";
 
 export interface BaseSection {
   /** Stable id — used for reordering, revisions, and merging over defaults. */
@@ -135,6 +136,26 @@ export interface GetTheAppSection extends BaseSection {
   footnote: string;
 }
 
+/**
+ * The escape hatch that makes the homepage as modular as a custom page: an
+ * ordered list of page-builder blocks, rendered inline among the built-in
+ * sections. Add one of these anywhere in the section list and any block —
+ * an image, a gallery, raw HTML, a video, a pricing table — can sit between
+ * two designed sections without a code change.
+ *
+ * Declared after `PageBlock` in this file? No: `PageBlock` is defined further
+ * down, and TypeScript hoists type declarations, so the forward reference is
+ * fine and the landing types stay grouped together.
+ */
+export interface BlocksSection extends BaseSection {
+  type: "blocks";
+  anchor: string;
+  heading: string;
+  sub: string;
+  background: BlockBackground;
+  blocks: PageBlock[];
+}
+
 export type LandingSection =
   | HeroSection
   | ValuePropSection
@@ -142,7 +163,8 @@ export type LandingSection =
   | HowItWorksSection
   | LatestPostsSection
   | FaqSection
-  | GetTheAppSection;
+  | GetTheAppSection
+  | BlocksSection;
 
 export interface LandingVariant {
   sections: LandingSection[];
@@ -207,6 +229,104 @@ export interface StructuredDataConfig {
   };
 }
 
+/**
+ * The wordmark in the header and footer.
+ *
+ * Defaults to the drawn ring + the site name (what shipped), but an uploaded
+ * logo replaces either or both — so rebranding the public site is a content
+ * change rather than an edit to `components/brand.tsx`.
+ */
+export interface BrandConfig {
+  logoUrl: string;
+  /** Optional second file used when the viewer is in dark mode. */
+  logoDarkUrl: string;
+  logoAlt: string;
+  /** Rendered height in px (width follows the image's aspect ratio). */
+  logoHeight: number;
+  showRing: boolean;
+  showWordmark: boolean;
+  /** Overrides `identity.name` in the wordmark only. */
+  wordmark: string;
+  faviconUrl: string;
+}
+
+/**
+ * Public-site appearance. The colours are emitted as CSS custom properties on
+ * the marketing shell, overriding the tokens in `globals.css` — so the palette
+ * is editable without a deploy, while every component still reads the same
+ * `--biro` / `--radius` variables it always did.
+ */
+export interface AppearanceConfig {
+  /** Accent ("biro") in light mode — any CSS colour. Empty keeps the built-in. */
+  accent: string;
+  /** Accent in dark mode. Empty falls back to `accent`. */
+  accentDark: string;
+  /** Corner radius for buttons, cards and inputs, in px. 0 = built-in. */
+  radius: number;
+  /** Which theme a first-time visitor gets. */
+  defaultTheme: "system" | "light" | "dark";
+  showThemeToggle: boolean;
+  /** Turns the fade/slide-in on scroll off site-wide. */
+  animations: boolean;
+}
+
+export interface StoreBadgeConfig {
+  enabled: boolean;
+  url: string;
+  /** "" uses the platform's own name. */
+  label: string;
+  /** The small line above the name, e.g. "Download on the". */
+  eyebrow: string;
+}
+
+export interface AppStoreConfig {
+  appStore: StoreBadgeConfig;
+  googlePlay: StoreBadgeConfig;
+}
+
+/**
+ * One row in the rendered product demo — the interactive "screenshots" that
+ * carry the homepage's fold and every keyword page's hero.
+ *
+ * They are drawn from the real design system rather than being raster images,
+ * which is what keeps them crisp and theme-aware — but it also meant the sample
+ * names, relationships and greeting were hardcoded marketing copy that only a
+ * deploy could change. They live here instead.
+ */
+export interface DemoRow {
+  id: string;
+  name: string;
+  /** The second line in the feed, e.g. "Brother · turns 29". */
+  sub: string;
+  /** Days from today. 0 draws the filled "today" ring. */
+  offset: number;
+  pet: boolean;
+}
+
+export interface ProductDemoConfig {
+  feedTitle: string;
+  thisWeekLabel: string;
+  thisMonthLabel: string;
+  /** The right-hand count on the day itself. */
+  todayLabel: string;
+  /** Every other row's count. `{n}` is the number of days. */
+  inDaysLabel: string;
+  /** Drives both the feed and the widget; the widget shows the first three. */
+  rows: DemoRow[];
+  reminder: {
+    headline: string;
+    relation: string;
+    greeting: string;
+    sendLabel: string;
+    doneLabel: string;
+    undoLabel: string;
+    cancelLabel: string;
+    deliveredLabel: string;
+    againLabel: string;
+  };
+  widgetTitle: string;
+}
+
 export interface SiteSettings {
   identity: {
     name: string;
@@ -214,6 +334,10 @@ export interface SiteSettings {
     description: string;
     contactEmail: string;
   };
+  brand: BrandConfig;
+  appearance: AppearanceConfig;
+  appStores: AppStoreConfig;
+  productDemo: ProductDemoConfig;
   seo: {
     /** Next.js title template — must contain `%s`. */
     titleTemplate: string;
@@ -221,6 +345,10 @@ export interface SiteSettings {
     defaultDescription: string;
     keywords: string[];
     ogImage: string;
+    /** Big line on the generated OG card. Only used when `ogImage` is blank. */
+    ogHeadline: string;
+    /** The line beneath it on the generated card. */
+    ogSubline: string;
     twitterHandle: string;
     verification: { google: string; bing: string; pinterest: string };
     /** Sitewide noindex kill-switch (danger zone). */
@@ -310,7 +438,26 @@ export type BlockType =
   | "stats"
   | "testimonials"
   | "comparisonTable"
-  | "divider";
+  | "divider"
+  | "image"
+  | "gallery"
+  | "html"
+  | "video"
+  | "buttons"
+  | "spacer"
+  | "logos"
+  | "steps"
+  | "pricing"
+  | "quote"
+  | "banner";
+
+/** How wide a block's content sits in the page column. */
+export type BlockWidth = "narrow" | "wide" | "full";
+
+/** The band a block paints behind itself. */
+export type BlockBackground = "none" | "sunken" | "tint";
+
+export type ButtonVariant = "primary" | "secondary" | "ghost";
 
 export interface BaseBlock {
   id: string;
@@ -388,6 +535,147 @@ export interface DividerBlock extends BaseBlock {
   label: string;
 }
 
+/* ---------- media, embed and layout blocks (the "anything" set) ---------- */
+
+export interface ImageBlock extends BaseBlock {
+  type: "image";
+  imageUrl: string;
+  imageAlt: string;
+  caption: string;
+  width: BlockWidth;
+  rounded: boolean;
+  /** Optional link wrapped around the image. */
+  href: string;
+}
+
+export interface GalleryItem {
+  id: string;
+  imageUrl: string;
+  imageAlt: string;
+  caption: string;
+  href: string;
+}
+
+export interface GalleryBlock extends BaseBlock {
+  type: "gallery";
+  heading: string;
+  sub: string;
+  columns: 2 | 3 | 4;
+  items: GalleryItem[];
+}
+
+/**
+ * Free-form HTML, for anything the typed blocks don't cover.
+ *
+ * Sanitized on write with `sanitizeEmbedHtml` — a deliberately wider policy
+ * than the blog's (tables, spans, divs, classes, inline styles, and iframes
+ * from an embed allowlist) but still no `<script>`, no event handlers, and no
+ * `javascript:` URLs. See `lib/content/sanitize-embed.ts`.
+ */
+export interface HtmlBlock extends BaseBlock {
+  type: "html";
+  html: string;
+  width: BlockWidth;
+  background: BlockBackground;
+}
+
+export interface VideoBlock extends BaseBlock {
+  type: "video";
+  heading: string;
+  /** YouTube / Vimeo page URL, or a direct .mp4/.webm file. */
+  url: string;
+  caption: string;
+  width: BlockWidth;
+  /** Poster image for a direct video file. */
+  posterUrl: string;
+}
+
+export interface ButtonItem {
+  id: string;
+  label: string;
+  href: string;
+  variant: ButtonVariant;
+  external: boolean;
+}
+
+export interface ButtonsBlock extends BaseBlock {
+  type: "buttons";
+  heading: string;
+  align: "left" | "center";
+  items: ButtonItem[];
+}
+
+export interface SpacerBlock extends BaseBlock {
+  type: "spacer";
+  size: "sm" | "md" | "lg" | "xl";
+  /** Draw a hairline in the middle of the space. */
+  rule: boolean;
+}
+
+export interface LogoItem {
+  id: string;
+  imageUrl: string;
+  imageAlt: string;
+  href: string;
+}
+
+export interface LogosBlock extends BaseBlock {
+  type: "logos";
+  heading: string;
+  items: LogoItem[];
+  grayscale: boolean;
+}
+
+export interface StepItem {
+  id: string;
+  icon: string;
+  title: string;
+  body: string;
+}
+
+export interface StepsBlock extends BaseBlock {
+  type: "steps";
+  heading: string;
+  sub: string;
+  numbered: boolean;
+  items: StepItem[];
+}
+
+export interface PricingTier {
+  id: string;
+  name: string;
+  price: string;
+  period: string;
+  body: string;
+  features: string[];
+  cta: CtaLink;
+  highlight: boolean;
+}
+
+export interface PricingBlock extends BaseBlock {
+  type: "pricing";
+  heading: string;
+  sub: string;
+  tiers: PricingTier[];
+}
+
+export interface QuoteBlock extends BaseBlock {
+  type: "quote";
+  quote: string;
+  author: string;
+  role: string;
+  imageUrl: string;
+}
+
+export interface BannerBlock extends BaseBlock {
+  type: "banner";
+  tone: "info" | "success" | "warning" | "danger";
+  icon: string;
+  heading: string;
+  body: string;
+  cta: CtaLink;
+}
+
 export type PageBlock =
   | HeroBlock
   | RichTextBlock
@@ -398,7 +686,18 @@ export type PageBlock =
   | StatsBlock
   | TestimonialsBlock
   | ComparisonTableBlock
-  | DividerBlock;
+  | DividerBlock
+  | ImageBlock
+  | GalleryBlock
+  | HtmlBlock
+  | VideoBlock
+  | ButtonsBlock
+  | SpacerBlock
+  | LogosBlock
+  | StepsBlock
+  | PricingBlock
+  | QuoteBlock
+  | BannerBlock;
 
 export type PageStatus = "draft" | "published";
 
@@ -430,6 +729,72 @@ export interface LegalDoc {
   html: string;
 }
 
+/* ------------------------------ built-in pages ---------------------------- */
+
+/**
+ * Copy for the routes that are *code*, not documents — the blog index, a blog
+ * post's furniture, the 404, and the extras on the contact page.
+ *
+ * Every one of them used to be a hardcoded string in a route file. They live in
+ * one singleton so the admin has a single "Built-in pages" screen, and each
+ * carries `blocksBefore` / `blocksAfter` so images, HTML, or any other block can
+ * be dropped onto a page whose body is generated rather than authored.
+ */
+export interface BlogIndexConfig {
+  heading: string;
+  intro: string;
+  /** Shown when the blog has no posts yet. */
+  emptyText: string;
+  /** Shown when the database is unreachable. */
+  errorText: string;
+  guidesHeading: string;
+  /** Supports the `{count}` token. */
+  guidesSub: string;
+  showGuides: boolean;
+  blocksBefore: PageBlock[];
+  blocksAfter: PageBlock[];
+}
+
+export interface BlogPostConfig {
+  /** Label on the "every post" link under the related list. */
+  allPostsLabel: string;
+  relatedHeading: string;
+  showRelated: boolean;
+  /** The two breadcrumb labels above a post's title. */
+  breadcrumbHome: string;
+  breadcrumbBlog: string;
+  /** Suffix on the reading-time estimate, e.g. "min read". */
+  readingTimeLabel: string;
+  /** Appended under every post's body, above the related strip. */
+  blocksAfter: PageBlock[];
+}
+
+export interface NotFoundConfig {
+  eyebrow: string;
+  heading: string;
+  body: string;
+  primaryCta: CtaLink;
+  secondaryCta: CtaLink;
+  blocksAfter: PageBlock[];
+}
+
+export interface ContactPageConfig {
+  cardEnabled: boolean;
+  cardHeading: string;
+  cardBody: string;
+  cardIcon: string;
+  blocksAfter: PageBlock[];
+}
+
+export interface BuiltInPages {
+  blogIndex: BlogIndexConfig;
+  blogPost: BlogPostConfig;
+  notFound: NotFoundConfig;
+  contact: ContactPageConfig;
+}
+
+export type BuiltInPageKey = keyof BuiltInPages;
+
 /* -------------------------------- redirects ------------------------------- */
 
 export interface Redirect {
@@ -457,6 +822,7 @@ export interface NotFoundHit {
 
 export type EntityType =
   | "site"
+  | "built-in"
   | "landing"
   | "page"
   | "seo-page"

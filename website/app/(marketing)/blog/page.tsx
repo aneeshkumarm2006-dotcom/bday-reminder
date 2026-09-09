@@ -4,10 +4,16 @@ import { cache } from "react";
 
 import { BlogPagination } from "@/components/blog/blog-pagination";
 import { PostCard } from "@/components/blog/post-card";
+import { PageBlocks } from "@/components/marketing/page-blocks";
 import { PageGraph } from "@/components/page-graph";
 import { isDbConfigured } from "@/lib/blog/db";
 import { getPublishedPosts, type PaginatedPosts } from "@/lib/blog/posts";
-import { getAllSeoPageContent, getPageMeta, getSiteSettings } from "@/lib/content/get";
+import {
+  getAllSeoPageContent,
+  getBuiltInPages,
+  getPageMeta,
+  getSiteSettings,
+} from "@/lib/content/get";
 import { buildPageMetadata, paginatedPageMeta } from "@/lib/content/metadata";
 import { canonicalUrl, itemListId, postListItems } from "@/lib/content/page-graph";
 
@@ -67,12 +73,14 @@ export default async function BlogIndexPage({
   searchParams: BlogSearchParams;
 }) {
   const page = requestedPage(await searchParams);
-  // All three are memoized by React `cache()` — the same reads generateMetadata made.
-  const [meta, data, guides] = await Promise.all([
+  // All memoized by React `cache()` — the same reads generateMetadata made.
+  const [meta, data, guides, builtIn] = await Promise.all([
     getPageMeta("/blog"),
     loadPosts(page),
     getAllSeoPageContent("published"),
+    getBuiltInPages(),
   ]);
+  const copy = builtIn.blogIndex;
 
   const posts = data?.posts ?? [];
   // The list describes the posts on *this* pagination page, not the whole blog:
@@ -107,21 +115,19 @@ export default async function BlogIndexPage({
       />
       <header className="mb-10">
         <h1 className="font-display text-3xl font-semibold text-ink sm:text-4xl">
-          Blog
+          {copy.heading}
         </h1>
         <p className="mt-2 text-ink-muted">{meta.description}</p>
-        <p className="mt-4 max-w-2xl text-ink-muted">
-          Party ideas, what to write in the card, which flowers mean what, and the odd
-          printable. Some of it involves Birthday Reminders. Most of it doesn&rsquo;t.
-        </p>
+        {copy.intro && <p className="mt-4 max-w-2xl text-ink-muted">{copy.intro}</p>}
       </header>
 
+      {/* Admin-authored blocks, above and below the grid — the only way to put
+          an image, a notice, or a call to action on a page whose body is a
+          database query. */}
+      <PageBlocks blocks={copy.blocksBefore} />
+
       {!data || data.posts.length === 0 ? (
-        <p className="text-ink-muted">
-          {!data
-            ? "The blog isn't available right now. Check back soon."
-            : "No posts yet. Check back soon."}
-        </p>
+        <p className="text-ink-muted">{!data ? copy.errorText : copy.emptyText}</p>
       ) : (
         <>
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -138,13 +144,13 @@ export default async function BlogIndexPage({
         a deep pagination page from being a grid of posts and nothing else, and
         it's the only place the landing-page cluster is linked from the blog.
       */}
-      {guides.length > 1 && (
+      {copy.showGuides && guides.length > 1 && (
         <section className="mt-16 border-t border-border-subtle pt-10">
           <h2 className="font-display text-xl font-semibold text-ink">
-            If you came here looking for something specific
+            {copy.guidesHeading}
           </h2>
           <p className="mt-2 max-w-2xl text-ink-muted">
-            {guides.length} guides, one topic each.
+            {copy.guidesSub.replace("{count}", String(guides.length))}
           </p>
           <ul className="mt-6 grid gap-x-8 gap-y-4 sm:grid-cols-2">
             {guides.map((guide) => (
@@ -160,6 +166,8 @@ export default async function BlogIndexPage({
           </ul>
         </section>
       )}
+
+      <PageBlocks blocks={copy.blocksAfter} />
     </div>
   );
 }

@@ -6,6 +6,7 @@ import { getEditorName } from "@/lib/content/editor-server";
 import { getLandingContent } from "@/lib/content/get";
 import { LandingContentModel, SINGLETON } from "@/lib/content/models";
 import { revalidateFor } from "@/lib/content/revalidate";
+import { sanitizeLandingSections } from "@/lib/content/sanitize-blocks";
 import { saveRevision } from "@/lib/content/revisions";
 import {
   badRequest,
@@ -47,8 +48,11 @@ export async function PUT(req: NextRequest) {
   const parsed = saveLandingSchema.safeParse(json);
   if (!parsed.success) return badRequest(firstError(parsed.error));
 
-  const { sections, mode } = parsed.data;
-  const publishing = mode === "publish";
+  // A `blocks` section can carry rich text and hand-written HTML, so the whole
+  // list goes through the same sanitizing pass the page builder uses before any
+  // of it reaches Mongo.
+  const sections = sanitizeLandingSections(parsed.data.sections);
+  const publishing = parsed.data.mode === "publish";
 
   try {
     const editor = await getEditorName();

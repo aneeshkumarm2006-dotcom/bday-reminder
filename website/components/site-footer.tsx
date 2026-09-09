@@ -2,7 +2,7 @@ import Link from "next/link";
 
 import { Brand } from "@/components/brand";
 import { visibleFooterGroups } from "@/lib/content/get";
-import type { NavigationConfig, SocialLink } from "@/lib/content/types";
+import type { BrandConfig, NavigationConfig, SocialLink } from "@/lib/content/types";
 
 /**
  * Site footer: brand, admin-managed link groups, social profiles, and the legal
@@ -16,10 +16,12 @@ export function SiteFooter({
   navigation,
   socials = [],
   siteName,
+  brand,
 }: {
   navigation: NavigationConfig;
   socials?: SocialLink[];
   siteName: string;
+  brand?: BrandConfig;
 }) {
   const year = new Date().getFullYear();
   const groups = visibleFooterGroups(navigation);
@@ -42,7 +44,7 @@ export function SiteFooter({
         }
       >
         <div className="flex flex-col gap-2">
-          <Brand />
+          <Brand brand={brand} siteName={siteName} />
           {navigation.footer.tagline && (
             <p className="text-sm text-ink-muted">{navigation.footer.tagline}</p>
           )}

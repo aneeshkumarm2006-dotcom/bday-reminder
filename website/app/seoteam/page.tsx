@@ -4,6 +4,7 @@ import {
   FileText,
   Files,
   Images,
+  Layers,
   LayoutTemplate,
   Navigation,
   Scale,
@@ -218,6 +219,13 @@ export default async function SeoDashboardPage() {
             title="Legal & contact"
             value="3 pages"
             hint="Privacy, terms, contact"
+          />
+          <HubCard
+            href="/seoteam/built-in"
+            icon={Layers}
+            title="Built-in pages"
+            value="4 routes"
+            hint="Blog index, posts, 404, contact"
           />
         </div>
 

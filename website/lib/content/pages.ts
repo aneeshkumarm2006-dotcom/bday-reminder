@@ -1,12 +1,12 @@
 import { isValidObjectId } from "mongoose";
 
 import { connectDb } from "@/lib/blog/db";
-import { sanitizePostHtml } from "@/lib/blog/sanitize";
 import { slugify } from "@/lib/blog/slug";
 
 import { serializeSitePage } from "./get";
 import { SitePageModel, type SitePageDoc } from "./models";
 import { isReservedSlug } from "./reserved-slugs";
+import { sanitizeBlocks } from "./sanitize-blocks";
 import type { PageBlock, PageStatus, SitePage } from "./types";
 
 /**
@@ -32,17 +32,10 @@ function isDuplicateKeyError(err: unknown): boolean {
   );
 }
 
-/**
- * Rich-text blocks are the one place an editor supplies markup, so sanitize on
- * write with the blog's policy (no iframes, no scripts, no inline styles).
- * Doing it here rather than in the route means every path — create, update,
- * duplicate, import — is covered by construction.
- */
-export function sanitizeBlocks(blocks: PageBlock[]): PageBlock[] {
-  return blocks.map((block) =>
-    block.type === "richText" ? { ...block, html: sanitizePostHtml(block.html) } : block,
-  );
-}
+// Markup sanitizing lives in `./sanitize-blocks` so the landing, keyword-page
+// and built-in-page writers share the exact same pass. Re-exported here because
+// callers have imported it from this module since the page builder shipped.
+export { sanitizeBlocks };
 
 /** A free slug, honouring the reserved list and ignoring the page being edited. */
 async function uniqueSlug(base: string, excludeId?: string): Promise<string> {

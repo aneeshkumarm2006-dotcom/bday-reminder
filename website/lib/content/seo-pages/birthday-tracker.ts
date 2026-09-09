@@ -1,4 +1,4 @@
-import type { SeoLandingPageDef } from "./types";
+import type { SeoLandingPageSource } from "./types";
 
 /**
  * Targets the "birthday tracker app / birthday list app / birthday finder app"
@@ -9,7 +9,7 @@ import type { SeoLandingPageDef } from "./types";
  * Everything after that is the payoff: one always-sorted list that counts down
  * and reminds, which is what separates us from a static list app.
  */
-export const birthdayTrackerPage: SeoLandingPageDef = {
+export const birthdayTrackerPage: SeoLandingPageSource = {
   slug: "birthday-tracker",
   label: "Birthday tracker app",
   blurb: "Import birthdays from your contacts and keep everyone in one sorted list.",
