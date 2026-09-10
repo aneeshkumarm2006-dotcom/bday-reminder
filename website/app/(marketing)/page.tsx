@@ -8,6 +8,9 @@ import { metadataForPath } from "@/lib/content/metadata";
 import {
   faqItemsFromLandingSections,
   featureListFromSections,
+  primaryImageId,
+  sitePhotoFromLandingSections,
+  sitePhotoNode,
 } from "@/lib/content/page-graph";
 
 // Static-friendly homepage, refreshed hourly so newly published posts surface in
@@ -37,6 +40,12 @@ export default async function Home() {
     getPageMeta("/"),
   ]);
 
+  // The photograph, when the section is visible, becomes the page's
+  // `primaryImageOfPage` — read off the same sections the page renders, so
+  // hiding it in the admin removes the markup too.
+  const photo = sitePhotoFromLandingSections(sections);
+  const photoNode = photo ? sitePhotoNode(photo, "/") : null;
+
   return (
     <>
       {/* The one page that describes the company and the product in full, so it
@@ -53,6 +62,9 @@ export default async function Home() {
         includeApp
         faq={faqItemsFromLandingSections(sections)}
         featureList={featureListFromSections(sections)}
+        {...(photoNode
+          ? { nodes: [photoNode], primaryImageId: primaryImageId("/") }
+          : {})}
         customJsonLd={meta.customJsonLd}
       />
       <SmoothScroll />

@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { ToggleRow } from "@/components/ui/switch";
+import { PhotoField } from "@/components/seoteam/admin/photo-field";
 import { useToast } from "@/components/ui/toast";
 import { saveLanding } from "@/lib/content/admin-api";
 import { ADDABLE_SECTION_TYPES, SECTION_TEMPLATES } from "@/lib/content/defaults";
@@ -37,6 +38,7 @@ import type {
   HowItWorksSection,
   LandingSection,
   LatestPostsSection,
+  PhotoSection,
   SectionType,
   ValuePropSection,
 } from "@/lib/content/types";
@@ -51,6 +53,7 @@ const SECTION_LABELS: Record<LandingSection["type"], string> = {
   faq: "FAQ",
   getTheApp: "Get the app",
   blocks: "Custom blocks",
+  photo: "Photo",
 };
 
 /**
@@ -380,9 +383,56 @@ function SectionForm({
       return (
         <BlocksForm section={section} patch={patch as (c: Partial<BlocksSection>) => void} />
       );
+    case "photo":
+      return (
+        <PhotoForm section={section} patch={patch as (c: Partial<PhotoSection>) => void} />
+      );
     default:
       return null;
   }
+}
+
+/**
+ * The homepage's photograph.
+ *
+ * The same band the keyword pages get, and the same editor for it — one image,
+ * its alt text and a caption. A heading is offered but left blank by default:
+ * on the homepage the photo reads better as a beat between two sections than as
+ * a section announcing itself.
+ */
+function PhotoForm({
+  section,
+  patch,
+}: {
+  section: PhotoSection;
+  patch: (changes: Partial<PhotoSection>) => void;
+}) {
+  return (
+    <>
+      <PhotoField value={section.photo} onChange={(photo) => patch({ photo })} />
+      <FieldGrid>
+        <TextRow
+          label="Heading"
+          value={section.heading}
+          onChange={(heading) => patch({ heading })}
+          helper="Optional, centred above the photo. Usually best left empty."
+        />
+        <TextRow
+          label="Anchor"
+          value={section.anchor}
+          onChange={(anchor) => patch({ anchor })}
+          helper="Optional #id, so a nav link can jump here."
+        />
+      </FieldGrid>
+      <TextAreaRow
+        label="Sub-heading"
+        value={section.sub}
+        rows={2}
+        onChange={(sub) => patch({ sub })}
+        helper="Only shows when there's a heading above it."
+      />
+    </>
+  );
 }
 
 /**

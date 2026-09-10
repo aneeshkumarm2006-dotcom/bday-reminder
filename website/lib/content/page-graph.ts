@@ -16,7 +16,13 @@ import {
   webSiteNode,
   type JsonLdNode,
 } from "./site-json-ld";
-import type { FaqItem, LandingSection, PageBlock, SiteSettings } from "./types";
+import type {
+  FaqItem,
+  LandingSection,
+  PageBlock,
+  SitePhoto,
+  SiteSettings,
+} from "./types";
 
 /**
  * Builds the one `@graph` a public page emits.
@@ -163,6 +169,45 @@ export function featureListFromSections(sections: LandingSection[]): string[] {
     ])
     .map((title) => title.trim())
     .filter(Boolean);
+}
+
+/**
+ * The page's photograph, as the `primaryImageOfPage` ImageObject.
+ *
+ * Only a *visible* photo with a URL produces a node, for the same reason the FAQ
+ * extractor applies the visibility filter: markup that describes an image the
+ * page doesn't render is the one structured-data rule Google states flatly.
+ *
+ * Dimensions come from the stored `SitePhoto`, which the editor measured off the
+ * file itself — so unlike a post cover there's nothing to re-crop or guess at,
+ * and a photo whose size couldn't be measured simply states none.
+ */
+export function sitePhotoNode(photo: SitePhoto, path: string): JsonLdNode | null {
+  const url = photo.imageUrl.trim();
+  if (!url || !isHttpUrl(url)) return null;
+
+  const caption = photo.imageAlt.trim() || photo.caption.trim();
+  return {
+    "@type": "ImageObject",
+    "@id": primaryImageId(path),
+    url,
+    contentUrl: url,
+    ...(photo.width > 0 && photo.height > 0
+      ? { width: photo.width, height: photo.height }
+      : {}),
+    ...(caption ? { caption } : {}),
+  };
+}
+
+/** The homepage's photo section, if it's visible and has an image. */
+export function sitePhotoFromLandingSections(
+  sections: LandingSection[],
+): SitePhoto | null {
+  const section = sections.find(
+    (item): item is Extract<LandingSection, { type: "photo" }> =>
+      item.type === "photo" && item.visible && Boolean(item.photo.imageUrl.trim()),
+  );
+  return section ? section.photo : null;
 }
 
 /* --------------------------------- builder -------------------------------- */

@@ -12,6 +12,31 @@ export interface CtaLink {
   href: string;
 }
 
+/**
+ * A real photograph on a public page — the one image type on this site that
+ * isn't drawn from the design system.
+ *
+ * The rendered product shots carry the product; these carry the *subject*, so
+ * that a page about birthday calendars has something for Google Images to index
+ * and a reader something to look at between two walls of type. Blank `imageUrl`
+ * renders nothing, which is how a page opts out.
+ *
+ * `width`/`height` are the file's intrinsic pixel size, not a display size:
+ * they go straight onto the `<img>` so the browser can reserve the right box
+ * before the bytes land (CLS). The admin never types them — the editor measures
+ * the image when it's picked — and `0` simply means "unknown", which renders a
+ * dimensionless `<img>` exactly as before.
+ */
+export interface SitePhoto {
+  imageUrl: string;
+  /** Describes the photo. Empty is a real SEO/a11y gap, never "decorative". */
+  imageAlt: string;
+  /** Optional line under the image. Visible copy, so it's indexed too. */
+  caption: string;
+  width: number;
+  height: number;
+}
+
 /* --------------------------------- landing -------------------------------- */
 
 export type SectionType =
@@ -22,7 +47,8 @@ export type SectionType =
   | "latestPosts"
   | "faq"
   | "getTheApp"
-  | "blocks";
+  | "blocks"
+  | "photo";
 
 export interface BaseSection {
   /** Stable id — used for reordering, revisions, and merging over defaults. */
@@ -136,6 +162,15 @@ export interface GetTheAppSection extends BaseSection {
   footnote: string;
 }
 
+/** A photograph band on the homepage, between two designed sections. */
+export interface PhotoSection extends BaseSection {
+  type: "photo";
+  anchor: string;
+  heading: string;
+  sub: string;
+  photo: SitePhoto;
+}
+
 /**
  * The escape hatch that makes the homepage as modular as a custom page: an
  * ordered list of page-builder blocks, rendered inline among the built-in
@@ -164,7 +199,8 @@ export type LandingSection =
   | LatestPostsSection
   | FaqSection
   | GetTheAppSection
-  | BlocksSection;
+  | BlocksSection
+  | PhotoSection;
 
 export interface LandingVariant {
   sections: LandingSection[];

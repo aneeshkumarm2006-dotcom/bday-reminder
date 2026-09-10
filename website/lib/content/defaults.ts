@@ -213,6 +213,24 @@ export const DEFAULT_LANDING_SECTIONS: LandingSection[] = [
     body: "A reminder that arrives at the right time, in your timezone, with the person's name and age, plus a one-tap way to send the message. That's the whole idea.",
   },
   {
+    id: "photo",
+    type: "photo",
+    visible: true,
+    anchor: "",
+    heading: "",
+    sub: "",
+    photo: {
+      imageUrl:
+        "https://res.cloudinary.com/de26l2h0a/image/upload/v1789056764/circlethedate-blog/birthday-reminders-party-hat-cake-and-clock.webp",
+      imageAlt:
+        "A woman in a party hat holding a birthday cake in one hand and a wall clock in the other",
+      caption:
+        "Two halves of the same problem: knowing whose day it is, and knowing about it while there is still time to do something.",
+      width: 2000,
+      height: 1504,
+    },
+  },
+  {
     id: "features",
     type: "features",
     visible: true,
@@ -498,6 +516,15 @@ export const SECTION_TEMPLATES: Record<SectionType, LandingSection> = {
     storeBadges: false,
     footnote: "",
   },
+  photo: {
+    id: "photo",
+    type: "photo",
+    visible: true,
+    anchor: "",
+    heading: "",
+    sub: "",
+    photo: { imageUrl: "", imageAlt: "", caption: "", width: 0, height: 0 },
+  },
   blocks: {
     id: "blocks",
     type: "blocks",
@@ -519,6 +546,7 @@ export const SECTION_TEMPLATES: Record<SectionType, LandingSection> = {
  */
 export const ADDABLE_SECTION_TYPES: SectionType[] = [
   "blocks",
+  "photo",
   "valueProp",
   "features",
   "howItWorks",

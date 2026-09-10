@@ -37,6 +37,16 @@ export const freePage: SeoLandingPageSource = {
     footnote: "Free on web, iOS, and Android. No ads, no paid tier.",
     visuals: ["app", "reminder"],
   },
+  photo: {
+    imageUrl:
+      "https://res.cloudinary.com/de26l2h0a/image/upload/v1789056776/circlethedate-blog/free-birthday-reminder-app-video-call.webp",
+    imageAlt:
+      "Someone holding up a birthday cake and a wrapped gift to a phone on a tripod during a video call",
+    caption:
+      "Every part of it is free — including the reminder that got you to the call on time.",
+    width: 1762,
+    height: 1175,
+  },
   contrast: {
     headingParts: {
       lead: "Most",

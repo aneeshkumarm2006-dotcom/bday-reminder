@@ -13,6 +13,7 @@ import { BlockListEditor } from "@/components/seoteam/admin/block-list-editor";
 import { IconPicker } from "@/components/seoteam/admin/icon-picker";
 import { AdminSection, FieldGrid } from "@/components/seoteam/admin/layout";
 import { ListEditor, newId } from "@/components/seoteam/admin/list-editor";
+import { PhotoField } from "@/components/seoteam/admin/photo-field";
 import {
   SaveBar,
   useSaveShortcut,
@@ -39,7 +40,7 @@ import type {
   SeoLandingPageDef,
   SeoVisual,
 } from "@/lib/content/seo-pages/types";
-import type { BlockBackground } from "@/lib/content/types";
+import type { BlockBackground, SitePhoto } from "@/lib/content/types";
 import { cn } from "@/lib/utils";
 
 /**
@@ -67,6 +68,7 @@ type SectionKey =
   | "layout"
   | "hero"
   | "download"
+  | "photo"
   | "contrast"
   | "features"
   | "howItWorks"
@@ -79,6 +81,7 @@ const SECTIONS: { key: SectionKey; label: string; hint: string }[] = [
   { key: "layout", label: "Layout", hint: "Order, visibility, and extra blocks" },
   { key: "hero", label: "Hero", hint: "The fold: badge, headline, CTA" },
   { key: "download", label: "Download", hint: "The free file this page gives away" },
+  { key: "photo", label: "Photo", hint: "The page's one photograph, and its alt text" },
   { key: "contrast", label: "Contrast", hint: "Why the obvious alternative fails" },
   { key: "features", label: "Features", hint: "Three rows plus supporting cards" },
   { key: "howItWorks", label: "How it works", hint: "The steps on the ring" },
@@ -91,6 +94,7 @@ const SECTIONS: { key: SectionKey; label: string; hint: string }[] = [
 const LAYOUT_SECTION_LABELS: Record<SeoSectionKey, string> = {
   hero: "Hero",
   download: "Download",
+  photo: "Photo",
   contrast: "Contrast",
   features: "Features",
   howItWorks: "How it works",
@@ -322,6 +326,8 @@ function SectionForm({
       return page.download ? (
         <DownloadForm download={page.download} patch={(download) => patch({ download })} />
       ) : null;
+    case "photo":
+      return <PhotoForm photo={page.photo} patch={(photo) => patch({ photo })} />;
     case "contrast":
       return (
         <ContrastForm contrast={page.contrast} patch={(contrast) => patch({ contrast })} />
@@ -885,6 +891,30 @@ function DownloadForm({
           />
         </FieldGrid>
       </fieldset>
+    </>
+  );
+}
+
+/**
+ * The page's photograph. One image per page on purpose: the cluster's pages are
+ * arguments, and a gallery would dilute the one shot that has to carry the
+ * page's subject in Google Images.
+ */
+function PhotoForm({
+  photo,
+  patch,
+}: {
+  photo: SitePhoto;
+  patch: (next: SitePhoto) => void;
+}) {
+  return (
+    <>
+      <p className="rounded-md border border-border-subtle bg-surface-sunken/50 p-3 text-xs text-ink-muted">
+        This is the only photograph on the page — everything else is drawn from
+        the design system. It sits below the contrast band by default; the Layout
+        tab moves or hides it.
+      </p>
+      <PhotoField value={photo} onChange={patch} />
     </>
   );
 }

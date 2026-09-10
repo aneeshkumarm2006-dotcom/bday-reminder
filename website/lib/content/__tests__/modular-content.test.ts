@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import { BLOCK_DEFINITIONS, blockDefinitionsByGroup, blockTitle } from "../blocks";
-import { ADDABLE_SECTION_TYPES, DEFAULT_BUILT_IN_PAGES, SECTION_TEMPLATES } from "../defaults";
+import {
+  ADDABLE_SECTION_TYPES,
+  DEFAULT_BUILT_IN_PAGES,
+  DEFAULT_LANDING,
+  SECTION_TEMPLATES,
+} from "../defaults";
 import { isKnownIcon } from "../icons";
 import { sanitizeBlocks, sanitizeLandingSections } from "../sanitize-blocks";
 import { SEO_LANDING_PAGES } from "../seo-pages";
@@ -133,6 +138,26 @@ describe("keyword landing pages", () => {
     }
   });
 
+  it("ships a photograph with real alt text and a measured size", () => {
+    for (const page of SEO_LANDING_PAGES) {
+      const { photo } = page;
+      expect(photo.imageUrl, page.slug).toMatch(/^https:\/\//);
+      // A content image with no alt is the one image-SEO/a11y failure that
+      // matters, and the band is only worth having if it's described.
+      expect(photo.imageAlt.trim().length, page.slug).toBeGreaterThan(10);
+      expect(photo.imageAlt.trim().length, page.slug).toBeLessThanOrEqual(300);
+      // Without both dimensions the renderer can't reserve the box, and the
+      // photo shoves the rest of the page down as it loads (CLS).
+      expect(photo.width, page.slug).toBeGreaterThan(0);
+      expect(photo.height, page.slug).toBeGreaterThan(0);
+    }
+  });
+
+  it("gives each page its own photograph rather than one shared stock shot", () => {
+    const urls = SEO_LANDING_PAGES.map((page) => page.photo.imageUrl);
+    expect(new Set(urls).size).toBe(urls.length);
+  });
+
   it("gives every page a hero second button and a related strip", () => {
     for (const page of SEO_LANDING_PAGES) {
       expect(page.hero.secondaryCta.label, page.slug).not.toBe("");
@@ -180,5 +205,42 @@ describe("built-in pages", () => {
     const [block] = cleaned;
     expect(block.type === "html" && block.html).toContain("What to write to us about");
     expect(block.type === "html" && block.html).toContain('href="/privacy"');
+  });
+});
+
+describe("the homepage photograph", () => {
+  const section = DEFAULT_LANDING.sections.find((item) => item.type === "photo");
+
+  it("ships one, described and measured", () => {
+    expect(section).toBeDefined();
+    if (section?.type !== "photo") throw new Error("not a photo section");
+    expect(section.photo.imageUrl).toMatch(/^https:\/\//);
+    expect(section.photo.imageAlt.trim().length).toBeGreaterThan(10);
+    expect(section.photo.width).toBeGreaterThan(0);
+    expect(section.photo.height).toBeGreaterThan(0);
+  });
+
+  it("survives a save/validate round trip", () => {
+    const parsed = landingSectionSchema.safeParse(section);
+    expect(parsed.success, JSON.stringify(parsed)).toBe(true);
+    if (parsed.success) expect(parsed.data).toEqual(section);
+  });
+
+  it("keeps a bad measurement out of the markup rather than failing the save", () => {
+    const parsed = landingSectionSchema.safeParse({
+      ...SECTION_TEMPLATES.photo,
+      photo: {
+        imageUrl: "https://example.com/a.webp",
+        imageAlt: "A cake",
+        caption: "",
+        width: -4,
+        height: Number.NaN,
+      },
+    });
+    expect(parsed.success).toBe(true);
+    if (parsed.success && parsed.data.type === "photo") {
+      expect(parsed.data.photo.width).toBe(0);
+      expect(parsed.data.photo.height).toBe(0);
+    }
   });
 });

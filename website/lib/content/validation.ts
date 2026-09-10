@@ -99,6 +99,27 @@ const cta = z
   .default({ label: "", href: "/" });
 
 /**
+ * A photograph on a public page (`SitePhoto`).
+ *
+ * `width`/`height` are the file's intrinsic pixel size, written by the editor
+ * when the image is picked rather than typed by hand — they exist so the
+ * renderer can reserve the box and avoid a layout shift. They are capped at a
+ * sane pixel bound and fall back to 0 ("unknown"), which renders a
+ * dimensionless `<img>` rather than a collapsed one.
+ */
+const photoDimension = z.number().int().min(0).max(20000).catch(0).default(0);
+
+const sitePhoto = z
+  .object({
+    imageUrl: imageUrl.default(""),
+    imageAlt: z.string().trim().max(300).default(""),
+    caption: z.string().trim().max(400).default(""),
+    width: photoDimension,
+    height: photoDimension,
+  })
+  .prefault({});
+
+/**
  * A CSS colour the admin may set for the accent token.
  *
  * Interpolated into a `style` attribute on the public site, so it is matched
@@ -805,6 +826,16 @@ const getTheAppSection = z.object({
  * on the landing page too, without a code change and without loosening what the
  * built-in sections are allowed to be.
  */
+const photoSection = z.object({
+  id: idString,
+  type: z.literal("photo"),
+  visible: z.boolean().default(true),
+  anchor: z.string().trim().max(60).default(""),
+  heading: z.string().trim().max(200).default(""),
+  sub: z.string().trim().max(600).default(""),
+  photo: sitePhoto,
+});
+
 const blocksSection = z.object({
   id: idString,
   type: z.literal("blocks"),
@@ -825,6 +856,7 @@ export const landingSectionSchema = z.discriminatedUnion("type", [
   faqSection,
   getTheAppSection,
   blocksSection,
+  photoSection,
 ]);
 
 export const landingVariantSchema = z.object({
@@ -885,6 +917,7 @@ const seoLayoutItem = z.discriminatedUnion("kind", [
     section: z.enum([
       "hero",
       "download",
+      "photo",
       "contrast",
       "features",
       "howItWorks",
@@ -940,6 +973,10 @@ export const seoPageContentSchema = z.object({
       secondaryCta: cta,
     })
     .optional(),
+  // Unlike `download` this is prefaulted onto every page: a page with no
+  // photograph stores a blank one, which renders nothing and keeps the field in
+  // the editor. Blanking `imageUrl` is how a page is given one back.
+  photo: sitePhoto,
   contrast: z
     .object({
       headingParts: z

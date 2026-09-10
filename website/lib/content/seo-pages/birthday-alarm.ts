@@ -32,6 +32,16 @@ export const birthdayAlarmPage: SeoLandingPageSource = {
     footnote: "Free on web, iOS, and Android. No ads, no paid tier.",
     visuals: ["app", "reminder"],
   },
+  photo: {
+    imageUrl:
+      "https://res.cloudinary.com/de26l2h0a/image/upload/v1789056771/circlethedate-blog/birthday-alarm-clock-with-party-streamers.webp",
+    imageAlt:
+      "A small white alarm clock standing among curled gold party streamers",
+    caption:
+      "One alarm, set once. The difference here is that it goes off again next year without you touching it.",
+    width: 2000,
+    height: 1335,
+  },
   contrast: {
     headingParts: {
       lead: "One",
@@ -198,6 +208,7 @@ export const birthdayAlarmPage: SeoLandingPageSource = {
   layout: [
     { id: "slot-hero", kind: "section", section: "hero", visible: true },
     { id: "slot-contrast", kind: "section", section: "contrast", visible: true },
+    { id: "slot-photo", kind: "section", section: "photo", visible: true },
     { id: "slot-features", kind: "section", section: "features", visible: true },
     {
       id: "group-alarm-overview",

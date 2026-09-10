@@ -38,6 +38,16 @@ export function normalizeSeoPage(page: SeoLandingPageSource): SeoLandingPageDef 
 
   return {
     ...page,
+    // Always a complete object, even on a page with no photograph: a stored
+    // override is deep-merged key-by-key over this, so a missing default would
+    // leave the admin's edit with nothing to merge onto.
+    photo: {
+      imageUrl: page.photo?.imageUrl ?? "",
+      imageAlt: page.photo?.imageAlt ?? "",
+      caption: page.photo?.caption ?? "",
+      width: page.photo?.width ?? 0,
+      height: page.photo?.height ?? 0,
+    },
     hero: {
       ...page.hero,
       secondaryCta: page.hero.secondaryCta ?? {

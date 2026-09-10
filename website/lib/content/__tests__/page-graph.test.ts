@@ -20,10 +20,20 @@ import {
   pageId,
   postImageNode,
   postListItems,
+  primaryImageId,
+  sitePhotoFromLandingSections,
+  sitePhotoNode,
   type PageGraphInput,
 } from "../page-graph";
 import { APP_ID, ORG_ID, WEBSITE_ID } from "../site-json-ld";
-import type { FaqSection, FeaturesSection, LandingSection, PageBlock } from "../types";
+import type {
+  FaqSection,
+  FeaturesSection,
+  LandingSection,
+  PageBlock,
+  PhotoSection,
+  SitePhoto,
+} from "../types";
 
 type Node = Record<string, unknown>;
 
@@ -385,5 +395,77 @@ describe("custom JSON-LD de-duplication", () => {
       { "@type": "Event", name: "Launch party" },
     ];
     expect(filterCustomNodes(pasted, reserved())).toEqual({ "@type": "Event", name: "Launch party" });
+  });
+});
+
+describe("the page photograph", () => {
+  const photo: SitePhoto = {
+    imageUrl: "https://res.cloudinary.com/demo/image/upload/cake.webp",
+    imageAlt: "A birthday cake on a table",
+    caption: "A caption that isn't the alt text",
+    width: 1600,
+    height: 1067,
+  };
+
+  const photoSection = (over: Partial<PhotoSection> = {}): PhotoSection => ({
+    id: "photo",
+    type: "photo",
+    visible: true,
+    anchor: "",
+    heading: "",
+    sub: "",
+    photo,
+    ...over,
+  });
+
+  it("describes the image with the size the editor measured", () => {
+    expect(sitePhotoNode(photo, "/birthday-calendar")).toEqual({
+      "@type": "ImageObject",
+      "@id": primaryImageId("/birthday-calendar"),
+      url: photo.imageUrl,
+      contentUrl: photo.imageUrl,
+      width: 1600,
+      height: 1067,
+      caption: "A birthday cake on a table",
+    });
+  });
+
+  it("states no dimensions when the image couldn't be measured", () => {
+    const node = sitePhotoNode({ ...photo, width: 0, height: 0 }, "/free");
+    expect(node).not.toHaveProperty("width");
+    expect(node).not.toHaveProperty("height");
+  });
+
+  it("falls back to the caption when there's no alt text", () => {
+    const node = sitePhotoNode({ ...photo, imageAlt: "" }, "/free");
+    expect(node).toMatchObject({ caption: photo.caption });
+  });
+
+  it("emits nothing for a blank or non-http image", () => {
+    expect(sitePhotoNode({ ...photo, imageUrl: "" }, "/free")).toBeNull();
+    expect(sitePhotoNode({ ...photo, imageUrl: "/local.png" }, "/free")).toBeNull();
+  });
+
+  it("only picks up a landing photo section the page actually renders", () => {
+    expect(sitePhotoFromLandingSections([photoSection()])).toEqual(photo);
+    expect(sitePhotoFromLandingSections([photoSection({ visible: false })])).toBeNull();
+    expect(
+      sitePhotoFromLandingSections([
+        photoSection({ photo: { ...photo, imageUrl: "" } }),
+      ]),
+    ).toBeNull();
+  });
+
+  it("hangs the image off the page node as primaryImageOfPage", () => {
+    const node = sitePhotoNode(photo, "/free");
+    const nodes = graph({
+      path: "/free",
+      name: "Free",
+      nodes: node ? [node] : [],
+      primaryImageId: primaryImageId("/free"),
+    });
+    const page = nodes.find((n) => n["@id"] === pageId("/free"));
+    expect(page?.primaryImageOfPage).toEqual({ "@id": primaryImageId("/free") });
+    expect(nodes.some((n) => n["@id"] === primaryImageId("/free"))).toBe(true);
   });
 });

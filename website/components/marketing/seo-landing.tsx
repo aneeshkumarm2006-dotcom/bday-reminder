@@ -12,10 +12,12 @@ import {
   previewFor,
 } from "@/components/marketing/landing-sections";
 import { PageGraph } from "@/components/page-graph";
+import { primaryImageId, sitePhotoNode } from "@/lib/content/page-graph";
 import { Reveal } from "@/components/reveal";
 import { HeroTodayRing } from "@/components/today-rings";
 import { buttonVariants } from "@/components/ui/button";
 import { PageBlocks } from "@/components/marketing/page-blocks";
+import { PhotoBand } from "@/components/marketing/photo-band";
 import { getAllSeoPageContent, getPageMeta } from "@/lib/content/get";
 import type {
   SeoDownload,
@@ -47,6 +49,22 @@ export async function SeoLandingPage({ page }: { page: SeoLandingPageDef }) {
   );
   const meta = await getPageMeta(path);
 
+  /** True when the layout renders a given built-in band (hidden slots don't). */
+  const shows = (key: SeoSectionKey) =>
+    page.layout.some(
+      (item) => item.kind === "section" && item.section === key && item.visible,
+    );
+
+  // Structured data may only describe what the page actually renders, so both
+  // of these follow the layout's visibility flags rather than the content: a
+  // hidden FAQ band must take its FAQPage markup with it (which is what the
+  // layout editor tells the SEO team it does), and a hidden photo must not be
+  // claimed as the page's primary image.
+  const faqItems = shows("faq")
+    ? page.faq.items.map((item) => ({ q: item.q, a: item.a }))
+    : [];
+  const photoNode = shows("photo") ? sitePhotoNode(page.photo, path) : null;
+
   /**
    * One built-in band. Everything here is either a homepage section component
    * reused verbatim or built from the same exported primitives, so a landing
@@ -61,6 +79,10 @@ export async function SeoLandingPage({ page }: { page: SeoLandingPageDef }) {
         // Only the page that ships a file has one; the slot renders nothing on
         // the others rather than showing an empty band.
         return page.download ? <SeoDownloadBand download={page.download} /> : null;
+      case "photo":
+        // Blank `imageUrl` renders nothing, so a page without a photograph
+        // keeps the slot (and the editor field) without an empty band.
+        return <PhotoBand photo={page.photo} />;
       case "contrast":
         return (
           <ValueProp
@@ -137,7 +159,10 @@ export async function SeoLandingPage({ page }: { page: SeoLandingPageDef }) {
         description={meta.description || page.description}
         about="app"
         breadcrumb={[{ name: "Home", path: "/" }, { name: page.label }]}
-        faq={page.faq.items.map((item) => ({ q: item.q, a: item.a }))}
+        faq={faqItems}
+        {...(photoNode
+          ? { nodes: [photoNode], primaryImageId: primaryImageId(path) }
+          : {})}
         customJsonLd={meta.customJsonLd}
       />
 

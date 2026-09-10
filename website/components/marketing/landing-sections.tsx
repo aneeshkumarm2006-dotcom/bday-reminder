@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { AppPreview, ReminderPreview, WidgetPreview } from "@/components/app-preview";
 import { PageBlocks } from "@/components/marketing/page-blocks";
+import { PhotoBand } from "@/components/marketing/photo-band";
 import { ContentIcon } from "@/components/content-icon";
 import { PostCard } from "@/components/blog/post-card";
 import { Reveal } from "@/components/reveal";
@@ -21,6 +22,7 @@ import type {
   HowItWorksSection as HowItWorksSectionContent,
   LandingSection,
   LatestPostsSection as LatestPostsSectionContent,
+  PhotoSection as PhotoSectionContent,
   StoreBadgeConfig,
   ValuePropSection as ValuePropSectionContent,
 } from "@/lib/content/types";
@@ -66,6 +68,8 @@ function LandingSectionRenderer({ section }: { section: LandingSection }) {
       return <GetTheApp content={section} />;
     case "blocks":
       return <BlocksBand content={section} />;
+    case "photo":
+      return <PhotoSectionBand content={section} />;
     default:
       return null;
   }
@@ -458,6 +462,21 @@ export function Faq({ content }: { content: FaqSectionContent }) {
  * content change rather than a code change — and because the blocks reuse the
  * same visual language, adding one still can't take the page off-brand.
  */
+/**
+ * The homepage's photograph, rendered by the same component the keyword pages
+ * use so the two can never drift apart.
+ */
+export function PhotoSectionBand({ content }: { content: PhotoSectionContent }) {
+  return (
+    <PhotoBand
+      photo={content.photo}
+      heading={content.heading}
+      sub={content.sub}
+      anchor={content.anchor}
+    />
+  );
+}
+
 export function BlocksBand({ content }: { content: BlocksSectionContent }) {
   if (content.blocks.length === 0) return null;
 

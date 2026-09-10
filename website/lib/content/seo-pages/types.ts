@@ -4,6 +4,7 @@ import type {
   FaqItem,
   HowItWorksStep,
   PageBlock,
+  SitePhoto,
 } from "../types";
 
 /**
@@ -148,6 +149,7 @@ export interface SeoCta {
 export type SeoSectionKey =
   | "hero"
   | "download"
+  | "photo"
   | "contrast"
   | "features"
   | "howItWorks"
@@ -185,6 +187,7 @@ export const DEFAULT_SEO_SECTION_ORDER: readonly SeoSectionKey[] = [
   "hero",
   "download",
   "contrast",
+  "photo",
   "features",
   "howItWorks",
   "faq",
@@ -206,6 +209,13 @@ export interface SeoLandingPageDef {
   hero: SeoHero;
   /** Only set on pages that ship a file — see `SeoDownload`. */
   download?: SeoDownload;
+  /**
+   * The page's one photograph. Unlike `download` this is present on every page
+   * (blank `imageUrl` renders nothing), because a page that has no photo today
+   * should still show the field in the editor rather than making the SEO team
+   * ask an engineer for one.
+   */
+  photo: SitePhoto;
   contrast: SeoContrast;
   features: SeoFeatures;
   howItWorks: SeoHowItWorks;
@@ -219,9 +229,11 @@ export interface SeoLandingPageDef {
 /** A page file as authored: everything but the derived fields. */
 export type SeoLandingPageSource = Omit<
   SeoLandingPageDef,
-  "layout" | "related" | "hero"
+  "layout" | "related" | "hero" | "photo"
 > & {
   hero: Omit<SeoHero, "secondaryCta"> & { secondaryCta?: CtaLink };
+  /** Partial so a page file can give the URL and alt and skip the pixel size. */
+  photo?: Partial<SitePhoto>;
   related?: Partial<SeoRelated>;
   layout?: SeoLayoutItem[];
 };

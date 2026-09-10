@@ -27,6 +27,16 @@ export const birthdayCountdownAppPage: SeoLandingPageSource = {
     footnote: "Free on web, iOS, and Android. No ads, no paid tier.",
     visuals: ["app", "reminder"],
   },
+  photo: {
+    imageUrl:
+      "https://res.cloudinary.com/de26l2h0a/image/upload/v1789056767/circlethedate-blog/birthday-countdown-app-phone-on-party-table.webp",
+    imageAlt:
+      "A hand holding a phone over a birthday table set with cake, gold confetti and a party hat",
+    caption:
+      "Counting the days is the easy half. The useful half is being told while there is still time to order, book, or write something.",
+    width: 2000,
+    height: 1333,
+  },
   contrast: {
     headingParts: {
       lead: "A",
@@ -190,6 +200,7 @@ export const birthdayCountdownAppPage: SeoLandingPageSource = {
   layout: [
     { id: "slot-hero", kind: "section", section: "hero", visible: true },
     { id: "slot-contrast", kind: "section", section: "contrast", visible: true },
+    { id: "slot-photo", kind: "section", section: "photo", visible: true },
     { id: "slot-features", kind: "section", section: "features", visible: true },
     {
       id: "group-countdown-overview",

@@ -33,6 +33,16 @@ export const familyBirthdayCalendarPage: SeoLandingPageSource = {
     footnote: "Free on web, iOS, and Android. No ads, no paid tier.",
     visuals: ["app"],
   },
+  photo: {
+    imageUrl:
+      "https://res.cloudinary.com/de26l2h0a/image/upload/v1789056773/circlethedate-blog/family-birthday-calendar-june-wall-calendar.webp",
+    imageAlt:
+      "A wall calendar for June with “Happy Birthday” written on the 9th, framed by party hats, gifts and confetti",
+    caption:
+      "The family calendar everyone can see — and, unlike this one, everyone can write to from wherever they are.",
+    width: 2000,
+    height: 1333,
+  },
   contrast: {
     headingParts: {
       lead: "A",
