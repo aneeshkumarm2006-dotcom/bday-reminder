@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { logAction } from "@/lib/content/audit";
 import { getEditorName } from "@/lib/content/editor-server";
-import { getAllSitePages } from "@/lib/content/get";
+import { getAllSitePages, isSitePageLive } from "@/lib/content/get";
 import { createSitePage, isSlugAvailable } from "@/lib/content/pages";
 import { revalidateFor } from "@/lib/content/revalidate";
 import {
@@ -13,6 +13,7 @@ import {
   serverError,
 } from "@/lib/content/route-utils";
 import { createSitePageSchema } from "@/lib/content/validation";
+import { pingIndexNow } from "@/lib/indexnow";
 
 export const dynamic = "force-dynamic";
 
@@ -53,6 +54,10 @@ export async function POST(req: NextRequest) {
     const page = await createSitePage({ ...parsed.data, author: parsed.data.author || editor });
 
     revalidateFor("page", { slug: page.slug });
+    // Only a page that is actually live: a draft (or one scheduled for next
+    // week) has no page behind the URL yet, and a 404 is a poor first impression.
+    if (isSitePageLive(page)) pingIndexNow(`/${page.slug}`);
+
     await logAction({
       action: "create",
       entityType: "page",

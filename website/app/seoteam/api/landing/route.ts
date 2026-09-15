@@ -16,6 +16,7 @@ import {
   serverError,
 } from "@/lib/content/route-utils";
 import { saveLandingSchema } from "@/lib/content/validation";
+import { pingIndexNow } from "@/lib/indexnow";
 
 export const dynamic = "force-dynamic";
 
@@ -76,7 +77,11 @@ export async function PUT(req: NextRequest) {
       { upsert: true, new: true, setDefaultsOnInsert: true },
     );
 
-    if (publishing) revalidateFor("landing");
+    if (publishing) {
+      revalidateFor("landing");
+      // Publishing rewrites the homepage; a draft save leaves it untouched.
+      pingIndexNow("/");
+    }
 
     const visible = sections.filter((s) => s.visible).length;
     await logAction({

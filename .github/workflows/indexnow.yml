@@ -1,0 +1,134 @@
+name: IndexNow
+
+# Ping the IndexNow engines (Bing, Yandex, Naver, Seznam, Yep — not Google) for
+# marketing pages that ship through *code* rather than through /seoteam.
+#
+# Everything published from the admin pings itself the moment it saves
+# (website/lib/indexnow.ts). What that can't see is a landing page whose copy
+# lives in `lib/content/seo-pages/`, or a new route file — those change on a
+# deploy, and this is the deploy-side half of the same job.
+#
+# The method: after the Vercel deploy is live, fetch production's /sitemap.xml,
+# diff it against the previous run's snapshot (actions/cache), and submit only
+# what moved. `paths: website/**` keeps it off pushes that only touch the
+# backend or the mobile app — a sitemap fetched after one of those has nothing
+# new to say, and the static routes' `lastModified` is stamped at fetch time,
+# so it would look changed anyway.
+#
+# Requires the INDEXNOW_KEY repository secret (Settings → Secrets → Actions),
+# matching the key committed at website/public/<key>.txt. Without it the job
+# skips itself rather than failing.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'website/**'
+  workflow_dispatch:
+    inputs:
+      all:
+        description: 'Submit every sitemap URL, ignoring the diff'
+        type: boolean
+        default: false
+
+concurrency:
+  group: indexnow
+  cancel-in-progress: false
+
+env:
+  SITE_URL: https://birthdayreminders.us
+
+jobs:
+  ping:
+    name: Submit changed URLs
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: website
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: website/package-lock.json
+
+      - name: Check the key is configured
+        id: key
+        env:
+          INDEXNOW_KEY: ${{ secrets.INDEXNOW_KEY }}
+        run: |
+          if [ -z "$INDEXNOW_KEY" ]; then
+            echo "::warning::INDEXNOW_KEY is not set — skipping. See website/README.md."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Vercel builds from this same push, so production serves the previous
+      # build for the first couple of minutes. This is a time-based wait plus a
+      # reachability check, not a deployment-status signal — being early is not
+      # dangerous, because the snapshot diff is idempotent: an early run submits
+      # the old build's URLs and the next run catches whatever it missed.
+      #
+      # Stability is judged on the `<loc>` set alone. `app/sitemap.ts` stamps the
+      # static routes' `<lastmod>` at fetch time, so comparing whole documents
+      # would never find two reads equal and this would always burn its full
+      # timeout.
+      - name: Wait for the production deploy
+        if: steps.key.outputs.ready == 'true'
+        run: |
+          sleep 180
+          previous=""
+          for attempt in $(seq 1 12); do
+            if body=$(curl -fsS --max-time 30 "$SITE_URL/sitemap.xml"); then
+              current=$(printf '%s' "$body" | grep -o '<loc>[^<]*</loc>' | sort)
+              if [ -n "$previous" ] && [ "$current" = "$previous" ]; then
+                echo "Sitemap reachable and its URL set is stable (attempt ${attempt})."
+                exit 0
+              fi
+              previous="$current"
+            else
+              echo "Attempt ${attempt}: sitemap not reachable yet."
+            fi
+            sleep 20
+          done
+          echo "::warning::Sitemap never settled; continuing with whatever is live."
+
+      - name: Restore the previous sitemap snapshot
+        if: steps.key.outputs.ready == 'true'
+        id: snapshot
+        uses: actions/cache/restore@v4
+        with:
+          path: website/sitemap-snapshot.json
+          # Cache entries are immutable, so the key carries the commit and the
+          # prefix restores whatever the last run wrote.
+          key: indexnow-sitemap-${{ github.sha }}
+          restore-keys: |
+            indexnow-sitemap-
+
+      - name: Diff the sitemap
+        if: steps.key.outputs.ready == 'true'
+        id: diff
+        env:
+          SUBMIT_ALL: ${{ inputs.all }}
+        run: node scripts/indexnow-diff.mjs
+
+      - name: Submit the changed URLs
+        if: steps.key.outputs.ready == 'true' && steps.diff.outputs.count != '0'
+        env:
+          INDEXNOW_KEY: ${{ secrets.INDEXNOW_KEY }}
+          NEXT_PUBLIC_SITE_URL: ${{ env.SITE_URL }}
+        run: |
+          npm ci
+          xargs -a changed-urls.txt npm run indexnow:ping --
+
+      # Saved last so a failed submission leaves the old snapshot in place and
+      # the next run retries the same URLs instead of forgetting them.
+      - name: Save the sitemap snapshot
+        if: steps.key.outputs.ready == 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: website/sitemap-snapshot.json
+          key: indexnow-sitemap-${{ github.sha }}

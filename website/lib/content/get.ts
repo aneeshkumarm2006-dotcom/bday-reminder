@@ -328,6 +328,18 @@ export function publishedPageFilter() {
   };
 }
 
+/**
+ * The in-memory twin of `publishedPageFilter()`: is this page visible to the
+ * public *right now*? Used by the publish paths to decide whether a URL is
+ * worth announcing — a draft, or a page scheduled for next Tuesday, has no
+ * page behind it yet.
+ */
+export function isSitePageLive(page: Pick<SitePage, "status" | "publishedAt">): boolean {
+  if (page.status !== "published") return false;
+  if (!page.publishedAt) return true;
+  return new Date(page.publishedAt) <= new Date();
+}
+
 export const getPublishedSitePage = cache(
   async (slug: string): Promise<SitePage | null> =>
     safeRead(null as SitePage | null, async () => {

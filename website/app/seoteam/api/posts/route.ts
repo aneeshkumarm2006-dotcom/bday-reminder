@@ -4,6 +4,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { sanitizePostHtml } from "@/lib/blog/sanitize";
 import { createPost, getAllPosts } from "@/lib/blog/posts";
 import { createPostSchema, firstZodError } from "@/lib/blog/validation";
+import { pingIndexNow } from "@/lib/indexnow";
 import { getSeoSession } from "@/lib/seo-auth/server";
 
 function unauthorized() {
@@ -47,6 +48,9 @@ export async function POST(req: NextRequest) {
     revalidatePath("/blog");
     revalidatePath(`/blog/${post.slug}`);
     revalidatePath("/sitemap.xml");
+
+    // The index changes too — a new post pushes the last one off page one.
+    pingIndexNow([`/blog/${post.slug}`, "/blog"]);
 
     return NextResponse.json({ post }, { status: 201 });
   } catch (err) {

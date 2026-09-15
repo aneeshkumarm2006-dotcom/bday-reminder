@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { connectDb } from "@/lib/blog/db";
 import { logAction } from "@/lib/content/audit";
 import { getEditorName } from "@/lib/content/editor-server";
+import { isSitePageLive } from "@/lib/content/get";
 import { PageMetaModel } from "@/lib/content/models";
 import {
   deleteSitePage,
@@ -21,6 +22,7 @@ import {
   serverError,
 } from "@/lib/content/route-utils";
 import { updateSitePageSchema } from "@/lib/content/validation";
+import { pingIndexNow } from "@/lib/indexnow";
 
 export const dynamic = "force-dynamic";
 
@@ -70,6 +72,17 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       ).catch(() => undefined);
     }
     revalidateFor("page", { slug: page.slug });
+
+    // Old and new on a rename, so the old URL's 404 (or redirect) is read as
+    // promptly as the new page is. `force` because unpublishing and flipping to
+    // noindex are precisely the edits an engine has to come back and see — but
+    // an edit that leaves a draft a draft never had a public URL to announce.
+    if (isSitePageLive(page) || isSitePageLive(before)) {
+      pingIndexNow(
+        before.slug !== page.slug ? [`/${page.slug}`, `/${before.slug}`] : `/${page.slug}`,
+        { force: true },
+      );
+    }
 
     await logAction({
       action: "update",
@@ -125,6 +138,8 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
     await deleteSitePage(id);
 
     revalidateFor("page", { slug: before.slug });
+    if (isSitePageLive(before)) pingIndexNow(`/${before.slug}`, { force: true });
+
     await connectDb();
     await PageMetaModel.deleteOne({ path: `/${before.slug}` }).catch(() => undefined);
 

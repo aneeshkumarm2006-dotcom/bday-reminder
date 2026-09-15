@@ -11,6 +11,7 @@ import {
   getNavigation,
   getSeoPageContent,
   getSiteSettings,
+  isSitePageLive,
 } from "@/lib/content/get";
 import {
   BuiltInPagesModel,
@@ -34,7 +35,9 @@ import {
   serverError,
 } from "@/lib/content/route-utils";
 import { getSeoLandingPage } from "@/lib/content/seo-pages";
+import { GRAPH_ROUTES } from "@/lib/content/static-routes";
 import { importBundleSchema } from "@/lib/content/validation";
+import { pingIndexNow } from "@/lib/indexnow";
 
 export const dynamic = "force-dynamic";
 
@@ -62,6 +65,9 @@ export async function POST(req: NextRequest) {
 
   const bundle = parsed.data;
   const applied: string[] = [];
+  // Every public URL this import actually changes, gathered as we go so the
+  // whole restore leaves in a single IndexNow request rather than a dozen.
+  const changedUrls = new Set<string>();
 
   try {
     const editor = await getEditorName();
@@ -75,6 +81,9 @@ export async function POST(req: NextRequest) {
         { upsert: true, setDefaultsOnInsert: true },
       );
       revalidateFor("site");
+      // Title template, JSON-LD, the announcement bar: site settings reach every
+      // page that emits a graph, which is every public page.
+      for (const path of GRAPH_ROUTES) changedUrls.add(path);
       applied.push("site settings");
     }
 
@@ -97,6 +106,9 @@ export async function POST(req: NextRequest) {
         { upsert: true, setDefaultsOnInsert: true },
       );
       revalidateFor("navigation");
+      // Header and footer render on every page, and the footer is real internal
+      // linking — a restored nav changes what each page links to.
+      for (const path of GRAPH_ROUTES) changedUrls.add(path);
       applied.push("navigation");
     }
 
@@ -111,6 +123,7 @@ export async function POST(req: NextRequest) {
           { upsert: true, setDefaultsOnInsert: true },
         );
         revalidateFor("meta", { path });
+        changedUrls.add(path);
       }
       applied.push(`${bundle.meta.length} page SEO record(s)`);
     }
@@ -124,6 +137,7 @@ export async function POST(req: NextRequest) {
           { upsert: true, setDefaultsOnInsert: true },
         );
         revalidateFor("legal", { legalKey: doc.key });
+        changedUrls.add(`/${doc.key}`);
       }
       applied.push(`${bundle.legal.length} legal page(s)`);
     }
@@ -132,6 +146,7 @@ export async function POST(req: NextRequest) {
       for (const page of bundle.pages) {
         const created = await createSitePage({ ...page, author: page.author || editor });
         revalidateFor("page", { slug: created.slug });
+        if (isSitePageLive(created)) changedUrls.add(`/${created.slug}`);
       }
       applied.push(`${bundle.pages.length} custom page(s)`);
     }
@@ -168,6 +183,8 @@ export async function POST(req: NextRequest) {
         { upsert: true, setDefaultsOnInsert: true },
       );
       revalidateFor("built-in");
+      changedUrls.add("/blog");
+      changedUrls.add("/contact");
       applied.push("built-in pages");
     }
 
@@ -181,8 +198,21 @@ export async function POST(req: NextRequest) {
         );
       }
       revalidateRedirects();
+      // The `from` URLs now answer with a redirect; submitting them is how the
+      // engine learns to follow it instead of re-serving the old target. A rule
+      // that arrives disabled changes nothing, so it announces nothing.
+      for (const rule of bundle.redirects) {
+        if (rule.enabled) changedUrls.add(rule.from);
+      }
       applied.push(`${bundle.redirects.length} redirect(s)`);
     }
+
+    // One request for the whole restore. `force` because an import is exactly
+    // the bulk edit that can flip pages to noindex or excluded — and a URL whose
+    // robots directive just changed is a URL an engine has to come back and read.
+    // (The landing page and the keyword pages import as *drafts*, so nothing
+    // public changed for them and neither appears here.)
+    pingIndexNow([...changedUrls], { force: true });
 
     await logAction({
       action: "import",

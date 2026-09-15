@@ -31,6 +31,8 @@ Copy `.env.example` to `.env.local`. Both vars are optional (defaults in
 
 - `NEXT_PUBLIC_SITE_URL` - the site's own origin (canonical, OG, sitemap, robots).
 - `NEXT_PUBLIC_APP_URL` - the deployed web app, the "open the app" CTA target.
+- `INDEXNOW_KEY` - instant indexing for Bing and friends. See
+  [IndexNow](#indexnow-instant-indexing) for the one manual setup step.
 
 ## Site admin (`/seoteam`)
 
@@ -67,6 +69,67 @@ Three rules hold the whole thing together:
 Optional: `npm run seed:content` writes today's copy into Mongo so the admin
 opens pre-populated instead of showing placeholders.
 
+## IndexNow (instant indexing)
+
+[IndexNow](https://www.indexnow.org/) is a free, open protocol: publish, change
+or delete a URL and the site *tells* the engines, instead of waiting to be
+crawled. **Bing, Yandex, Naver, Seznam and Yep** participate — **Google does
+not**, and nothing here affects Google, which still discovers the site through
+`app/sitemap.ts` as before.
+
+Bing is the reason to bother: it is a primary retrieval layer for ChatGPT
+Search, so a post Bing hasn't re-crawled is a post that doesn't exist to a large
+slice of AI search. There is no paid API and no new dependency — one `fetch` to
+`api.indexnow.org`.
+
+Two things ping, covering the two ways a page changes:
+
+- **The admin.** Every publish path in `/seoteam` calls `pingIndexNow()`
+  (`lib/indexnow.ts`) on create, update, unpublish and delete — posts, custom
+  pages, keyword landing pages, the homepage, per-route SEO, and bulk imports.
+  A slug rename submits both halves; a deletion submits the URL too, because
+  fetching the 404 is how an engine learns to drop it.
+- **Deploys.** `.github/workflows/indexnow.yml` runs on pushes to `main` that
+  touch `website/`, waits for the Vercel deploy, diffs production's
+  `/sitemap.xml` against the previous run's snapshot, and submits only what
+  moved. That's the half the admin can't see: landing pages whose copy lives in
+  `lib/content/seo-pages/`.
+
+The ping is a hint, never a step: it is fire-and-forget, it never throws, and it
+can't delay or fail the save that triggered it. It submits exactly the URLs the
+sitemap advertises — `noindex`, `sitemap.exclude` and the sitewide indexing
+kill-switch are all honoured — and never an authenticated `(app)` route.
+Nothing is submitted unless `VERCEL_ENV=production`, so dev and preview deploys
+stay silent.
+
+### Setup — one manual step
+
+1. Generate a key at [bing.com/webmasters](https://www.bing.com/webmasters) →
+   **IndexNow**. (Any 8–128 hex-ish string works; using theirs is simplest.)
+2. Create `website/public/<key>.txt` containing **exactly that key** and nothing
+   else, and commit it. It is public by design — serving it at
+   `https://birthdayreminders.us/<key>.txt` is how ownership is proven, so it is
+   not a secret and does not belong in `.env` alone.
+3. Set `INDEXNOW_KEY` to the same value in **Vercel → Settings → Environment
+   Variables (Production)**, and as the `INDEXNOW_KEY` **GitHub repository
+   secret** (Settings → Secrets and variables → Actions) for the workflow.
+   Redeploy — Vercel bakes env vars at build time.
+
+Leave any of it out and nothing breaks: with no key the helper is a silent
+no-op, and the workflow logs a warning and skips.
+
+### Manual submission
+
+```bash
+npm run indexnow:ping -- /blog/my-post /birthday-calendar
+npm run indexnow:ping -- --all             # every URL in the live sitemap
+npm run indexnow:ping -- --all --dry-run   # print, don't submit
+```
+
+Use it for the first backfill after switching IndexNow on, or to re-submit after
+fixing the key file. A `403` or `422` in the logs means exactly one thing: the
+key file is wrong, and every ping is being thrown away until it's fixed.
+
 ## Structure
 
 ```
@@ -89,6 +152,7 @@ components/
   ui/button.tsx                       cva button (§8.14)
 lib/
   site.ts                             origin + fallback constants
+  indexnow.ts                         IndexNow ping (Bing et al.) — see above
   content/                            models, defaults, merge, validation, getters
 ```
 
@@ -109,4 +173,5 @@ that matters most, since it proves the defaults path still renders the site.
 
 Deploy on Vercel (or any Node host). Set `NEXT_PUBLIC_SITE_URL` /
 `NEXT_PUBLIC_APP_URL` to the real origins, plus `SESSION_SECRET`,
-`SEO_DASHBOARD_PASSWORD`, and `MONGODB_URI` for the admin.
+`SEO_DASHBOARD_PASSWORD`, and `MONGODB_URI` for the admin, and `INDEXNOW_KEY`
+(Production) if you want instant indexing.

@@ -17,8 +17,9 @@ import {
   readJson,
   serverError,
 } from "@/lib/content/route-utils";
-import { getSeoLandingPage } from "@/lib/content/seo-pages";
+import { SEO_LANDING_PATHS, getSeoLandingPage } from "@/lib/content/seo-pages";
 import { saveSeoPageSchema } from "@/lib/content/validation";
+import { pingIndexNow } from "@/lib/indexnow";
 
 export const dynamic = "force-dynamic";
 
@@ -105,7 +106,14 @@ export async function PUT(req: NextRequest, { params }: Params) {
       { upsert: true, new: true, setDefaultsOnInsert: true },
     );
 
-    if (publishing) revalidateFor("seo-page");
+    if (publishing) {
+      revalidateFor("seo-page");
+      // The whole cluster, for the same reason it all revalidates: every one of
+      // these pages renders the others' label and blurb in its cross-link strip,
+      // so a rename changes eight pages' copy, not one. A draft save changes
+      // nothing public, so it announces nothing.
+      pingIndexNow([...SEO_LANDING_PATHS]);
+    }
 
     await logAction({
       action: publishing ? "publish" : "save-draft",
@@ -149,6 +157,8 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
     await SeoPageContentModel.deleteOne({ slug });
 
     revalidateFor("seo-page");
+    pingIndexNow([...SEO_LANDING_PATHS]);
+
     await logAction({
       action: "reset",
       entityType: "seo-page",

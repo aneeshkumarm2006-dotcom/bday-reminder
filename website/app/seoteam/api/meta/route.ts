@@ -16,6 +16,7 @@ import {
   serverError,
 } from "@/lib/content/route-utils";
 import { normalizePath, pageMetaSchema } from "@/lib/content/validation";
+import { pingIndexNow } from "@/lib/indexnow";
 
 export const dynamic = "force-dynamic";
 
@@ -53,6 +54,13 @@ export async function PUT(req: NextRequest) {
     );
 
     revalidateFor("meta", { path });
+    // `force`, because this is the one endpoint that *sets* noindex and
+    // `sitemap.exclude` — and a page that just became noindex is precisely a
+    // page the engine has to re-read before it will drop it. Skipping the ping
+    // on the grounds that the page is now excluded would leave the old, indexed
+    // copy in place indefinitely.
+    pingIndexNow(path, { force: true });
+
     await logAction({
       action: "update",
       entityType: "meta",
@@ -85,6 +93,8 @@ export async function DELETE(req: NextRequest) {
     await PageMetaModel.deleteOne({ path });
 
     revalidateFor("meta", { path });
+    pingIndexNow(path, { force: true });
+
     await logAction({
       action: "reset",
       entityType: "meta",

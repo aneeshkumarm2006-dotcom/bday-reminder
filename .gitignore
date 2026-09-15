@@ -47,3 +47,8 @@ Thumbs.db
 
 # Play build artifacts — large binaries, fetched from EAS when needed
 store/android/*.aab
+
+# IndexNow workflow scratch files (.github/workflows/indexnow.yml writes these
+# into website/; the snapshot lives in the Actions cache, not the repo)
+website/sitemap-snapshot.json
+website/changed-urls.txt

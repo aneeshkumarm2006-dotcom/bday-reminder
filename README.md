@@ -85,6 +85,12 @@ npm install
 npm run dev               # http://localhost:3000
 ```
 
+The site pings **IndexNow** (Bing, Yandex, Naver, Seznam, Yep — not Google) the
+moment a page is published or changed, from both the `/seoteam` admin and a
+post-deploy workflow (`.github/workflows/indexnow.yml`). It needs one manual
+setup step — a key file committed to `website/public/` — documented in
+[`website/README.md`](website/README.md#indexnow-instant-indexing).
+
 ---
 
 ## Testing & QA

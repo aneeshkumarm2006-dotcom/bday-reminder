@@ -4,6 +4,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { deletePost, getPostById, updatePost } from "@/lib/blog/posts";
 import { sanitizePostHtml } from "@/lib/blog/sanitize";
 import { firstZodError, updatePostSchema } from "@/lib/blog/validation";
+import { pingIndexNow } from "@/lib/indexnow";
 import { getSeoSession } from "@/lib/seo-auth/server";
 
 function unauthorized() {
@@ -45,6 +46,15 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     }
     revalidatePath("/sitemap.xml");
 
+    // An unpublish is a change like any other — the URL still has to be
+    // re-read, which is how the engine learns the post is gone. A renamed slug
+    // submits both halves so the old one is dropped as the new one is found.
+    pingIndexNow([
+      `/blog/${post.slug}`,
+      ...(previous && previous.slug !== post.slug ? [`/blog/${previous.slug}`] : []),
+      "/blog",
+    ]);
+
     return NextResponse.json({ post });
   } catch (err) {
     console.error("PATCH /seoteam/api/posts/[id] failed:", err);
@@ -69,6 +79,9 @@ export async function DELETE(req: NextRequest, ctx: Ctx) {
     revalidatePath("/blog");
     if (previous) revalidatePath(`/blog/${previous.slug}`);
     revalidatePath("/sitemap.xml");
+
+    // A deleted URL is still submitted: a 404 is what tells the engine to drop it.
+    pingIndexNow([...(previous ? [`/blog/${previous.slug}`] : []), "/blog"]);
 
     return NextResponse.json({ ok: true });
   } catch (err) {
