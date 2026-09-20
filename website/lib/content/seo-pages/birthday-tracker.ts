@@ -36,7 +36,7 @@ export const birthdayTrackerPage: SeoLandingPageSource = {
     imageUrl:
       "https://res.cloudinary.com/de26l2h0a/image/upload/v1789056768/circlethedate-blog/birthday-tracker-notepad-cake-and-gifts.webp",
     imageAlt:
-      "A blank spiral notepad for writing down birthdays, surrounded by cake, wrapped gifts and confetti",
+      "A blank spiral notepad used as a birthday tracker, surrounded by cake, wrapped gifts and confetti",
     caption:
       "This is where most birthdays live: a page someone keeps meaning to copy somewhere safer.",
     width: 2000,

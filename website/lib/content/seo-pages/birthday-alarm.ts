@@ -36,7 +36,7 @@ export const birthdayAlarmPage: SeoLandingPageSource = {
     imageUrl:
       "https://res.cloudinary.com/de26l2h0a/image/upload/v1789056771/circlethedate-blog/birthday-alarm-clock-with-party-streamers.webp",
     imageAlt:
-      "A small white alarm clock standing among curled gold party streamers",
+      "A small white alarm clock set as a birthday alarm, standing among curled gold party streamers",
     caption:
       "One alarm, set once. The difference here is that it goes off again next year without you touching it.",
     width: 2000,

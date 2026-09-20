@@ -37,7 +37,7 @@ export const familyBirthdayCalendarPage: SeoLandingPageSource = {
     imageUrl:
       "https://res.cloudinary.com/de26l2h0a/image/upload/v1789056773/circlethedate-blog/family-birthday-calendar-june-wall-calendar.webp",
     imageAlt:
-      "A wall calendar for June with “Happy Birthday” written on the 9th, framed by party hats, gifts and confetti",
+      "A family birthday calendar for June with “Happy Birthday” written on the 9th, framed by party hats, gifts and confetti",
     caption:
       "The family calendar everyone can see — and, unlike this one, everyone can write to from wherever they are.",
     width: 2000,

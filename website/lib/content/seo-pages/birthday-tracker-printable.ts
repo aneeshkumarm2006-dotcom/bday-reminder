@@ -56,7 +56,7 @@ export const birthdayTrackerPrintablePage: SeoLandingPageSource = {
     imageUrl:
       "https://res.cloudinary.com/de26l2h0a/image/upload/v1789056769/circlethedate-blog/printable-birthday-tracker-twelve-months.webp",
     imageAlt:
-      "A printable birthday calendar with an empty box for each of the twelve months, decorated with cake, balloons and a party hat",
+      "A printable birthday tracker with an empty box for each of the twelve months, decorated with cake, balloons and a party hat",
     caption:
       "The sheet itself — one box per month, room for every name, and nothing to sign up for.",
     width: 842,

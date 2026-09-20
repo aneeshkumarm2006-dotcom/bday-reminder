@@ -31,7 +31,7 @@ export const birthdayCountdownAppPage: SeoLandingPageSource = {
     imageUrl:
       "https://res.cloudinary.com/de26l2h0a/image/upload/v1789056767/circlethedate-blog/birthday-countdown-app-phone-on-party-table.webp",
     imageAlt:
-      "A hand holding a phone over a birthday table set with cake, gold confetti and a party hat",
+      "A hand holding a phone over a birthday table set with cake, gold confetti and a party hat, the day a birthday countdown app counts down to",
     caption:
       "Counting the days is the easy half. The useful half is being told while there is still time to order, book, or write something.",
     width: 2000,

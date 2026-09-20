@@ -42,7 +42,7 @@ export const birthdayCalendarPage: SeoLandingPageSource = {
     imageUrl:
       "https://res.cloudinary.com/de26l2h0a/image/upload/v1789056765/circlethedate-blog/birthday-calendar-june-date-circled.webp",
     imageAlt:
-      "A paper June calendar with the 6th circled in orange and labelled “Birthday!” beside balloon stickers",
+      "A paper June calendar with the 6th circled in orange and labelled “Birthday!”, the sheet a digital birthday calendar replaces",
     caption:
       "A circled square only works if you happen to open the calendar that week. Sync yours and the reminder comes to you instead.",
     width: 1764,

@@ -51,7 +51,7 @@ export const anniversaryReminderAppPage: SeoLandingPageSource = {
     imageUrl:
       "https://res.cloudinary.com/de26l2h0a/image/upload/v1789056775/circlethedate-blog/anniversary-reminder-app-photographing-a-gift.webp",
     imageAlt:
-      "Two hands photographing a ribbon-wrapped anniversary gift with a phone, over scattered confetti",
+      "Two hands photographing a ribbon-wrapped gift with a phone, the kind of date an anniversary reminder app keeps track of",
     caption:
       "Anniversaries get the same treatment as birthdays here: reminded early enough that you can still do something about it.",
     width: 2000,

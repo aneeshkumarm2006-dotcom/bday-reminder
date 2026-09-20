@@ -223,7 +223,7 @@ export const DEFAULT_LANDING_SECTIONS: LandingSection[] = [
       imageUrl:
         "https://res.cloudinary.com/de26l2h0a/image/upload/v1789056764/circlethedate-blog/birthday-reminders-party-hat-cake-and-clock.webp",
       imageAlt:
-        "A woman in a party hat holding a birthday cake in one hand and a wall clock in the other",
+        "A woman in a party hat holding a birthday cake in one hand and a wall clock in the other, the two halves a birthday reminder app handles",
       caption:
         "Two halves of the same problem: knowing whose day it is, and knowing about it while there is still time to do something.",
       width: 2000,
