@@ -1,3 +1,8 @@
+import {
+  PREFERRED_SOURCE_DEFAULT_BODY,
+  PREFERRED_SOURCE_DEFAULT_HEADING,
+} from "@/lib/preferred-source";
+
 import type { BlockType, PageBlock } from "./types";
 
 /**
@@ -246,6 +251,19 @@ export const BLOCK_DEFINITIONS: BlockDefinition[] = [
       cta: { label: "", href: "/" },
     }),
   },
+  {
+    type: "preferredSource",
+    label: "Preferred source on Google",
+    description: "Asks readers to add the site as a preferred source in Google.",
+    icon: "Star",
+    group: "Conversion",
+    create: (id) => ({
+      id,
+      type: "preferredSource",
+      heading: PREFERRED_SOURCE_DEFAULT_HEADING,
+      body: PREFERRED_SOURCE_DEFAULT_BODY,
+    }),
+  },
 ];
 
 export const BLOCK_BY_TYPE: Record<BlockType, BlockDefinition> = Object.fromEntries(
@@ -290,6 +308,7 @@ export function blockTitle(block: PageBlock): string {
     case "pricing":
     case "buttons":
     case "banner":
+    case "preferredSource":
       return block.heading || BLOCK_BY_TYPE[block.type].label;
     case "richText":
       return firstTextLine(block.html) || "Rich text";

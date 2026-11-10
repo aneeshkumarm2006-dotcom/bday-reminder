@@ -1,5 +1,6 @@
 import { parse } from "node-html-parser";
 
+import { stripPreferredSourceShortcode } from "@/lib/preferred-source";
 import { siteConfig } from "@/lib/site";
 
 /**
@@ -83,7 +84,8 @@ function htmlToBlocks(html: string): string[] {
   } catch {
     raw = source.replace(/<[^>]*>/g, " ");
   }
-  return raw
+  // The inline preferred-source shortcode is a layout marker, not prose.
+  return stripPreferredSourceShortcode(raw)
     .split("\n")
     .map(collapse)
     .filter(Boolean);

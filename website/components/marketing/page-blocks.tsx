@@ -2,6 +2,7 @@ import { Check, Plus } from "lucide-react";
 import Link from "next/link";
 
 import { ContentIcon } from "@/components/content-icon";
+import { PreferredSourceCallout } from "@/components/preferred-source/preferred-source-callout";
 import { Reveal } from "@/components/reveal";
 import { buttonVariants } from "@/components/ui/button";
 import { resolveVideo } from "@/lib/content/embed";
@@ -22,6 +23,7 @@ import type {
   ImageTextBlock,
   LogosBlock,
   PageBlock,
+  PreferredSourceBlock,
   PricingBlock,
   QuoteBlock,
   RichTextBlock,
@@ -95,6 +97,8 @@ function BlockRenderer({ block }: { block: PageBlock }) {
       return <QuoteBlockView block={block} />;
     case "banner":
       return <BannerBlockView block={block} />;
+    case "preferredSource":
+      return <PreferredSourceBlockView block={block} />;
     default:
       return null;
   }
@@ -872,6 +876,15 @@ function BannerBlockView({ block }: { block: BannerBlock }) {
           )}
         </div>
       </Reveal>
+    </section>
+  );
+}
+
+/** Google Preferred Sources card; same component the blog uses. */
+function PreferredSourceBlockView({ block }: { block: PreferredSourceBlock }) {
+  return (
+    <section className="mx-auto w-full max-w-3xl px-5 py-8">
+      <PreferredSourceCallout heading={block.heading} body={block.body} />
     </section>
   );
 }

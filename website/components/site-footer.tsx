@@ -1,7 +1,9 @@
 import Link from "next/link";
 
 import { Brand } from "@/components/brand";
+import { PreferredSourceButton } from "@/components/preferred-source/preferred-source-button";
 import { visibleFooterGroups } from "@/lib/content/get";
+import { preferredSourceDeeplink } from "@/lib/preferred-source";
 import type { BrandConfig, NavigationConfig, SocialLink } from "@/lib/content/types";
 
 /**
@@ -48,6 +50,11 @@ export function SiteFooter({
           {navigation.footer.tagline && (
             <p className="text-sm text-ink-muted">{navigation.footer.tagline}</p>
           )}
+          <PreferredSourceButton
+            href={preferredSourceDeeplink()}
+            variant="ghost"
+            className="-ml-3.5 mt-1 self-start"
+          />
           {orderedSocials.length > 0 && (
             <ul className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
               {orderedSocials.map((social) => (

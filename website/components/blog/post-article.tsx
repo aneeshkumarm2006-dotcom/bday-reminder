@@ -1,10 +1,12 @@
 import Link from "next/link";
 
 import { PostBody } from "@/components/blog/post-body";
+import { PreferredSourceCallout } from "@/components/preferred-source/preferred-source-callout";
 import { formatDate } from "@/lib/blog/format";
 import { readingTimeMinutes } from "@/lib/blog/reading-time";
 import type { Post } from "@/lib/blog/types";
 import { normalizeAuthorName } from "@/lib/content/site-json-ld";
+import { splitOnPreferredSource } from "@/lib/preferred-source";
 
 /**
  * The public article body — breadcrumb, title, meta row, cover, and the post
@@ -77,6 +79,12 @@ export function PostArticle({
           linkOccurrences={post.linkOccurrences}
         />
       </div>
+
+      {/* End-of-article "add us on Google" card — skipped when the author
+          already placed one inline with the `[preferred-source]` shortcode. */}
+      {splitOnPreferredSource(post.body).length === 1 && (
+        <PreferredSourceCallout className="mt-12" />
+      )}
     </article>
   );
 }

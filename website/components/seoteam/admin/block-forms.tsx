@@ -898,6 +898,23 @@ export function BlockForm({
         </>
       );
 
+    case "preferredSource":
+      return (
+        <>
+          <TextRow
+            label="Heading"
+            value={block.heading}
+            onChange={(heading) => patch({ heading })}
+          />
+          <TextAreaRow label="Body" value={block.body} onChange={(body) => patch({ body })} />
+          <p className="text-xs text-ink-muted">
+            The button is fixed: it opens Google&rsquo;s &ldquo;add as a preferred source&rdquo;
+            flow for this site, falling back to the plain Google link. Leave both fields empty
+            to show the button on its own.
+          </p>
+        </>
+      );
+
     default:
       return null;
   }

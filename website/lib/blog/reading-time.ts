@@ -1,8 +1,10 @@
 import { parse } from "node-html-parser";
 
+import { stripPreferredSourceShortcode } from "@/lib/preferred-source";
+
 /** Rough reading time in minutes (≈220 wpm), minimum 1. Accepts HTML or text. */
 export function readingTimeMinutes(html: string): number {
-  let text = html || "";
+  let text = stripPreferredSourceShortcode(html || "");
   if (/[<>]/.test(text)) {
     try {
       text = parse(text).text;

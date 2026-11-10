@@ -701,6 +701,12 @@ const blockSchemas = [
     body: z.string().trim().max(900).default(""),
     cta,
   }),
+  z.object({
+    id: idString,
+    type: z.literal("preferredSource"),
+    heading: z.string().trim().max(200).default(""),
+    body: z.string().trim().max(600).default(""),
+  }),
 ] as const;
 
 export const pageBlockSchema = z.discriminatedUnion("type", [...blockSchemas]);

@@ -485,7 +485,8 @@ export type BlockType =
   | "steps"
   | "pricing"
   | "quote"
-  | "banner";
+  | "banner"
+  | "preferredSource";
 
 /** How wide a block's content sits in the page column. */
 export type BlockWidth = "narrow" | "wide" | "full";
@@ -712,6 +713,16 @@ export interface BannerBlock extends BaseBlock {
   cta: CtaLink;
 }
 
+/**
+ * "Add as a preferred source on Google" card (Google Preferred Sources). The
+ * button and the deeplink are fixed in code; only the pitch is editable.
+ */
+export interface PreferredSourceBlock extends BaseBlock {
+  type: "preferredSource";
+  heading: string;
+  body: string;
+}
+
 export type PageBlock =
   | HeroBlock
   | RichTextBlock
@@ -733,7 +744,8 @@ export type PageBlock =
   | StepsBlock
   | PricingBlock
   | QuoteBlock
-  | BannerBlock;
+  | BannerBlock
+  | PreferredSourceBlock;
 
 export type PageStatus = "draft" | "published";
 
