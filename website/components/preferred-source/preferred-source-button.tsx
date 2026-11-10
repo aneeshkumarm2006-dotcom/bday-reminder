@@ -1,8 +1,8 @@
 "use client";
 
-import { Star } from "lucide-react";
 import { useEffect, useRef } from "react";
 
+import { GoogleGlyph } from "@/components/google-glyph";
 import { buttonVariants } from "@/components/ui/button";
 import { PREFERRED_SOURCE_SCRIPT_SRC } from "@/lib/preferred-source";
 import { cn } from "@/lib/utils";
@@ -140,7 +140,7 @@ export function PreferredSourceButton({
         className,
       )}
     >
-      <Star aria-hidden="true" className="text-biro" />
+      <GoogleGlyph />
       <span>{label}</span>
     </a>
   );
