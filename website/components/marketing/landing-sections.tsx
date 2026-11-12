@@ -1,8 +1,15 @@
-import { Plus, Smartphone } from "lucide-react";
+import { Plus } from "lucide-react";
 import Link from "next/link";
 
-import { AppPreview, ReminderPreview, WidgetPreview } from "@/components/app-preview";
+import { CircleIcon } from "@/components/circle-icon";
+import {
+  AppDemo,
+  AppHighlights,
+  AppScreensGallery,
+  ScreenPhone,
+} from "@/components/marketing/app-screens";
 import { PageBlocks } from "@/components/marketing/page-blocks";
+import { StoreBadges, anyStoreLive } from "@/components/marketing/store-badges";
 import { PhotoBand } from "@/components/marketing/photo-band";
 import { ContentIcon } from "@/components/content-icon";
 import { PostCard } from "@/components/blog/post-card";
@@ -11,7 +18,6 @@ import { HeroTodayRing, StepRing } from "@/components/today-rings";
 import { buttonVariants } from "@/components/ui/button";
 import { isDbConfigured } from "@/lib/blog/db";
 import { getPublishedPosts } from "@/lib/blog/posts";
-import { getSiteSettings } from "@/lib/content/get";
 import type {
   BlocksSection as BlocksSectionContent,
   FaqSection as FaqSectionContent,
@@ -23,7 +29,6 @@ import type {
   LandingSection,
   LatestPostsSection as LatestPostsSectionContent,
   PhotoSection as PhotoSectionContent,
-  StoreBadgeConfig,
   ValuePropSection as ValuePropSectionContent,
 } from "@/lib/content/types";
 
@@ -77,12 +82,13 @@ function LandingSectionRenderer({ section }: { section: LandingSection }) {
 
 export function previewFor(preview: FeaturePreview) {
   switch (preview) {
+    // Real screenshots of the shipping app, not drawn mocks.
     case "app":
-      return <AppPreview />;
+      return <ScreenPhone id="people" />;
     case "reminder":
-      return <ReminderPreview />;
+      return <ScreenPhone id="reminders" />;
     case "widget":
-      return <WidgetPreview />;
+      return <ScreenPhone id="widget" />;
     default:
       return null;
   }
@@ -124,9 +130,14 @@ export function FeatureRowBlock({
   return (
     <div className="grid items-center gap-10 lg:grid-cols-2">
       <Reveal className={`group ${reverse ? "lg:order-2" : ""}`}>
-        <span className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-biro-tint text-biro transition-transform duration-300 ease-out group-hover:-rotate-6 group-hover:scale-110">
-          <ContentIcon name={row.icon} />
-        </span>
+        {/* Headline features get the filled circle, like today's date. */}
+        <CircleIcon
+          size="lg"
+          variant="filled"
+          className="transition-transform duration-300 ease-out group-hover:scale-110"
+        >
+          <ContentIcon name={row.icon} size={24} />
+        </CircleIcon>
         <p className="mt-4 text-sm font-medium text-biro">{row.eyebrow}</p>
         <h3 className="mt-1 font-display text-2xl font-semibold tracking-[-0.01em] text-ink">
           {row.title}
@@ -148,9 +159,12 @@ export function FeatureRowBlock({
 export function FeatureCardBlock({ card }: { card: FeatureCardContent }) {
   return (
     <div className="group h-full rounded-lg border border-border-subtle bg-surface p-5 transition-[transform,border-color,box-shadow] duration-300 ease-out hover:-translate-y-1 hover:border-biro/40 hover:shadow-[0_14px_34px_-18px_rgba(44,75,216,0.45)]">
-      <span className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-biro-tint text-biro transition-transform duration-300 ease-out group-hover:-rotate-6 group-hover:scale-110">
-        <ContentIcon name={card.icon} />
-      </span>
+      <CircleIcon
+        size="md"
+        className="transition-transform duration-300 ease-out group-hover:scale-110"
+      >
+        <ContentIcon name={card.icon} size={20} />
+      </CircleIcon>
       <h3 className="mt-4 font-display text-lg font-semibold text-ink transition-colors duration-300 group-hover:text-biro">
         {card.title}
       </h3>
@@ -189,68 +203,95 @@ export function FeaturePoints({
 
 /* ---------------------------------- hero ---------------------------------- */
 
-export function Hero({ content }: { content: HeroSectionContent }) {
+/**
+ * The hero: copy and the store badges on the left, the looping app demo on the
+ * right (stacked under the copy on phones).
+ *
+ * When at least one store is live, its badge is the primary action and the
+ * primary CTA becomes a quieter "on a computer?" link to the web app. With no
+ * store live the hero falls back to the two ordinary buttons, so it never leads
+ * with a "coming soon" chip.
+ */
+export async function Hero({ content }: { content: HeroSectionContent }) {
+  const storesLive = await anyStoreLive();
+  const primary = content.primaryCta;
+  const secondary = content.secondaryCta;
+
   return (
-    <section className="relative overflow-hidden">
-      {/* A single, quiet biro-tint wash - no second accent (DESIGN.md §1). */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[420px] bg-[radial-gradient(60%_60%_at_50%_0%,var(--biro-tint),transparent_70%)] opacity-70"
-      />
-      <div className="mx-auto flex w-full max-w-5xl flex-col items-center px-5 pb-8 pt-16 text-center sm:pt-24">
-        {content.badge && (
-          <span className="group inline-flex items-center gap-1.5 rounded-full border border-border-subtle bg-surface px-3 py-1 text-xs font-medium text-ink-secondary transition-colors duration-300 hover:border-biro/40">
-            <ContentIcon
-              name="Sparkles"
-              size={13}
-              className="text-biro transition-transform duration-500 ease-out group-hover:rotate-90 group-hover:scale-110"
-            />
-            {content.badge}
-          </span>
-        )}
+    <>
+      <section className="relative overflow-hidden">
+        {/* A single, quiet biro-tint wash - no second accent (DESIGN.md §1). */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[420px] bg-[radial-gradient(60%_60%_at_30%_0%,var(--biro-tint),transparent_70%)] opacity-70"
+        />
+        <div className="mx-auto grid w-full max-w-5xl items-center gap-12 px-5 pb-16 pt-12 sm:pt-20 lg:grid-cols-[1.1fr_1fr]">
+          <div className="flex flex-col items-start gap-6">
+            {content.badge && (
+              <span className="inline-flex items-center rounded-full bg-biro-tint px-3.5 py-1.5 text-xs font-semibold text-biro-pressed sm:text-sm">
+                {content.badge}
+              </span>
+            )}
 
-        <div className="mt-8">
-          <HeroTodayRing size="xl" />
+            <h1 className="text-balance font-display text-4xl font-semibold leading-[1.05] tracking-[-0.02em] text-ink sm:text-6xl">
+              {content.heading}
+            </h1>
+            <p className="max-w-xl text-pretty text-lg leading-relaxed text-ink-secondary">
+              {content.subheading}
+            </p>
+
+            {storesLive ? (
+              <div className="flex flex-col gap-3">
+                {content.storeLead && (
+                  <p className="text-sm font-semibold text-ink">{content.storeLead}</p>
+                )}
+                <StoreBadges onlyLive className="" appName="Circle the date" />
+                {primary.label && (
+                  <p className="text-sm text-ink-secondary">
+                    On a computer?{" "}
+                    <Link href={primary.href} className="font-semibold text-biro hover:text-biro-hover">
+                      {primary.label} →
+                    </Link>
+                  </p>
+                )}
+              </div>
+            ) : (
+              <div className="flex flex-col gap-3 sm:flex-row">
+                {primary.label && (
+                  <Link
+                    href={primary.href}
+                    className={`${buttonVariants({ size: "lg" })} hover:-translate-y-0.5 hover:shadow-[0_12px_28px_-12px_rgba(44,75,216,0.6)]`}
+                  >
+                    {primary.label}
+                  </Link>
+                )}
+                {secondary.label && (
+                  <Link
+                    href={secondary.href}
+                    className={`${buttonVariants({ variant: "secondary", size: "lg" })} hover:-translate-y-0.5`}
+                  >
+                    {secondary.label}
+                  </Link>
+                )}
+              </div>
+            )}
+
+            {content.footnote && <p className="text-sm text-ink-muted">{content.footnote}</p>}
+          </div>
+
+          <Reveal className="flex justify-center">
+            <AppDemo />
+          </Reveal>
         </div>
+      </section>
 
-        <h1 className="mt-8 max-w-2xl font-display text-4xl font-semibold leading-[1.1] tracking-[-0.02em] text-ink sm:text-6xl">
-          {content.heading}
-        </h1>
-        <p className="mt-5 max-w-xl text-balance text-lg leading-relaxed text-ink-secondary">
-          {content.subheading}
-        </p>
-
-        <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row">
-          {content.primaryCta.label && (
-            <Link
-              href={content.primaryCta.href}
-              className={`${buttonVariants({ size: "lg" })} hover:-translate-y-0.5 hover:shadow-[0_12px_28px_-12px_rgba(44,75,216,0.6)]`}
-            >
-              {content.primaryCta.label}
-            </Link>
-          )}
-          {content.secondaryCta.label && (
-            <Link
-              href={content.secondaryCta.href}
-              className={`${buttonVariants({ variant: "secondary", size: "lg" })} hover:-translate-y-0.5`}
-            >
-              {content.secondaryCta.label}
-            </Link>
-          )}
-        </div>
-        {content.footnote && (
-          <p className="mt-4 text-sm text-ink-muted">{content.footnote}</p>
-        )}
-      </div>
-
-      {/* Product shot - rendered from the real design system, light + dark. */}
-      <div className="mx-auto w-full max-w-5xl px-5 pb-16 pt-4">
-        <Reveal className="flex flex-wrap items-end justify-center gap-6">
-          <AppPreview />
-          <ReminderPreview className="hidden sm:block sm:max-w-xs" />
-        </Reveal>
-      </div>
-    </section>
+      {content.showAppScreens && (
+        <>
+          <AppHighlights />
+          <AppScreensGallery />
+        </>
+      )}
+    </>
   );
 }
 
@@ -433,11 +474,12 @@ export function Faq({ content }: { content: FaqSectionContent }) {
             <details className="group rounded-lg border border-border-subtle bg-surface px-5 transition-colors duration-300 hover:border-biro/40 open:border-biro/40">
               <summary className="flex cursor-pointer list-none items-center justify-between gap-4 py-4 font-display text-base font-medium text-ink transition-colors duration-200 group-hover:text-biro [&::-webkit-details-marker]:hidden">
                 {item.q}
+                {/* A ring while closed; filled, like today's date, once open. */}
                 <span
                   aria-hidden="true"
-                  className="shrink-0 text-biro transition-transform duration-300 ease-out group-open:rotate-45"
+                  className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 border-biro text-biro transition-[transform,background-color,color] duration-300 ease-out group-open:rotate-45 group-open:bg-biro group-open:text-paper"
                 >
-                  <Plus size={18} />
+                  <Plus size={16} strokeWidth={2.6} />
                 </span>
               </summary>
               <p className="pb-5 text-pretty leading-relaxed text-ink-secondary">
@@ -506,6 +548,12 @@ export function BlocksBand({ content }: { content: BlocksSectionContent }) {
 
 /* -------------------------------- get the app ----------------------------- */
 
+/**
+ * The closing download band: a dark card (the same in both themes, so the
+ * black store badges always sit on dark), the date ring, both badges and a
+ * quieter link to the web app. Rendered on the homepage and, with each page's
+ * own copy, at the foot of all eight keyword pages.
+ */
 export function GetTheApp({ content }: { content: GetTheAppSectionContent }) {
   return (
     <section
@@ -513,96 +561,34 @@ export function GetTheApp({ content }: { content: GetTheAppSectionContent }) {
       className="mx-auto w-full max-w-5xl scroll-mt-20 px-5 py-20"
     >
       <Reveal>
-        <div className="relative overflow-hidden rounded-2xl border border-border-subtle bg-surface px-6 py-14 text-center sm:px-12">
+        <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-[#232020] px-6 py-12 text-[#f4f2ec] sm:px-12 sm:py-14">
           <div
             aria-hidden="true"
-            className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-[radial-gradient(50%_100%_at_50%_0%,var(--biro-tint),transparent_70%)]"
+            className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full border-2 border-[#7e93f0]/25"
           />
-          <h2 className="font-display text-3xl font-semibold tracking-[-0.01em] text-ink sm:text-4xl">
+          <HeroTodayRing size="lg" />
+          <h2 className="mt-6 max-w-2xl text-balance font-display text-3xl font-semibold tracking-[-0.01em] sm:text-4xl">
             {content.heading}
           </h2>
-          <p className="mx-auto mt-4 max-w-lg text-ink-secondary">{content.body}</p>
+          <p className="mt-4 max-w-xl text-pretty text-[#b7b2a8]">{content.body}</p>
 
-          {content.ctaLabel && (
-            <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
+          <div className="mt-8 flex flex-wrap items-center gap-3">
+            {content.storeBadges && <StoreBadges className="" appName="Circle the date" tone="dark" />}
+            {content.ctaLabel && (
               <Link
                 href={content.ctaHref}
-                className={`${buttonVariants({ size: "lg" })} hover:-translate-y-0.5 hover:shadow-[0_12px_28px_-12px_rgba(44,75,216,0.6)]`}
+                className="inline-flex h-14 items-center rounded-full border-2 border-white/25 px-6 font-semibold text-[#f4f2ec] transition-[transform,border-color] duration-300 hover:-translate-y-0.5 hover:border-white/60"
               >
                 {content.ctaLabel}
               </Link>
-            </div>
-          )}
+            )}
+          </div>
 
-          {content.storeBadges && <StoreBadges />}
           {content.footnote && (
-            <p className="mt-4 text-xs text-ink-muted">{content.footnote}</p>
+            <p className="mt-5 text-sm text-[#b7b2a8]">{content.footnote}</p>
           )}
         </div>
       </Reveal>
     </section>
-  );
-}
-
-/**
- * The two store badges, driven by Site settings → App stores.
- *
- * Each one is a placeholder chip until a URL is set for it, then the same slot
- * becomes a real link — so shipping the iOS app is a content change, not a
- * deploy. It reads settings itself rather than taking a prop because the same
- * badges render from the homepage and from all eight keyword pages, and
- * `getSiteSettings` is request-cached either way.
- */
-export async function StoreBadges() {
-  const { appStores } = await getSiteSettings();
-  return (
-    <div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
-      <StoreBadge platform="App Store" config={appStores.appStore} />
-      <StoreBadge platform="Google Play" config={appStores.googlePlay} />
-    </div>
-  );
-}
-
-function StoreBadge({
-  platform,
-  config,
-}: {
-  platform: string;
-  config: StoreBadgeConfig;
-}) {
-  const name = config.label.trim() || platform;
-  const live = config.enabled && config.url.trim() !== "";
-  const eyebrow = live ? config.eyebrow.trim() || "Download on the" : "Coming soon to";
-
-  const inner = (
-    <>
-      <Smartphone size={20} aria-hidden="true" />
-      <span className="flex flex-col items-start leading-none">
-        <span className="text-[10px]">{eyebrow}</span>
-        <span className="text-sm font-medium text-ink-secondary">{name}</span>
-      </span>
-    </>
-  );
-
-  if (!live) {
-    return (
-      <span
-        className="inline-flex h-12 cursor-default items-center gap-2.5 rounded-md border border-border-strong bg-surface px-4 text-ink-muted"
-        aria-label={`${name} - coming soon`}
-      >
-        {inner}
-      </span>
-    );
-  }
-
-  return (
-    <a
-      href={config.url}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="inline-flex h-12 items-center gap-2.5 rounded-md border border-border-strong bg-surface px-4 text-ink-secondary transition-[transform,border-color] duration-300 hover:-translate-y-0.5 hover:border-biro/40"
-    >
-      {inner}
-    </a>
   );
 }

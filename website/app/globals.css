@@ -135,6 +135,61 @@ body {
   }
 }
 
+/* ── Hero app demo (components/marketing/app-screens.tsx) ──────────────────
+   Four real screenshots crossfade on a 12s loop, 3s each; a biro ring "taps"
+   Send greeting while the reminders screen is up, and the dots track which
+   screen is showing. Each element gets its own animation-delay inline. */
+@keyframes app-demo-screen {
+  0% { opacity: 0; }
+  3% { opacity: 1; }
+  25% { opacity: 1; }
+  28% { opacity: 0; }
+  100% { opacity: 0; }
+}
+@keyframes app-demo-tap {
+  0%, 4% { opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
+  9% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  15% { opacity: 0; transform: translate(-50%, -50%) scale(1.7); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1.7); }
+}
+@keyframes app-demo-dot {
+  0%, 25% { background-color: var(--biro); }
+  26%, 100% { background-color: transparent; }
+}
+.app-demo-screen {
+  opacity: 0;
+  animation: app-demo-screen 12s infinite;
+}
+.app-demo-tap {
+  position: absolute;
+  width: 56px;
+  height: 56px;
+  border-radius: 9999px;
+  border: 3px solid var(--biro);
+  opacity: 0;
+  pointer-events: none;
+  animation: app-demo-tap 12s infinite;
+}
+.app-demo-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 9999px;
+  border: 2px solid var(--biro);
+  animation: app-demo-dot 12s infinite;
+}
+/* The global rule above would play each loop once and end with every screen
+   hidden, so reduced motion instead stops the demo on its first screen. */
+@media (prefers-reduced-motion: reduce) {
+  .app-demo-screen,
+  .app-demo-tap,
+  .app-demo-dot {
+    animation-name: none !important;
+  }
+  .app-demo-first {
+    opacity: 1;
+  }
+}
+
 /* ── Blog rich text ────────────────────────────────────────────────────────
    Shared styling for rendered post bodies (.prose-blog) and the Tiptap editor
    surface (.ProseMirror). Raw HTML is injected via dangerouslySetInnerHTML, so

@@ -63,7 +63,7 @@ export function Brand({
         showRing && <BrandRing size="sm" />
       )}
       {showWordmark && (
-        <span className="font-display text-[17px] font-semibold tracking-[-0.01em] text-ink">
+        <span className="whitespace-nowrap font-display text-[16px] font-semibold tracking-[-0.01em] text-ink sm:text-[17px]">
           {name}
         </span>
       )}

@@ -552,7 +552,7 @@ function HeroForm({
         value={section.badge}
         max={60}
         onChange={(badge) => patch({ badge })}
-        helper="The small pill above the ring. Leave blank to hide it."
+        helper="The small pill above the heading. Leave blank to hide it."
       />
       <TextRow
         label="Heading"
@@ -565,20 +565,40 @@ function HeroForm({
         value={section.subheading}
         onChange={(subheading) => patch({ subheading })}
       />
+      <TextRow
+        label="Line above the store badges"
+        value={section.storeLead}
+        max={80}
+        placeholder="Get our app, Circle the date, free:"
+        onChange={(storeLead) => patch({ storeLead })}
+        helper="Badges come from Site settings → App stores. Only live stores show here."
+      />
       <CtaFields
         legend="Primary button"
         value={section.primaryCta}
         onChange={(primaryCta) => patch({ primaryCta })}
       />
+      <p className="-mt-2 text-xs text-ink-muted">
+        While a store is live, this shows as an “On a computer? …” link under the badges.
+      </p>
       <CtaFields
         legend="Secondary button"
         value={section.secondaryCta}
         onChange={(secondaryCta) => patch({ secondaryCta })}
       />
+      <p className="-mt-2 text-xs text-ink-muted">
+        Only shown when no store is live.
+      </p>
       <TextRow
         label="Footnote"
         value={section.footnote}
         onChange={(footnote) => patch({ footnote })}
+      />
+      <ToggleRow
+        label="Show app screenshots under the hero"
+        description="The four highlights and the gallery of real app screenshots."
+        checked={section.showAppScreens}
+        onCheckedChange={(showAppScreens) => patch({ showAppScreens })}
       />
     </>
   );
@@ -933,7 +953,7 @@ function GetTheAppForm({
       </FieldGrid>
       <ToggleRow
         label="Show app store badges"
-        description="The “coming soon” App Store and Google Play placeholders."
+        description="App Store and Google Play, from Site settings → App stores."
         checked={section.storeBadges}
         onCheckedChange={(storeBadges) => patch({ storeBadges })}
       />

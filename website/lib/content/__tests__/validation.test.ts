@@ -87,6 +87,10 @@ describe("site settings schema", () => {
     expect(
       siteSettingsSchema.safeParse({ analytics: { metaPixelId: "not-a-number" } }).success,
     ).toBe(false);
+    expect(
+      siteSettingsSchema.safeParse({ analytics: { clarityProjectId: '"); alert(1); ("' } })
+        .success,
+    ).toBe(false);
   });
 
   it("accepts well-formed analytics IDs", () => {
@@ -95,9 +99,11 @@ describe("site settings schema", () => {
         ga4MeasurementId: "G-ABC123",
         gtmContainerId: "GTM-XYZ789",
         metaPixelId: "123456789012",
+        clarityProjectId: "zcll4egsnf",
       },
     });
     expect(parsed.analytics.ga4MeasurementId).toBe("G-ABC123");
+    expect(parsed.analytics.clarityProjectId).toBe("zcll4egsnf");
   });
 
   it("normalizes extra robots disallow paths", () => {

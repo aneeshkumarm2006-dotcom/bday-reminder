@@ -211,6 +211,6 @@ export const birthdayCalendarPage: SeoLandingPageSource = {
     body: "Setting it up takes about five minutes, and it stays free — no trial, no card, nothing to upgrade to.",
     ctaLabel: "Start for free",
     ctaHref: "/signup",
-    footnote: "Mobile apps coming soon.",
+    footnote: "",
   },
 };

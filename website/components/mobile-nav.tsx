@@ -4,6 +4,7 @@ import { Menu, X } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
+import { ThemeToggle } from "@/components/theme-toggle";
 import type { NavLink, NavigationConfig } from "@/lib/content/types";
 
 /**
@@ -16,9 +17,12 @@ import type { NavLink, NavigationConfig } from "@/lib/content/types";
 export function MobileNav({
   links,
   ctas,
+  showThemeToggle = false,
 }: {
   links: NavLink[];
   ctas: NavigationConfig["header"]["ctas"];
+  /** On phones the header has no room for the toggle, so it lives in the menu. */
+  showThemeToggle?: boolean;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -30,7 +34,7 @@ export function MobileNav({
         aria-expanded={open}
         aria-controls="mobile-nav"
         onClick={() => setOpen((v) => !v)}
-        className="flex h-10 w-10 items-center justify-center rounded-md text-ink-secondary transition-colors hover:bg-surface-sunken hover:text-ink"
+        className="flex h-11 w-11 items-center justify-center rounded-full border-2 border-border-strong text-ink-secondary transition-colors hover:bg-surface-sunken hover:text-ink"
       >
         {open ? (
           <X className="h-5 w-5" aria-hidden="true" />
@@ -88,6 +92,13 @@ export function MobileNav({
                   </span>
                 ))}
             </>
+          )}
+
+          {showThemeToggle && (
+            <div className="mt-2 flex items-center justify-between border-t border-border-subtle px-3 pt-2 sm:hidden">
+              <span className="text-sm font-medium text-ink-secondary">Theme</span>
+              <ThemeToggle />
+            </div>
           )}
         </nav>
       ) : null}

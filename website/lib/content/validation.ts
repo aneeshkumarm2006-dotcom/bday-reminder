@@ -413,6 +413,14 @@ export const siteSettingsSchema = z.object({
           message: "A Meta Pixel ID is a 8–20 digit number.",
         })
         .default(""),
+      clarityProjectId: z
+        .string()
+        .trim()
+        .max(40)
+        .refine((v) => v === "" || /^[a-z0-9]{6,20}$/i.test(v), {
+          message: "A Clarity project ID is 6–20 letters and digits, like zcll4egsnf.",
+        })
+        .default(""),
     })
     .prefault({}),
   socials: z.array(socialLinkSchema).max(20).default([]),
@@ -723,6 +731,8 @@ const heroSection = z.object({
   primaryCta: cta,
   secondaryCta: cta,
   footnote: z.string().trim().max(200).default(""),
+  storeLead: z.string().trim().max(120).default(""),
+  showAppScreens: z.boolean().default(true),
 });
 
 const valuePropSection = z.object({

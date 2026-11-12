@@ -200,6 +200,6 @@ export const freePage: SeoLandingPageSource = {
     body: "No trial to run out, no plan to hit later. Add a birthday and see.",
     ctaLabel: "Start for free",
     ctaHref: "/signup",
-    footnote: "Mobile apps coming soon.",
+    footnote: "",
   },
 };

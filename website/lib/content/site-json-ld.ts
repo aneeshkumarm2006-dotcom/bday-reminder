@@ -202,10 +202,9 @@ export function webSiteNode(
  *    would multiply the invalid item across seven more URLs.
  *
  * Every property here is true today. `installUrl` is /signup because that is
- * where a person starts using it; there is no store listing, no download, no
- * screenshot URL and no version, so none of those appear. `operatingSystem` is
- * "Any" — naming iOS or Android would claim shipped native apps that, as of the
- * "coming soon" badges on the page, don't exist.
+ * where a person starts using the web app. The native iOS and Android apps are
+ * separate `MobileApplication` nodes (see `mobileAppNodes`), so this one stays
+ * the browser app.
  */
 export function appNode(
   settings: SiteSettings,
@@ -246,6 +245,42 @@ export function appNode(
 }
 
 /**
+ * The native apps, one `MobileApplication` per store that is live in Site
+ * settings → App stores. They're named "Circle the date" (the store name),
+ * which is what disambiguates them from the website brand, and each links back
+ * to the web app with `isRelatedTo`. Only stores that are enabled with a URL
+ * appear, so the graph never describes a listing that doesn't exist.
+ */
+export function mobileAppNodes(settings: SiteSettings): JsonLdNode[] {
+  const { appStores } = settings;
+  const stores = [
+    { key: "ios", os: "iOS", config: appStores.appStore },
+    { key: "android", os: "Android", config: appStores.googlePlay },
+  ] as const;
+
+  return stores
+    .filter(({ config }) => config.enabled && config.url.trim() !== "")
+    .map(({ key, os, config }) => ({
+      "@type": "MobileApplication",
+      "@id": `${siteConfig.url}/#app-${key}`,
+      name: "Circle the date",
+      operatingSystem: os,
+      applicationCategory: "LifestyleApplication",
+      downloadUrl: config.url.trim(),
+      installUrl: config.url.trim(),
+      isRelatedTo: { "@id": APP_ID },
+      ...(settings.structuredData.organization.enabled ? { publisher: { "@id": ORG_ID } } : {}),
+      offers: {
+        "@type": "Offer",
+        price: "0",
+        priceCurrency: "USD",
+        availability: "https://schema.org/InStock",
+        url: config.url.trim(),
+      },
+    }));
+}
+
+/**
  * The site-level entities, fully described: Organization, its logo, WebSite and
  * the app. This is what the homepage graph embeds and what the admin's preview
  * pane renders. Disabled nodes are omitted entirely rather than emitted empty —
@@ -261,6 +296,7 @@ export function buildSiteJsonLd(settings: SiteSettings): Record<string, unknown>
     logoNode(settings),
     webSiteNode(settings, { full: true }),
     appNode(settings),
+    ...mobileAppNodes(settings),
   ].filter((node): node is JsonLdNode => node !== null);
 
   return { "@context": "https://schema.org", "@graph": graph };

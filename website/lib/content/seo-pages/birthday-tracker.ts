@@ -204,6 +204,6 @@ export const birthdayTrackerPage: SeoLandingPageSource = {
     body: "Import your contacts and you'll have most of it in a minute. The rest you'll add as you learn it.",
     ctaLabel: "Start for free",
     ctaHref: "/signup",
-    footnote: "Mobile apps coming soon.",
+    footnote: "",
   },
 };

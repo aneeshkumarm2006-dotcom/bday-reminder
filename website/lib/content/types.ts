@@ -65,6 +65,10 @@ export interface HeroSection extends BaseSection {
   primaryCta: CtaLink;
   secondaryCta: CtaLink;
   footnote: string;
+  /** The line above the store badges, e.g. "Get our app, Circle the date, free:". */
+  storeLead: string;
+  /** Show the highlights strip and the real-screenshot gallery under the hero. */
+  showAppScreens: boolean;
 }
 
 /**
@@ -395,6 +399,8 @@ export interface SiteSettings {
     ga4MeasurementId: string;
     gtmContainerId: string;
     metaPixelId: string;
+    /** Microsoft Clarity project ID (the `i` in Clarity's snippet). */
+    clarityProjectId: string;
   };
   socials: SocialLink[];
   announcement: AnnouncementConfig;

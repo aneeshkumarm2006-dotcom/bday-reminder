@@ -23,13 +23,37 @@ function nodeOfType(settings: SiteSettings, type: string) {
 }
 
 describe("site JSON-LD", () => {
-  it("emits Organization, its logo, WebSite and the product by default", () => {
+  it("emits Organization, its logo, WebSite, the web app and the live store apps by default", () => {
     expect(graphOf(DEFAULT_SETTINGS).map((n) => n["@type"])).toEqual([
       "Organization",
       "ImageObject",
       "WebSite",
       "WebApplication",
+      "MobileApplication",
+      "MobileApplication",
     ]);
+  });
+
+  it("describes each live store app as Circle the date, linked to the web app", () => {
+    const apps = graphOf(DEFAULT_SETTINGS).filter((n) => n["@type"] === "MobileApplication");
+    expect(apps.map((a) => a.operatingSystem)).toEqual(["iOS", "Android"]);
+    for (const app of apps) {
+      expect(app.name).toBe("Circle the date");
+      expect(app.isRelatedTo).toEqual({ "@id": APP_ID });
+      expect(String(app.downloadUrl)).toMatch(/^https:\/\/(apps\.apple\.com|play\.google\.com)\//);
+    }
+  });
+
+  it("leaves out a store that isn't live", () => {
+    const settings = {
+      ...DEFAULT_SETTINGS,
+      appStores: {
+        ...DEFAULT_SETTINGS.appStores,
+        googlePlay: { ...DEFAULT_SETTINGS.appStores.googlePlay, enabled: false },
+      },
+    };
+    const apps = graphOf(settings).filter((n) => n["@type"] === "MobileApplication");
+    expect(apps.map((a) => a.operatingSystem)).toEqual(["iOS"]);
   });
 
   it("omits a disabled node entirely rather than emitting an empty one", () => {

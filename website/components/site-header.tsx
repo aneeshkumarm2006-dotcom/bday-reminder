@@ -31,7 +31,7 @@ export function SiteHeader({
 
   return (
     <header className="sticky top-0 z-50 border-b border-border-subtle bg-paper/85 backdrop-blur-sm">
-      <div className="mx-auto flex h-16 w-full max-w-5xl items-center justify-between px-5">
+      <div className="mx-auto flex h-16 w-full max-w-5xl items-center justify-between gap-2 px-4 sm:px-5">
         <Brand brand={brand} siteName={siteName} />
 
         <nav className="hidden items-center gap-1 md:flex" aria-label="Primary">
@@ -50,7 +50,11 @@ export function SiteHeader({
         </nav>
 
         <div className="flex items-center gap-1.5">
-          {showThemeToggle && <ThemeToggle />}
+          {showThemeToggle && (
+            <div className="hidden sm:block">
+              <ThemeToggle />
+            </div>
+          )}
           {ctas.show && (
             <div className="hidden items-center gap-1.5 md:flex">
               {ctas.loginLabel && (
@@ -76,7 +80,16 @@ export function SiteHeader({
                 ))}
             </div>
           )}
-          <MobileNav links={links} ctas={ctas} />
+          {/* Phones get a compact pill so the download is one tap from any page. */}
+          {ctas.show && ctas.signupLabel && ctas.signupHref && (
+            <Link
+              href={ctas.signupHref}
+              className="inline-flex h-11 items-center whitespace-nowrap rounded-full bg-biro px-4 text-sm font-semibold text-paper transition-colors hover:bg-biro-hover md:hidden"
+            >
+              {ctas.signupLabel}
+            </Link>
+          )}
+          <MobileNav links={links} ctas={ctas} showThemeToggle={showThemeToggle} />
         </div>
       </div>
     </header>

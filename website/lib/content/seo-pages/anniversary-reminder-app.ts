@@ -222,6 +222,6 @@ export const anniversaryReminderAppPage: SeoLandingPageSource = {
     body: "Setting it up takes a few minutes, and it stays free — no trial, no card, and nothing to upgrade to later.",
     ctaLabel: "Start for free",
     ctaHref: "/signup",
-    footnote: "Mobile apps coming soon.",
+    footnote: "",
   },
 };

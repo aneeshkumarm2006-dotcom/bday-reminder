@@ -204,6 +204,6 @@ export const familyBirthdayCalendarPage: SeoLandingPageSource = {
     body: "Add the dates you know, invite the family, and let everyone else fill in the gaps you were never going to remember.",
     ctaLabel: "Start for free",
     ctaHref: "/signup",
-    footnote: "Mobile apps coming soon.",
+    footnote: "",
   },
 };

@@ -26,6 +26,9 @@ import type {
 /** GA4 measurement ID that used to live in `app/layout.tsx`. */
 export const DEFAULT_GA_MEASUREMENT_ID = "G-SFK13RXJQR";
 
+/** Microsoft Clarity project for birthdayreminders.us. */
+export const DEFAULT_CLARITY_PROJECT_ID = "zcll4egsnf";
+
 /** Google Search Console verification token from `app/layout.tsx`. */
 export const DEFAULT_GOOGLE_VERIFICATION =
   "xwM26jsFYgHe7X5juAC2xRjQJxjFQUyNrA0udEjiD74";
@@ -59,11 +62,21 @@ export const DEFAULT_SETTINGS: SiteSettings = {
     showThemeToggle: true,
     animations: true,
   },
-  // Disabled until the listings exist; the badges render as today's
-  // "Coming soon to…" chips while `enabled` is false.
+  // Both apps (Circle the date) are live. A store with `enabled: false` or no
+  // URL falls back to a "Coming soon to…" chip.
   appStores: {
-    appStore: { enabled: false, url: "", label: "App Store", eyebrow: "Download on the" },
-    googlePlay: { enabled: false, url: "", label: "Google Play", eyebrow: "Get it on" },
+    appStore: {
+      enabled: true,
+      url: "https://apps.apple.com/us/app/circle-the-date/id6804632200",
+      label: "App Store",
+      eyebrow: "Download on the",
+    },
+    googlePlay: {
+      enabled: true,
+      url: "https://play.google.com/store/apps/details?id=com.circlethedate.app",
+      label: "Google Play",
+      eyebrow: "GET IT ON",
+    },
   },
   // The sample data in the rendered product shots. Lifted verbatim from what
   // `components/app-preview.tsx` used to hardcode, so the demo is unchanged
@@ -124,6 +137,7 @@ export const DEFAULT_SETTINGS: SiteSettings = {
     ga4MeasurementId: DEFAULT_GA_MEASUREMENT_ID,
     gtmContainerId: "",
     metaPixelId: "",
+    clarityProjectId: DEFAULT_CLARITY_PROJECT_ID,
   },
   socials: [],
   announcement: {
@@ -191,13 +205,15 @@ export const DEFAULT_LANDING_SECTIONS: LandingSection[] = [
     id: "hero",
     type: "hero",
     visible: true,
-    badge: "Free birthday & event reminders",
-    heading: "Remember, and act.",
+    badge: "Free birthday reminder app · iPhone, Android & web",
+    heading: "Remember every birthday. Act before it passes.",
     subheading:
-      "The free way to never miss a birthday, an anniversary, or any date you'd hate to let pass. Keep them all in one birthday tracker, get birthday reminders while there's still time to act, and send a greeting in one tap.",
-    primaryCta: { label: "Start for free", href: "/signup" },
-    secondaryCta: { label: "Log in", href: "/login" },
-    footnote: "Free on web, iOS, and Android. No ads, no paid tier.",
+      "The free way to never miss a birthday, an anniversary, or any date you'd hate to let pass. Get reminded while there's still time to act, then send a greeting in one tap.",
+    primaryCta: { label: "Start free on the web", href: "/signup" },
+    secondaryCta: { label: "", href: "/login" },
+    footnote: "Free, no ads, no paid tier.",
+    storeLead: "Get our app, Circle the date, free:",
+    showAppScreens: true,
   },
   {
     id: "value-prop",
@@ -424,6 +440,11 @@ export const DEFAULT_LANDING_SECTIONS: LandingSection[] = [
         q: "How do I make sure I never miss a birthday again?",
         a: "Get the dates out of your memory and into something that can interrupt you, then set the reminder earlier than feels necessary — a week is usually right, because it leaves time to post something. After that, the only job left is answering the notification.",
       },
+      {
+        id: "faq-app-name",
+        q: "What's the difference between Birthday Reminders and Circle the date?",
+        a: "Birthday Reminders is this website; Circle the date is our app on the App Store and Google Play. It's the same account, the same people and the same reminders, so you can start on one and pick up on the other.",
+      },
     ],
   },
   {
@@ -432,11 +453,11 @@ export const DEFAULT_LANDING_SECTIONS: LandingSection[] = [
     visible: true,
     anchor: "get-the-app",
     heading: "Start with the people you don't want to forget",
-    body: "Free forever. Use it on the web right now, or get it on your phone for reminders and the home-screen widget.",
-    ctaLabel: "Start for free",
+    body: "Download Circle the date, our free app for iPhone and Android, or use Birthday Reminders on the web right now.",
+    ctaLabel: "Start free on the web",
     ctaHref: "/signup",
     storeBadges: true,
-    footnote: "Mobile apps coming soon.",
+    footnote: "",
   },
 ];
 
@@ -460,6 +481,8 @@ export const SECTION_TEMPLATES: Record<SectionType, LandingSection> = {
     primaryCta: { label: "", href: "/" },
     secondaryCta: { label: "", href: "/" },
     footnote: "",
+    storeLead: "",
+    showAppScreens: false,
   },
   valueProp: {
     id: "value-prop",
@@ -569,10 +592,9 @@ export const DEFAULT_NAV: NavigationConfig = {
     })),
     ctas: {
       show: true,
-      // Empty href renders today's static "Coming soon" chip; set a target and
-      // it becomes a real call-to-action button.
-      signupLabel: "Coming soon",
-      signupHref: "",
+      // An empty href renders a static chip instead of a button.
+      signupLabel: "Get the app",
+      signupHref: "/#get-the-app",
       loginLabel: "Log in",
     },
   },

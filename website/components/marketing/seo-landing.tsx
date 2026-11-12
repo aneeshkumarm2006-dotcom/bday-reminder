@@ -18,6 +18,7 @@ import { HeroTodayRing } from "@/components/today-rings";
 import { buttonVariants } from "@/components/ui/button";
 import { PageBlocks } from "@/components/marketing/page-blocks";
 import { PhotoBand } from "@/components/marketing/photo-band";
+import { StoreBadges } from "@/components/marketing/store-badges";
 import { getAllSeoPageContent, getPageMeta } from "@/lib/content/get";
 import type {
   SeoDownload,
@@ -288,6 +289,7 @@ function SeoHero({ page }: { page: SeoLandingPageDef }) {
             </Link>
           )}
         </div>
+        <StoreBadges onlyLive appName="Circle the date" className="mt-5 justify-center" />
         {hero.footnote && <p className="mt-4 text-sm text-ink-muted">{hero.footnote}</p>}
       </div>
 

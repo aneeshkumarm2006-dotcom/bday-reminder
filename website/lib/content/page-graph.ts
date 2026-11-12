@@ -10,6 +10,7 @@ import {
   ORG_ID,
   WEBSITE_ID,
   appNode,
+  mobileAppNodes,
   authorNode,
   logoNode,
   organizationNode,
@@ -253,7 +254,7 @@ export function buildPageGraph(input: PageGraphInput): {
 
   if (includeApp) {
     const app = appNode(settings, { featureList });
-    if (app) graph.push(app);
+    if (app) graph.push(app, ...mobileAppNodes(settings));
   }
 
   const inLanguage = settings.structuredData.website.inLanguage || "en-US";

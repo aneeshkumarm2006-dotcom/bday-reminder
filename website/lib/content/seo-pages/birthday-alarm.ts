@@ -197,7 +197,7 @@ export const birthdayAlarmPage: SeoLandingPageSource = {
     body: "One date, one alarm, and it's handled for as long as you keep the account. It's free.",
     ctaLabel: "Start for free",
     ctaHref: "/signup",
-    footnote: "Mobile apps coming soon.",
+    footnote: "",
   },
   /**
    * The default order, plus a plain-language band between the feature cards and

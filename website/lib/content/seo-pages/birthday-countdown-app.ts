@@ -187,7 +187,7 @@ export const birthdayCountdownAppPage: SeoLandingPageSource = {
     body: "Add one birthday and you'll see the count on the next screen. It's free, and it stays that way.",
     ctaLabel: "Start for free",
     ctaHref: "/signup",
-    footnote: "Mobile apps coming soon.",
+    footnote: "",
   },
   /**
    * The default order, with one addition: a plain-language band between the

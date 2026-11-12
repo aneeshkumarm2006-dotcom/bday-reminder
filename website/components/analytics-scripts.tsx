@@ -23,6 +23,7 @@ export function AnalyticsScripts({ analytics }: { analytics: SiteSettings["analy
   const ga4 = safeId(analytics.ga4MeasurementId, /^G-[A-Z0-9]+$/i);
   const gtm = safeId(analytics.gtmContainerId, /^GTM-[A-Z0-9]+$/i);
   const pixel = safeId(analytics.metaPixelId, /^\d{8,20}$/);
+  const clarity = safeId(analytics.clarityProjectId, /^[a-z0-9]{6,20}$/i);
 
   return (
     <>
@@ -68,6 +69,18 @@ export function AnalyticsScripts({ analytics }: { analytics: SiteSettings["analy
             'https://connect.facebook.net/en_US/fbevents.js');
             fbq('init', '${pixel}');
             fbq('track', 'PageView');
+          `}
+        </Script>
+      )}
+
+      {clarity && (
+        <Script id="microsoft-clarity" strategy="afterInteractive">
+          {`
+            (function(c,l,a,r,i,t,y){
+              c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+              t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+              y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+            })(window, document, "clarity", "script", "${clarity}");
           `}
         </Script>
       )}

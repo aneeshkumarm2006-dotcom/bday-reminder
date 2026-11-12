@@ -118,7 +118,7 @@ describe("mergeById", () => {
     if (hero.type !== "hero") throw new Error("expected the hero section");
     expect(hero.heading).toBe("Rewritten");
     // Untouched fields still come from the built-in copy.
-    expect(hero.footnote).toBe("Free on web, iOS, and Android. No ads, no paid tier.");
+    expect(hero.footnote).toBe("Free, no ads, no paid tier.");
   });
 
   it("honours visible:false rather than treating it as unset", () => {

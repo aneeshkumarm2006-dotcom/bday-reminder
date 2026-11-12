@@ -595,6 +595,16 @@ export function SiteSettingsForm({ initial }: { initial: SiteSettings }) {
           helper="Optional. Digits only."
           onChange={(metaPixelId) => patch("analytics", { ...draft.analytics, metaPixelId })}
         />
+        <TextRow
+          label="Microsoft Clarity project ID"
+          value={draft.analytics.clarityProjectId}
+          placeholder="zcll4egsnf"
+          defaultHint={DEFAULT_SETTINGS.analytics.clarityProjectId}
+          helper="Optional. The ID at the end of Clarity's tracking code, not the whole script."
+          onChange={(clarityProjectId) =>
+            patch("analytics", { ...draft.analytics, clarityProjectId })
+          }
+        />
       </AdminSection>
 
       <AdminSection
