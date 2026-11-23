@@ -205,10 +205,12 @@ export const DEFAULT_LANDING_SECTIONS: LandingSection[] = [
     id: "hero",
     type: "hero",
     visible: true,
-    badge: "Free birthday reminder app · iPhone, Android & web",
-    heading: "Remember every birthday. Act before it passes.",
+    badge: "Free on iPhone, Android & web · No ads",
+    heading: "Free birthday reminder app: remember every birthday",
+    // First sentence carries "birthday reminders" and "birthday app" (plan, Day 1);
+    // the second keeps the old headline line as the subheading.
     subheading:
-      "The free way to never miss a birthday, an anniversary, or any date you'd hate to let pass. Get reminded while there's still time to act, then send a greeting in one tap.",
+      "Birthday Reminders is the free birthday app that reminds you before every birthday, anniversary and date you'd hate to miss. Remember every birthday and act before it passes: send a greeting in one tap.",
     primaryCta: { label: "Start free on the web", href: "/signup" },
     secondaryCta: { label: "", href: "/login" },
     footnote: "Free, no ads, no paid tier.",
@@ -662,14 +664,16 @@ export function emptyPageMeta(path: string): PageMeta {
 export const DEFAULT_PAGE_META: Record<string, PageMeta> = {
   "/": {
     ...emptyPageMeta("/"),
-    title: "Birthday App | App For Birthdays | Birthday Reminders",
+    // One phrase, under 60 characters (30-day plan, Day 1). The homepage owns
+    // "birthday reminders" and "birthday app"; /birthday-alarm no longer does.
+    title: "Birthday Reminders: Free Reminder App for iPhone & Android",
     description:
-      "Birthday Reminders is the birthday app that sends reminders before the big day simply one of the best birthday apps and app for birthdays around.",
+      "Birthday Reminders is a free birthday app for iPhone, Android and web. Get birthday reminders before every birthday and send a greeting in one tap.",
     keywords: [
-      "birthday app",
-      "birthday apps",
-      "app for birthdays",
       "birthday reminders",
+      "birthday app",
+      "birthday reminder app",
+      "app for birthday reminder",
     ],
     canonical: "/",
     sitemap: { exclude: false, changeFrequency: "monthly", priority: 1 },

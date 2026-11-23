@@ -439,6 +439,15 @@ function SeoRelatedPages({
             {related.heading}
           </h2>
           <p className="mt-3 text-ink-secondary">{related.sub}</p>
+          {/* Every keyword page links home with the homepage's own keyword as the
+              anchor, so Google ranks the homepage, not this page, for it. */}
+          <p className="mt-2 text-sm text-ink-secondary">
+            All of these are part of one free app:{" "}
+            <Link href="/" className="font-medium text-biro hover:text-biro-hover">
+              birthday reminders
+            </Link>{" "}
+            for iPhone, Android and the web.
+          </p>
         </Reveal>
 
         <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
