@@ -49,7 +49,17 @@ import {
   SiteSettingsModel,
 } from "../lib/content/models";
 
-const APPLY = process.argv.includes("--apply");
+/**
+ * `--auto` is the build-time mode (`npm run build` runs it before `next build`):
+ * it applies the changes, but only once. A marker document in
+ * `content_migrations` records the run, so later builds skip it and never
+ * overwrite an edit someone made in /seoteam afterwards. In this mode nothing
+ * can fail the build: no database, no connection, or an error just logs a
+ * warning and the build goes on.
+ */
+const AUTO = process.argv.includes("--auto");
+const APPLY = AUTO || process.argv.includes("--apply");
+const MARKER_ID = "redesign-2026-11";
 const EDITOR = "Redesign script (Nov 2026)";
 
 /** Minimal .env.local reader, same as scripts/seed-content.ts. */
@@ -205,11 +215,23 @@ async function main(): Promise<void> {
   loadEnvLocal();
   const uri = process.env.MONGODB_URI;
   if (!uri) {
+    if (AUTO) {
+      console.log("[redesign content] MONGODB_URI not set; skipping.");
+      return;
+    }
     console.error("MONGODB_URI is not set. Export it or put it in website/.env.local.");
     process.exit(1);
   }
 
-  await mongoose.connect(uri);
+  await mongoose.connect(uri, { serverSelectionTimeoutMS: 10000 });
+
+  const markers = mongoose.connection.db!.collection<{ _id: string }>("content_migrations");
+  if (AUTO && (await markers.findOne({ _id: MARKER_ID }))) {
+    console.log(`[redesign content] already applied (${MARKER_ID}); skipping.`);
+    await mongoose.disconnect();
+    return;
+  }
+
   console.log(APPLY ? "Applying the redesign content…\n" : "Dry run: nothing is written. Add --apply to save.\n");
 
   const total =
@@ -225,11 +247,22 @@ async function main(): Promise<void> {
         ? " Each changed document has a revision in /seoteam → Revisions. Redeploy (or wait up to an hour) for the homepage cache to refresh."
         : ""),
   );
+  if (APPLY) {
+    await markers.updateOne(
+      { _id: MARKER_ID },
+      { $set: { appliedAt: new Date(), changes: total, mode: AUTO ? "build" : "manual" } },
+      { upsert: true },
+    );
+  }
   await mongoose.disconnect();
 }
 
 main().catch(async (err) => {
-  console.error(err);
   await mongoose.disconnect().catch(() => {});
+  if (AUTO) {
+    console.warn("[redesign content] skipped, the build continues:", err instanceof Error ? err.message : err);
+    process.exit(0);
+  }
+  console.error(err);
   process.exit(1);
 });
