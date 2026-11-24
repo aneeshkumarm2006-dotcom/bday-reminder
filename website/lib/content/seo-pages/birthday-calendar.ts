@@ -17,23 +17,26 @@ export const birthdayCalendarPage: SeoLandingPageSource = {
   slug: "birthday-calendar",
   label: "Digital birthday calendar",
   blurb: "Subscribe in Apple, Google, or Outlook and keep every birthday in sync.",
-  title: "Birthday Calendar App | Birthday Reminders",
+  // 30-day plan, Day 2. "Google Calendar Birthday Reminders" stays out of the
+  // title: that keyword gets its own post on Day 16.
+  title: "Birthday Calendar App: Free Online Birthday Reminder Calendar",
   description:
-    "A digital birthday calendar that syncs with Apple, Google, and Outlook — and sends the reminder before the date, which a calendar square can't do on its own.",
+    "A free online birthday calendar for iPhone, Android and the web. It syncs with Google Calendar and Outlook and reminds you before each birthday.",
   keywords: [
+    "online birthday calendar",
     "birthday calendar app",
+    "birthday reminders calendar",
+    "birthday calendar for iphone",
+    "birthday calendar for android",
     "digital birthday calendar",
-    "electronic birthday calendar",
-    "birthday reminder calendar",
-    "birthday calendar",
   ],
 
   hero: {
-    badge: "Syncs with Apple, Google, and Outlook",
-    heading: "A digital birthday calendar that actually reminds you",
+    badge: "Free on iPhone, Android & web · No ads",
+    heading: "Online birthday calendar app that reminds you",
     subheading:
-      "Most birthday calendars are a grid of dates you have to remember to open. This one lives inside the calendar app you already check, and the reminder comes to you before the date instead of waiting to be noticed.",
-    primaryCta: { label: "Start for free", href: "/signup" },
+      "Birthday Reminders is an online birthday calendar that tells you a birthday is coming before the day arrives. Use it on the web, or on iPhone and Android with our app, Circle the date. It also shows up inside Google Calendar, Apple Calendar or Outlook, so the dates sit next to everything else you check.",
+    primaryCta: { label: "Start free on the web", href: "/signup" },
     footnote: "Free on web, iOS, and Android. No ads, no paid tier.",
     visuals: ["app", "reminder"],
   },
@@ -60,8 +63,8 @@ export const birthdayCalendarPage: SeoLandingPageSource = {
   },
 
   features: {
-    heading: "The calendar, plus the bit calendars leave out",
-    sub: "Subscribe once and the birthdays keep themselves current. Everything sits in one list, and something tells you before each date arrives.",
+    heading: "Sync birthdays with Google Calendar and Outlook",
+    sub: "Subscribe once from Google Calendar, Apple Calendar or Outlook. When you add someone or fix a date, your calendar updates by itself, and you still get a reminder a week before, the night before, or both.",
     rows: [
       {
         id: "row-sync",
@@ -141,13 +144,13 @@ export const birthdayCalendarPage: SeoLandingPageSource = {
   },
 
   howItWorks: {
-    heading: "Set it up once, in about five minutes",
+    heading: "Birthday calendar for iPhone and Android",
     steps: [
       {
         id: "step-add",
         offset: -7,
         title: "Add the birthdays",
-        body: "Type a name and a date, or pull them straight out of your contacts or a spreadsheet. The year is optional.",
+        body: "Get Circle the date on iPhone or Android, or start on the web. Add a name and a date, or import them from your contacts. You don't need the birth year.",
       },
       {
         id: "step-sync",
@@ -203,13 +206,18 @@ export const birthdayCalendarPage: SeoLandingPageSource = {
         q: "Is Birthday Reminders free to use as a digital birthday calendar?",
         a: "Yes. Free on web, iOS, and Android, with no ads and no paid tier waiting for you later.",
       },
+      {
+        id: "faq-iphone-android",
+        q: "Is there a birthday calendar app for iPhone and Android?",
+        a: "Yes. Circle the date is our free app for iPhone and Android, and Birthday Reminders runs in any browser. You sign in to the same account on each, so your birthdays and reminders follow you. On your phone, a home-screen widget shows the next three birthdays.",
+      },
     ],
   },
 
   cta: {
     heading: "Put every birthday in one calendar",
     body: "Setting it up takes about five minutes, and it stays free — no trial, no card, nothing to upgrade to.",
-    ctaLabel: "Start for free",
+    ctaLabel: "Start free on the web",
     ctaHref: "/signup",
     footnote: "",
   },

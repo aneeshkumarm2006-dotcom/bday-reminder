@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "tsx scripts/apply-redesign-content.ts --auto && next build",
+    "build": "tsx scripts/apply-redesign-content.ts --auto && tsx scripts/apply-plan-content.ts --auto && next build",
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
