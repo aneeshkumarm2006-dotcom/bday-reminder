@@ -1,4 +1,51 @@
-import type { SeoLandingPageSource } from "./types";
+import type { PageBlock } from "../types";
+import { DEFAULT_SEO_SECTION_ORDER, type SeoLandingPageSource, type SeoLayoutBlocksItem } from "./types";
+
+/**
+ * 30-day plan, Day 3: an H2 that answers "family birthdays list in order by
+ * month", with a January to December example table and a few tips. It sits
+ * right under the hero. Exported so the build step can put the same group into
+ * a layout saved in /seoteam.
+ */
+export const FAMILY_MONTH_LIST_GROUP_ID = "group-family-month-list";
+export const FAMILY_MONTH_LIST_HEADING = "How to make a family birthdays list in order by month";
+
+export const FAMILY_MONTH_TABLE: Extract<PageBlock, { type: "comparisonTable" }> = {
+  id: "block-family-month-table",
+  type: "comparisonTable",
+  heading: "",
+  columns: ["Month", "Who", "Date", "Turning"],
+  rows: [
+    ["January", "Grandma Rose", "Jan 14", "78"],
+    ["February", "Leo, nephew", "Feb 29", "9 (party on Feb 28)"],
+    ["March", "Mom", "Mar 3", "54"],
+    ["April", "Uncle Dev", "Apr 21", "49"],
+    ["May", "Priya, sister", "May 8", "23"],
+    ["June", "Dad", "Jun 17", "57"],
+    ["July", "Sam and Alex, twins", "Jul 2", "12"],
+    ["August", "Aunt Mei", "Aug 30", "45"],
+    ["September", "Grandpa Joe", "Sep 9", "81"],
+    ["October", "Biscuit, the dog", "Oct 11", "4"],
+    ["November", "Cousin Nora", "Nov 25", "31"],
+    ["December", "Cousin Ben", "Dec 19", "16"],
+  ].map((cells) => ({ id: `row-${cells[0].toLowerCase()}`, cells })),
+};
+
+export const FAMILY_MONTH_TIPS: Extract<PageBlock, { type: "richText" }> = {
+  id: "block-family-month-tips",
+  type: "richText",
+  html: "<p>A few things that help: write down the birth year whenever you know it, so ages fill in on their own. Put a Feb 29 birthday on the day the person actually celebrates. And add the pets and the anniversaries too, because those are the dates people forget first.</p>",
+};
+
+export const FAMILY_MONTH_LIST_GROUP: SeoLayoutBlocksItem = {
+  id: FAMILY_MONTH_LIST_GROUP_ID,
+  kind: "blocks",
+  visible: true,
+  heading: FAMILY_MONTH_LIST_HEADING,
+  sub: "Go month by month, January to December, and put each person under the month of their birthday. If you know the birth year, add the age they're turning. Here's what one family's list looks like.",
+  background: "none",
+  blocks: [FAMILY_MONTH_TABLE, FAMILY_MONTH_TIPS],
+};
 
 /**
  * Targets the "family birthday calendar" cluster, where the search results are
@@ -15,21 +62,26 @@ export const familyBirthdayCalendarPage: SeoLandingPageSource = {
   label: "Family birthday calendar",
   blurb:
     "Invite relatives, everyone adds dates, and each person gets their own reminders.",
-  title: "Family Birthday Calendar | Birthday Reminders",
+  title: "Family Birthday Calendar & List: Shared Birthday Reminders",
   description:
-    "A shared family birthday calendar anyone in the family can add to. Add a date once, and everyone who wants a reminder gets one, their own way.",
+    "A free family birthday calendar everyone can add to. Keep a shared family birthdays list, sorted by month, and get a reminder before each birthday.",
   keywords: [
     "family birthday calendar",
-    "shared family birthday calendar",
-    "family calendar",
-    "printable family birthday calendar",
+    "family birthdays list",
+    "my family birthdays list",
+    "family birthdays list in order by month",
+    "birthday family calendar",
   ],
+  layout: DEFAULT_SEO_SECTION_ORDER.filter((section) => section !== "download").flatMap((section) => {
+    const slot = { id: `slot-${section}`, kind: "section" as const, section, visible: true };
+    return section === "hero" ? [slot, FAMILY_MONTH_LIST_GROUP] : [slot];
+  }),
   hero: {
     badge: "Shared family birthday calendar",
-    heading: "One family birthday calendar, everyone can add to it",
+    heading: "Family birthday calendar and birthdays list",
     subheading:
-      "In most families one person quietly holds all the dates, and everyone else asks them. This is a calendar the whole family can write to — add a date once, and anyone who wants reminding gets reminded.",
-    primaryCta: { label: "Start for free", href: "/signup" },
+      "A family birthday calendar works best when everyone can add to it. Put your whole family birthdays list in one place, and anyone who wants a reminder gets one before each birthday, so keeping track stops being one person's job.",
+    primaryCta: { label: "Start free on the web", href: "/signup" },
     footnote: "Free on web, iOS, and Android. No ads, no paid tier.",
     visuals: ["app"],
   },
@@ -197,12 +249,17 @@ export const familyBirthdayCalendarPage: SeoLandingPageSource = {
         q: "Is Birthday Reminders free to use as a family birthday calendar?",
         a: "Yes. Free on web, iOS, and Android, with no ads, no paid tier, and no charge per family member you invite.",
       },
+      {
+        id: "faq-month-order",
+        q: "How do I make a family birthdays list in order by month?",
+        a: "Write the months January to December, then put each person under the month of their birthday, earliest date first. Add the year if you know it, so you can see the age they're turning. In Birthday Reminders the list sorts itself by the next birthday, and everyone in the family can add to it.",
+      },
     ],
   },
   cta: {
     heading: "Get the whole family onto one calendar",
     body: "Add the dates you know, invite the family, and let everyone else fill in the gaps you were never going to remember.",
-    ctaLabel: "Start for free",
+    ctaLabel: "Start free on the web",
     ctaHref: "/signup",
     footnote: "",
   },

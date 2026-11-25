@@ -27,6 +27,12 @@ import {
   migrateDay2PageContent,
 } from "../lib/content/migrations/plan-day2";
 import {
+  DAY3_PATH,
+  DAY3_SLUG,
+  migrateDay3Meta,
+  migrateDay3PageContent,
+} from "../lib/content/migrations/plan-day3";
+import {
   AuditLogModel,
   ContentRevisionModel,
   PageMetaModel,
@@ -125,6 +131,13 @@ const STEPS: { id: string; label: string; run: () => Promise<number> }[] = [
     run: async () =>
       (await pageMeta(DAY2_PATH, migrateDay2Meta, "30-day plan Day 2: title and description")) +
       (await seoPage(DAY2_SLUG, migrateDay2PageContent, "30-day plan Day 2: H1, first sentence, H2s, FAQ")),
+  },
+  {
+    id: "plan-day3-family-birthday-calendar",
+    label: "Day 3: /family-birthday-calendar",
+    run: async () =>
+      (await pageMeta(DAY3_PATH, migrateDay3Meta, "30-day plan Day 3: title and description")) +
+      (await seoPage(DAY3_SLUG, migrateDay3PageContent, "30-day plan Day 3: month table and FAQ")),
   },
 ];
 
