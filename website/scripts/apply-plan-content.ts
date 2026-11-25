@@ -34,6 +34,7 @@ import {
 } from "../lib/content/migrations/plan-day2";
 import { migrateDay1Tagline } from "../lib/content/migrations/plan-day1-tagline";
 import { DAY3_SLUG, migrateDay3PageContent } from "../lib/content/migrations/plan-day3";
+import { migrateFamilyForPublish, migrateHomeTitle } from "../lib/content/migrations/plan-publish-day1-day3";
 import {
   AuditLogModel,
   ContentRevisionModel,
@@ -176,6 +177,57 @@ async function landingDraft(
   return changes.length;
 }
 
+/**
+ * Publish a keyword page's draft, exactly like the Publish button: the live
+ * copy becomes the draft (after `migrate` checks it against the plan).
+ */
+async function publishSeoPage(slug: string, migrate: Migrate, summary: string) {
+  const doc = await SeoPageContentModel.findOne({ slug }).lean();
+  if (!doc) {
+    console.log(`  · Keyword page /${slug}: nothing saved; the code copy is already live`);
+    return 0;
+  }
+  const raw = doc as unknown as { published?: Plain; draft?: Plain };
+  const base = hasContent(raw.draft) ? raw.draft : (raw.published ?? {});
+  const { next, changes } = migrate(base);
+  if (JSON.stringify(next) !== JSON.stringify(raw.published ?? {})) changes.unshift("Published the draft");
+  report(`Keyword page /${slug} (publish)`, changes);
+  if (APPLY && changes.length > 0) {
+    await record("seo-page", slug, raw.published ?? {}, summary);
+    await SeoPageContentModel.updateOne(
+      { slug },
+      { $set: { draft: next, published: next, publishedAt: new Date() } },
+    );
+  }
+  return changes.length;
+}
+
+/** Publish the homepage's draft the same way. */
+async function publishLanding(
+  migrate: (sections: unknown[]) => { next: unknown[]; changes: string[] },
+  summary: string,
+) {
+  const doc = await LandingContentModel.findOne({ key: SINGLETON }).lean();
+  if (!doc) {
+    console.log("  · Homepage: nothing saved; skipping");
+    return 0;
+  }
+  const raw = doc as unknown as { published?: Plain; draft?: Plain };
+  const sectionsOf = (v?: Plain) => (Array.isArray(v?.sections) ? (v!.sections as unknown[]) : []);
+  const base = sectionsOf(raw.draft).length > 0 ? sectionsOf(raw.draft) : sectionsOf(raw.published);
+  const { next, changes } = migrate(base);
+  if (JSON.stringify(next) !== JSON.stringify(sectionsOf(raw.published))) changes.unshift("Published the draft");
+  report("Homepage (publish)", changes);
+  if (APPLY && changes.length > 0) {
+    await record("landing", SINGLETON, { sections: sectionsOf(raw.published) }, summary);
+    await LandingContentModel.updateOne(
+      { key: SINGLETON },
+      { $set: { draft: { sections: next }, published: { sections: next }, publishedAt: new Date() } },
+    );
+  }
+  return changes.length;
+}
+
 const STEPS: { id: string; label: string; run: () => Promise<number> }[] = [
   {
     id: "plan-day2-birthday-calendar",
@@ -193,6 +245,16 @@ const STEPS: { id: string; label: string; run: () => Promise<number> }[] = [
     id: "plan-day3-family-birthday-calendar",
     label: "Day 3: /family-birthday-calendar (draft)",
     run: () => seoPageDraft(DAY3_SLUG, migrateDay3PageContent, "30-day plan Day 3: month table and FAQ (draft)"),
+  },
+  {
+    // Asked for by the team, who have no admin access: publish what the two
+    // steps above left in draft, and set the homepage title on /seoteam/meta.
+    id: "plan-publish-day1-day3",
+    label: "Publish Day 1 and Day 3 drafts, homepage title",
+    run: async () =>
+      (await publishLanding(migrateDay1Tagline, '30-day plan Day 1: published "Remember, and act."')) +
+      (await pageMeta("/", migrateHomeTitle, "30-day plan Day 1: homepage title")) +
+      (await publishSeoPage(DAY3_SLUG, migrateFamilyForPublish, "30-day plan Day 3: published H1 and first sentence")),
   },
 ];
 
