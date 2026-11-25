@@ -727,6 +727,7 @@ const heroSection = z.object({
   visible: z.boolean().default(true),
   badge: z.string().trim().max(120).default(""),
   heading: z.string().trim().max(200).default(""),
+  tagline: z.string().trim().max(80).default(""),
   subheading: z.string().trim().max(600).default(""),
   primaryCta: cta,
   secondaryCta: cta,

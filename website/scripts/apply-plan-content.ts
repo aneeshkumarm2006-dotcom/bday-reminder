@@ -14,6 +14,12 @@
  * so later builds skip it and never undo an edit made in /seoteam afterwards.
  * Nothing in this mode can fail the build; no database or an error just logs a
  * warning. To add a day, add a step to STEPS with a new id.
+ *
+ * New steps write to the DRAFT only (`seoPageDraft`, `landingDraft`; Days 2
+ * and 3 ran before this and wrote straight to the live page): nothing
+ * changes on the live site until someone checks the
+ * draft in /seoteam and clicks Publish. Titles on /seoteam/meta have no draft,
+ * so those are pasted by hand after review instead of written here.
  */
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -26,16 +32,14 @@ import {
   migrateDay2Meta,
   migrateDay2PageContent,
 } from "../lib/content/migrations/plan-day2";
-import {
-  DAY3_PATH,
-  DAY3_SLUG,
-  migrateDay3Meta,
-  migrateDay3PageContent,
-} from "../lib/content/migrations/plan-day3";
+import { migrateDay1Tagline } from "../lib/content/migrations/plan-day1-tagline";
+import { DAY3_SLUG, migrateDay3PageContent } from "../lib/content/migrations/plan-day3";
 import {
   AuditLogModel,
   ContentRevisionModel,
+  LandingContentModel,
   PageMetaModel,
+  SINGLETON,
   SeoPageContentModel,
 } from "../lib/content/models";
 
@@ -124,6 +128,54 @@ async function seoPage(slug: string, migrate: Migrate, summary: string) {
   return count;
 }
 
+const hasContent = (v: unknown): v is Plain =>
+  typeof v === "object" && v !== null && !Array.isArray(v) && Object.keys(v).length > 0;
+
+/**
+ * A keyword page's DRAFT only. Starts from the saved draft (or, if there is
+ * none, from what's published, which is what the editor would open on), so the
+ * live page is untouched until someone publishes.
+ */
+async function seoPageDraft(slug: string, migrate: Migrate, summary: string) {
+  const doc = await SeoPageContentModel.findOne({ slug }).lean();
+  if (!doc) {
+    console.log(`  · Keyword page /${slug}: nothing saved; skipping`);
+    return 0;
+  }
+  const raw = doc as unknown as { published?: Plain; draft?: Plain };
+  const base = hasContent(raw.draft) ? raw.draft : (raw.published ?? {});
+  const { next, changes } = migrate(base);
+  report(`Keyword page /${slug} (draft)`, changes);
+  if (APPLY && changes.length > 0) {
+    await record("seo-page", slug, base, summary);
+    await SeoPageContentModel.updateOne({ slug }, { $set: { draft: next } });
+  }
+  return changes.length;
+}
+
+/** The homepage's DRAFT only, the same way. */
+async function landingDraft(
+  migrate: (sections: unknown[]) => { next: unknown[]; changes: string[] },
+  summary: string,
+) {
+  const doc = await LandingContentModel.findOne({ key: SINGLETON }).lean();
+  if (!doc) {
+    console.log("  · Homepage: nothing saved; skipping");
+    return 0;
+  }
+  const raw = doc as unknown as { published?: Plain; draft?: Plain };
+  const sectionsOf = (v?: Plain) => (Array.isArray(v?.sections) ? (v!.sections as unknown[]) : []);
+  const fromDraft = sectionsOf(raw.draft).length > 0;
+  const base = fromDraft ? raw.draft! : (raw.published ?? {});
+  const { next, changes } = migrate(sectionsOf(base));
+  report("Homepage (draft)", changes);
+  if (APPLY && changes.length > 0) {
+    await record("landing", SINGLETON, { sections: sectionsOf(base) }, summary);
+    await LandingContentModel.updateOne({ key: SINGLETON }, { $set: { draft: { ...base, sections: next } } });
+  }
+  return changes.length;
+}
+
 const STEPS: { id: string; label: string; run: () => Promise<number> }[] = [
   {
     id: "plan-day2-birthday-calendar",
@@ -133,11 +185,14 @@ const STEPS: { id: string; label: string; run: () => Promise<number> }[] = [
       (await seoPage(DAY2_SLUG, migrateDay2PageContent, "30-day plan Day 2: H1, first sentence, H2s, FAQ")),
   },
   {
+    id: "plan-day1-tagline",
+    label: 'Day 1 fix: "Remember, and act." under the homepage H1 (draft)',
+    run: () => landingDraft(migrateDay1Tagline, '30-day plan Day 1: "Remember, and act." tagline (draft)'),
+  },
+  {
     id: "plan-day3-family-birthday-calendar",
-    label: "Day 3: /family-birthday-calendar",
-    run: async () =>
-      (await pageMeta(DAY3_PATH, migrateDay3Meta, "30-day plan Day 3: title and description")) +
-      (await seoPage(DAY3_SLUG, migrateDay3PageContent, "30-day plan Day 3: month table and FAQ")),
+    label: "Day 3: /family-birthday-calendar (draft)",
+    run: () => seoPageDraft(DAY3_SLUG, migrateDay3PageContent, "30-day plan Day 3: month table and FAQ (draft)"),
   },
 ];
 

@@ -61,6 +61,11 @@ export interface HeroSection extends BaseSection {
   type: "hero";
   badge: string;
   heading: string;
+  /**
+   * A short line right under the H1 (30-day plan, Day 1: "keep the current
+   * line as a subheading", i.e. "Remember, and act."). Blank hides it.
+   */
+  tagline: string;
   subheading: string;
   primaryCta: CtaLink;
   secondaryCta: CtaLink;

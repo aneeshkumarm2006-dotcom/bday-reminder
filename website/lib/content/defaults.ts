@@ -207,6 +207,9 @@ export const DEFAULT_LANDING_SECTIONS: LandingSection[] = [
     visible: true,
     badge: "Free on iPhone, Android & web · No ads",
     heading: "Free birthday reminder app: remember every birthday",
+    // Blank by default: "Remember, and act." comes in through the homepage
+    // draft (scripts/apply-plan-content.ts) and shows once that's published.
+    tagline: "",
     // First sentence carries "birthday reminders" and "birthday app" (plan, Day 1);
     // the second keeps the old headline line as the subheading.
     subheading:
@@ -479,6 +482,7 @@ export const SECTION_TEMPLATES: Record<SectionType, LandingSection> = {
     visible: true,
     badge: "",
     heading: "",
+    tagline: "",
     subheading: "",
     primaryCta: { label: "", href: "/" },
     secondaryCta: { label: "", href: "/" },
@@ -664,9 +668,10 @@ export function emptyPageMeta(path: string): PageMeta {
 export const DEFAULT_PAGE_META: Record<string, PageMeta> = {
   "/": {
     ...emptyPageMeta("/"),
-    // One phrase, under 60 characters (30-day plan, Day 1). The homepage owns
+    // The 30-day plan's Day 1 title, word for word. The homepage owns
     // "birthday reminders" and "birthday app"; /birthday-alarm no longer does.
-    title: "Birthday Reminders: Free Reminder App for iPhone & Android",
+    // The live title is the one saved in /seoteam/meta, which wins over this.
+    title: "Birthday Reminders: Free Birthday Reminder App for iPhone & Android",
     description:
       "Birthday Reminders is a free birthday app for iPhone, Android and web. Get birthday reminders before every birthday and send a greeting in one tap.",
     keywords: [

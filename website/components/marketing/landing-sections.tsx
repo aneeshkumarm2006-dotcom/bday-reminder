@@ -236,6 +236,11 @@ export async function Hero({ content }: { content: HeroSectionContent }) {
             <h1 className="text-balance font-display text-4xl font-semibold leading-[1.05] tracking-[-0.02em] text-ink sm:text-6xl">
               {content.heading}
             </h1>
+            {content.tagline && (
+              <p className="-mt-2 font-display text-2xl font-semibold tracking-[-0.01em] text-biro-pressed sm:text-3xl">
+                {content.tagline}
+              </p>
+            )}
             <p className="max-w-xl text-pretty text-lg leading-relaxed text-ink-secondary">
               {content.subheading}
             </p>

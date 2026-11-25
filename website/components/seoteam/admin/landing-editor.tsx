@@ -560,6 +560,14 @@ function HeroForm({
         max={60}
         onChange={(heading) => patch({ heading })}
       />
+      <TextRow
+        label="Tagline"
+        value={section.tagline}
+        max={40}
+        placeholder="Remember, and act."
+        onChange={(tagline) => patch({ tagline })}
+        helper="A short line right under the heading. Leave blank to hide it."
+      />
       <TextAreaRow
         label="Sub-heading"
         value={section.subheading}
