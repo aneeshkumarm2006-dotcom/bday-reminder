@@ -207,9 +207,10 @@ export const DEFAULT_LANDING_SECTIONS: LandingSection[] = [
     visible: true,
     badge: "Free on iPhone, Android & web · No ads",
     heading: "Free birthday reminder app: remember every birthday",
-    // Blank by default: "Remember, and act." comes in through the homepage
-    // draft (scripts/apply-plan-content.ts) and shows once that's published.
-    tagline: "",
+    // 30-day plan, Day 1: the old H1 kept as the line under the new one. Set
+    // here so it shows whether or not the homepage has a saved copy in
+    // /seoteam (a saved blank tagline falls back to this too).
+    tagline: "Remember, and act.",
     // First sentence carries "birthday reminders" and "birthday app" (plan, Day 1);
     // the second keeps the old headline line as the subheading.
     subheading:

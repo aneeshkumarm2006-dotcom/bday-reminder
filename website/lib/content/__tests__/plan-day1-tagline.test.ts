@@ -36,3 +36,11 @@ describe("Day 1 fixes", () => {
     expect(parsed).toMatchObject({ tagline: HOME_TAGLINE });
   });
 });
+
+describe("Day 1 tagline on the live homepage", () => {
+  it("is in the default hero, so it shows with or without a saved homepage", async () => {
+    const { DEFAULT_LANDING_SECTIONS } = await import("../defaults");
+    const hero = DEFAULT_LANDING_SECTIONS.find((s) => s.type === "hero") as { tagline: string };
+    expect(hero.tagline).toBe(HOME_TAGLINE);
+  });
+});
