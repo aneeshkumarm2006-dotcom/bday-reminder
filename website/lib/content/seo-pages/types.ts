@@ -29,6 +29,11 @@ export interface SeoHero {
   /** Small pill above the ring. Keep it under ~40 characters. */
   badge: string;
   heading: string;
+  /**
+   * Optional short line right under the H1. The 30-day plan uses it to keep
+   * a page's old H1 when the keyword becomes the H1. Blank hides it.
+   */
+  tagline?: string;
   subheading: string;
   primaryCta: CtaLink;
   /** The second button. Blank label hides it. */

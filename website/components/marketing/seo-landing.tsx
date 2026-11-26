@@ -254,6 +254,11 @@ function SeoHero({ page }: { page: SeoLandingPageDef }) {
         <h1 className="mt-8 max-w-3xl text-balance font-display text-4xl font-semibold leading-[1.1] tracking-[-0.02em] text-ink sm:text-5xl">
           {hero.heading}
         </h1>
+        {hero.tagline && (
+          <p className="mt-3 max-w-3xl text-balance font-display text-xl font-semibold tracking-[-0.01em] text-biro-pressed sm:text-2xl">
+            {hero.tagline}
+          </p>
+        )}
         <p className="mt-5 max-w-2xl text-balance text-lg leading-relaxed text-ink-secondary">
           {hero.subheading}
         </p>

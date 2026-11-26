@@ -32,6 +32,12 @@ import {
   migrateDay2Meta,
   migrateDay2PageContent,
 } from "../lib/content/migrations/plan-day2";
+import {
+  DAY4_PATH,
+  DAY4_SLUG,
+  migrateDay4Meta,
+  migrateDay4PageContent,
+} from "../lib/content/migrations/plan-day4";
 import { migrateDay1Tagline } from "../lib/content/migrations/plan-day1-tagline";
 import { DAY3_SLUG, migrateDay3PageContent } from "../lib/content/migrations/plan-day3";
 import { migrateFamilyForPublish, migrateHomeTitle } from "../lib/content/migrations/plan-publish-day1-day3";
@@ -255,6 +261,14 @@ const STEPS: { id: string; label: string; run: () => Promise<number> }[] = [
       (await publishLanding(migrateDay1Tagline, '30-day plan Day 1: published "Remember, and act."')) +
       (await pageMeta("/", migrateHomeTitle, "30-day plan Day 1: homepage title")) +
       (await publishSeoPage(DAY3_SLUG, migrateFamilyForPublish, "30-day plan Day 3: published H1 and first sentence")),
+  },
+  {
+    // No admin access, so this one goes straight to the live page.
+    id: "plan-day4-birthday-countdown-app",
+    label: "Day 4: /birthday-countdown-app",
+    run: async () =>
+      (await pageMeta(DAY4_PATH, migrateDay4Meta, "30-day plan Day 4: title and description")) +
+      (await seoPage(DAY4_SLUG, migrateDay4PageContent, "30-day plan Day 4: H1, first sentence, FAQ, widget H2")),
   },
 ];
 

@@ -965,6 +965,7 @@ export const seoPageContentSchema = z.object({
     .object({
       badge: z.string().trim().max(120).default(""),
       heading: z.string().trim().max(200).default(""),
+      tagline: z.string().trim().max(120).optional(),
       subheading: z.string().trim().max(600).default(""),
       primaryCta: cta,
       secondaryCta: cta,

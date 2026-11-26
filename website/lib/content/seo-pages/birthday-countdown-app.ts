@@ -1,6 +1,33 @@
 import type { SeoLandingPageSource } from "./types";
 
 /**
+ * 30-day plan, Day 4: the FAQ said the countdown shows days, hours, minutes and
+ * seconds, but the app, the widget and this page all count whole days. This is
+ * the answer that matches.
+ */
+export const BIRTHDAY_COUNTDOWN_ACCURACY_ANSWER =
+  "It counts whole days, worked out from the date you saved, and the number moves down by one each day on its own. You see \u201cToday,\u201d \u201cin 1 day\u201d or \u201cin 12 days,\u201d not hours, minutes and seconds, because the day count is what you need to plan a gift or a message.";
+
+/** 30-day plan, Day 4: the "Birthday countdown widget" H2 and its copy. */
+export const COUNTDOWN_WIDGET_HEADING = "Birthday countdown widget";
+
+export const COUNTDOWN_WIDGET_GROUP = {
+  id: "group-countdown-widget",
+  kind: "blocks" as const,
+  visible: true,
+  heading: COUNTDOWN_WIDGET_HEADING,
+  sub: "",
+  background: "none" as const,
+  blocks: [
+    {
+      id: "block-countdown-widget",
+      type: "richText" as const,
+      html: "<p>Put the countdown on your home screen. The Circle the date widget shows the next three birthdays and how many days are left until each one, so you see \u201cin 5 days\u201d while you're unlocking your phone for something else.</p><p>It works on iPhone and Android and counts down by itself as the days pass, without you opening the app. Tap a name to open that person, check the date, or change when you get reminded.</p>",
+    },
+  ],
+};
+
+/**
  * Targets the "birthday countdown app" cluster — people searching for a number
  * of days, not for a reminder system. The wedge is that a countdown on its own
  * is inert: it can show you the days left but it can't reach you when they run
@@ -14,15 +41,24 @@ export const birthdayCountdownAppPage: SeoLandingPageSource = {
   slug: "birthday-countdown-app",
   label: "Birthday countdown app",
   blurb: "See the days left to every birthday, then act before the countdown reaches zero.",
-  title: "Birthday Countdown App | Birthday Reminders",
+  title: "Birthday Countdown App: Free Countdown + Widget (iPhone & Android)",
   description:
-    "A birthday countdown app that shows the days left for everyone you track, then reminds you before the count runs out. Free on web, iOS, and Android.",
-  keywords: ["birthday countdown app", "birthday countdown", "countdown app"],
+    "A free birthday countdown app for iPhone, Android and the web. See how many days are left until every birthday, add the home screen widget, and get reminded.",
+  keywords: [
+    "birthday countdown app",
+    "app for birthday countdown",
+    "how many days until my birthday app",
+    "birthday countdown widget",
+    "birthday countdown widgets",
+    "birthday countdown",
+  ],
   hero: {
     badge: "Live countdowns for every birthday",
-    heading: "A birthday countdown app that does something when it hits zero",
+    heading: "Birthday countdown app",
+    // 30-day plan, Day 4: the old H1 stays, as the line under the new one.
+    tagline: "A birthday countdown app that does something when it hits zero",
     subheading:
-      "Counting the days is the easy half. Birthday Reminders keeps a running count for everyone you track, then tells you while there's still time to order something, book something, or just write the message.",
+      "Birthday Reminders is a free birthday countdown app that shows how many days are left until every birthday you save. Use it on the web, or on iPhone and Android with our app, Circle the date. Then it tells you while there's still time to order something, book something, or just write the message.",
     primaryCta: { label: "Start counting down for free", href: "/signup" },
     footnote: "Free on web, iOS, and Android. No ads, no paid tier.",
     visuals: ["app", "reminder"],
@@ -180,6 +216,11 @@ export const birthdayCountdownAppPage: SeoLandingPageSource = {
         q: "Is Birthday Reminders free to use as a birthday countdown app?",
         a: "Yes. Free on web, iOS, and Android, with no ads and no paid tier waiting for you later.",
       },
+      {
+        id: "faq-accuracy",
+        q: "How accurate is a birthday countdown app?",
+        a: BIRTHDAY_COUNTDOWN_ACCURACY_ANSWER,
+      },
     ],
   },
   cta: {
@@ -202,6 +243,7 @@ export const birthdayCountdownAppPage: SeoLandingPageSource = {
     { id: "slot-contrast", kind: "section", section: "contrast", visible: true },
     { id: "slot-photo", kind: "section", section: "photo", visible: true },
     { id: "slot-features", kind: "section", section: "features", visible: true },
+    COUNTDOWN_WIDGET_GROUP,
     {
       id: "group-countdown-overview",
       kind: "blocks",

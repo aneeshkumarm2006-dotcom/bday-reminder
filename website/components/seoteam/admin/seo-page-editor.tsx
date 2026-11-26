@@ -692,6 +692,13 @@ function HeroForm({
         onChange={(heading) => patch({ ...hero, heading })}
         helper="The page's only H1 — lead with the keyword it targets."
       />
+      <TextRow
+        label="Tagline"
+        value={hero.tagline ?? ""}
+        max={80}
+        onChange={(tagline) => patch({ ...hero, tagline })}
+        helper="A short line right under the heading. Leave blank to hide it."
+      />
       <TextAreaRow
         label="Sub-heading"
         value={hero.subheading}
