@@ -13,11 +13,12 @@ export const birthdayTrackerPage: SeoLandingPageSource = {
   slug: "birthday-tracker",
   label: "Birthday tracker app",
   blurb: "Import birthdays from your contacts and keep everyone in one sorted list.",
-  title: "Birthday Tracker App | Birthday Reminders",
+  title: "Birthday Tracker App: Free Online Birthday Tracker",
   description:
-    "A birthday tracker that pulls the dates already sitting in your contacts, keeps them in one sorted list, and reminds you before each one comes round.",
+    "A free online birthday tracker app. Import the birthdays already in your contacts, keep everyone in one sorted list, and get a reminder before each one.",
   keywords: [
     "birthday tracker app",
+    "online birthday tracker",
     "birthday list app",
     "birthday finder app",
     "birthday tracker",
@@ -25,9 +26,11 @@ export const birthdayTrackerPage: SeoLandingPageSource = {
   ],
   hero: {
     badge: "Birthday tracker, list, and finder",
-    heading: "A birthday tracker you don't have to fill in by hand",
+    heading: "Birthday tracker app",
+    // The old H1, kept as the line under the new one.
+    tagline: "A birthday tracker you don't have to fill in by hand",
     subheading:
-      "Half the birthdays you want are already saved in your phone's contacts. Import them, add the ones that aren't, and you have one list that sorts itself and speaks up before each date.",
+      "Birthday Reminders is a free birthday tracker app that starts with the birthdays already saved in your phone's contacts. Import them, add the ones that aren't there, and you have one list that sorts itself and speaks up before each date. Use it on the web, or on iPhone and Android with our app, Circle the date.",
     primaryCta: { label: "Start for free", href: "/signup" },
     footnote: "Free on web, iOS, and Android. No ads, no paid tier.",
     visuals: ["app", "reminder"],
@@ -196,6 +199,11 @@ export const birthdayTrackerPage: SeoLandingPageSource = {
         id: "faq-7",
         q: "Is Birthday Reminders free to use as a birthday tracker?",
         a: "Yes. Free on web, iOS, and Android, with no ads and no paid tier waiting for you later.",
+      },
+      {
+        id: "faq-remind",
+        q: "Does a birthday tracker app remind me before the day?",
+        a: "Yes, and that's the main reason to use one over a list in your notes. You pick how far ahead you hear about each birthday, a week out or the morning of, and where the reminder lands.",
       },
     ],
   },

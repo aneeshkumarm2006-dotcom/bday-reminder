@@ -38,6 +38,7 @@ import {
   migrateDay4Meta,
   migrateDay4PageContent,
 } from "../lib/content/migrations/plan-day4";
+import { DAY5_ALARM, DAY5_TRACKER } from "../lib/content/migrations/plan-day5";
 import { migrateDay1Tagline } from "../lib/content/migrations/plan-day1-tagline";
 import { DAY3_SLUG, migrateDay3PageContent } from "../lib/content/migrations/plan-day3";
 import { migrateFamilyForPublish, migrateHomeTitle } from "../lib/content/migrations/plan-publish-day1-day3";
@@ -269,6 +270,18 @@ const STEPS: { id: string; label: string; run: () => Promise<number> }[] = [
     run: async () =>
       (await pageMeta(DAY4_PATH, migrateDay4Meta, "30-day plan Day 4: title and description")) +
       (await seoPage(DAY4_SLUG, migrateDay4PageContent, "30-day plan Day 4: H1, first sentence, FAQ, widget H2")),
+  },
+  {
+    id: "plan-day5-alarm-tracker",
+    label: "Day 5: /birthday-alarm and /birthday-tracker",
+    run: async () => {
+      let total = 0;
+      for (const day of [DAY5_ALARM, DAY5_TRACKER]) {
+        total += await pageMeta(day.path, day.migrateMeta, `30-day plan Day 5: ${day.path} title and description`);
+        total += await seoPage(day.slug, day.migrateContent, `30-day plan Day 5: ${day.path} H1 and first sentence`);
+      }
+      return total;
+    },
   },
 ];
 

@@ -14,20 +14,25 @@ export const birthdayAlarmPage: SeoLandingPageSource = {
   slug: "birthday-alarm",
   label: "Birthday alarm app",
   blurb: "Set the alarm once and it fires again every year, on the channel you pick.",
-  title: "Birthday Alarm App & Scheduler | Birthday Reminders",
+  // 30-day plan, Day 5: no "birthday reminders" in the title or H1, so Google
+  // stops showing this page for the homepage's keyword.
+  title: "Birthday Alarm App: Free Birthday Alarm Reminders",
   description:
-    "Set a birthday alarm once and it goes off every year on its own — no resetting each January, and on the channel and lead time you choose.",
+    "A free birthday alarm app for iPhone, Android and the web. Set a birthday alarm once and it goes off every year, on the channel and at the hour you pick.",
   keywords: [
     "birthday alarm app",
-    "birthday scheduler",
+    "birthday alarm reminders",
     "birthday alarm",
+    "birthday scheduler",
     "birthday schedule",
   ],
   hero: {
     badge: "Birthday alarms that repeat every year",
-    heading: "A birthday alarm you only have to set once",
+    heading: "Birthday alarm app",
+    // The old H1, kept as the line under the new one.
+    tagline: "A birthday alarm you only have to set once",
     subheading:
-      "You already know how to set an alarm. The problem is setting thirty of them, again, every January. Schedule a birthday here and it fires on its own next year and the year after, on the channel you picked and at the hour you picked.",
+      "This free birthday alarm app lets you set an alarm for each birthday once, and it goes off again every year on its own. No resetting thirty alarms every January. It fires on the channel you picked, at the hour you picked, on the web or on iPhone and Android with our app, Circle the date.",
     primaryCta: { label: "Start for free", href: "/signup" },
     footnote: "Free on web, iOS, and Android. No ads, no paid tier.",
     visuals: ["app", "reminder"],
